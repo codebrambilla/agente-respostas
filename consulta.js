@@ -78,15 +78,25 @@ function barras(alvo, itens) {
   }));
 }
 
+// O selo fala da CLASSIFICACAO daquele caso antigo (tipo e grupos), nao da
+// pesquisa: "validada" nao quer dizer "e isto que voce procura".
+const SELOS = {
+  time: ["selo time", "classificação definida pelo time",
+         "O time respondeu à Bella qual era o tipo e os grupos certos para este material."],
+  ok: ["selo ok", "classificação validada",
+       "Caso do histórico do Webformat: o time conferiu e confirmou o tipo e os grupos usados nele."],
+  nao: ["selo nao", "classificação não validada",
+        "Caso do histórico do Webformat, como foi aprovado na época. O time ainda não conferiu se o tipo e os grupos estavam certos."],
+};
+
 function selo(x) {
-  if (x.origem === "time") return el("span", { className: "selo time", textContent: "resposta do time" });
-  return x.validado ? el("span", { className: "selo ok", textContent: "validado" })
-                    : el("span", { className: "selo nao", textContent: "não validado" });
+  const [classe, texto, explica] = SELOS[x.origem === "time" ? "time" : x.validado ? "ok" : "nao"];
+  return el("span", { className: classe, textContent: texto, title: explica });
 }
 
 function parecido(pct) {
   const nivel = pct >= 85 ? "" : pct >= 60 ? " medio" : " baixo";
-  return el("span", { className: "parecido" + nivel, title: "Quanto a descrição se parece com o que você pesquisou",
+  return el("span", { className: "parecido" + nivel, title: "Quanto a descrição deste caso se parece com o que você digitou. Não diz se o grupo está certo.",
                       textContent: `${pct}% parecido` });
 }
 

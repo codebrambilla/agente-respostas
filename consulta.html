@@ -65,12 +65,12 @@
     <span class="filtros-titulo">Filtrar</span>
     <label>Tipo de material
       <select id="f-tipo"><option value="">Todos</option></select></label>
-    <label>Origem
+    <label>Classificação
       <select id="f-origem">
         <option value="">Todas</option>
-        <option value="time">Resposta do time</option>
-        <option value="validado">Histórico validado</option>
-        <option value="nao_validado">Histórico não validado</option>
+        <option value="time">Definida pelo time</option>
+        <option value="validado">Validada (histórico conferido)</option>
+        <option value="nao_validado">Não validada (histórico não conferido)</option>
       </select></label>
     <label>Grupo de compradores
       <select id="f-gc"><option value="">Todos</option></select></label>
@@ -101,8 +101,23 @@
     </div>
   </section>
 
-  <p class="aviso">O histórico do Webformat ainda está sendo validado pelo time: o que aparece como
-    <span class="selo nao">não validado</span> serve de referência, não de regra.</p>
+  <details class="legenda" id="legenda" open>
+    <summary>Como ler o resultado</summary>
+    <dl>
+      <dt><span class="parecido">93% parecido</span></dt>
+      <dd>O quanto a descrição do caso se parece com o que você digitou. Diz só que o <b>material</b> é parecido,
+        não que o grupo dele está certo.</dd>
+      <dt><span class="selo time">classificação definida pelo time</span></dt>
+      <dd>O time de Master Data respondeu à Bella qual era o tipo e os grupos certos para esse material.
+        É a referência mais confiável.</dd>
+      <dt><span class="selo ok">classificação validada</span></dt>
+      <dd>Caso antigo do Webformat em que o time <b>conferiu</b> e confirmou o tipo de material e os grupos usados.</dd>
+      <dt><span class="selo nao">classificação não validada</span></dt>
+      <dd>Caso antigo do Webformat, do jeito que foi aprovado na época. <b>Ninguém conferiu ainda</b> se o tipo e os
+        grupos estavam certos: nem tudo no Webformat está correto. Use como pista, não como regra.</dd>
+    </dl>
+    <p>O selo é sempre sobre a classificação <b>daquele caso antigo</b>, nunca sobre a sua pesquisa.</p>
+  </details>
 </main>
 
 <footer>
