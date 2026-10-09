@@ -1,0 +1,8 @@
+:root { --fundo:#f2f5f7; --papel:#fff; --tinta:#14243a; --tinta-2:#4a5b70; --linha:#d3dbe3; --acento:#0b6e8c; }
+@media (prefers-color-scheme: dark) { :root { --fundo:#0f1a26; --papel:#162434; --tinta:#e7edf3; --tinta-2:#a9b6c4; --linha:#2c3d50; --acento:#4fb5d3; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--fundo); color:var(--tinta); font:16px/1.6 "Segoe UI", system-ui, sans-serif; padding:24px 16px 48px; }
+main { max-width:720px; margin:0 auto; background:var(--papel); border:1px solid var(--linha); border-radius:10px; padding:28px; }
+h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:17px; margin:24px 0 6px; }
+.sub { color:var(--tinta-2); margin:0 0 16px; } a { color:var(--acento); } li { margin:4px 0; }
+footer { max-width:720px; margin:16px auto 0; color:var(--tinta-2); font-size:13px; text-align:center; }
