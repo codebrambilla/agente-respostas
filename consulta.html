@@ -3,207 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Consulta da Bella</title>
 <!--
-  Agente de consulta do Master Data, versao 1 (sem IA): digite o material e
-  veja o grupo de mercadorias e de compradores que o time ja usou em casos
-  parecidos. Tambem responde sobre uma solicitacao ("situação da solicitação
-  3951", "grupo de mercadorias da 3951"): a pergunta vai para o leitor do
-  Webformat (o mesmo da Bella no Teams) e a pagina espera a resposta.
-  Pagina estatica e sem segredo; os dados vem da funcao `consultar` do
-  Supabase, que so responde com o codigo de acesso do time (guardado so
-  neste navegador).
+  Consulta da Bella: grupos de mercadorias e de compradores que o Master Data
+  ja usou em casos parecidos, por codigo de grupo ou por tipo de material, e
+  perguntas sobre uma solicitacao do Webformat ("situação da solicitação 3951").
+
+  Pagina estatica e sem segredo: os dados vem da funcao `consultar`, que so
+  responde com o codigo de acesso do time (guardado so neste navegador).
+  A politica abaixo so deixa a pagina rodar o proprio script e falar com a
+  funcao de consulta: nenhum script, estilo ou envio para outro endereco.
 -->
-<style>
-  :root {
-    --fundo: #f2f5f7; --papel: #ffffff; --tinta: #14243a; --tinta-2: #4a5b70;
-    --linha: #d3dbe3; --acento: #0b6e8c; --acento-tinta: #ffffff; --acento-claro: #e1f0f5;
-    --ok: #1e7a4c; --ok-claro: #ddf1e5; --aviso: #8a5a00; --aviso-claro: #fbefd9; --erro: #a63a2e;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --fundo: #0f1a26; --papel: #162434; --tinta: #e7edf3; --tinta-2: #a9b6c4;
-            --linha: #2c3d50; --acento: #4fb5d3; --acento-tinta: #0b1b26; --acento-claro: #1b3a4b;
-            --ok: #5cc489; --ok-claro: #17382a; --aviso: #e9b75c; --aviso-claro: #3a2e14; --erro: #e4705f; }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--fundo); color: var(--tinta);
-         font: 16px/1.5 "Segoe UI", system-ui, sans-serif; padding: 24px 16px 48px; }
-  main { max-width: 860px; margin: 0 auto; }
-  .cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 15px; margin: 0 0 10px; }
-  .sub { color: var(--tinta-2); font-size: 14px; margin: 0; }
-  form { display: flex; gap: 8px; margin-top: 16px; }
-  input { flex: 1; min-width: 0; font: inherit; color: inherit; background: var(--papel);
-          border: 1px solid var(--linha); border-radius: 6px; padding: 10px 12px; }
-  button { font: inherit; font-weight: 600; border: 0; border-radius: 6px; padding: 10px 18px;
-           background: var(--acento); color: var(--acento-tinta); cursor: pointer; }
-  .link { background: none; color: var(--acento); padding: 0; font-weight: 400; text-decoration: underline; font-size: 13px; }
-  .resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .resumo { grid-template-columns: 1fr; } form { flex-direction: column; } }
-  .barra { margin: 6px 0; font-size: 14px; }
-  .barra .trilho { height: 6px; border-radius: 3px; background: var(--fundo); margin-top: 3px; overflow: hidden; }
-  .barra .cheio { height: 100%; background: var(--acento); }
-  .exemplo { border-top: 1px solid var(--linha); padding: 12px 0; }
-  .exemplo:first-of-type { border-top: 0; }
-  .desc { font-weight: 600; }
-  .meta { font-size: 14px; color: var(--tinta-2); }
-  .meta b { color: var(--tinta); font-weight: 600; }
-  .obs { font-size: 13px; margin-top: 4px; }
-  .selo { display: inline-block; font-size: 12px; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
-  .selo.time { background: var(--acento-claro); color: var(--acento); }
-  .selo.ok { background: var(--ok-claro); color: var(--ok); }
-  .selo.nao { background: var(--aviso-claro); color: var(--aviso); }
-  .status { font-weight: 600; margin: 8px 0 0; }
-  .status.erro { color: var(--erro); }
-  .reprovadas { font-size: 14px; color: var(--tinta-2); margin: 10px 0 0; }
-  #resposta p { margin: 0 0 8px; }
-  #resposta p:first-child { font-size: 17px; }
-  [hidden] { display: none !important; }
-</style>
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://zweuntyaeelxnktllxqc.supabase.co; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Consulta da Bella</title>
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="stylesheet" href="consulta.css">
 </head>
 <body>
-<main>
-  <section class="cartao">
-    <h1>Consulta da Bella</h1>
-    <p class="sub">Digite um material para ver o grupo de mercadorias e de compradores que o Master Data já usou em casos parecidos, um código de grupo (ex.: 024, S24) ou um tipo de material (ex.: DIEN, NLAG). Também respondo sobre uma solicitação: <i>situação da solicitação 3951</i>, <i>grupo de mercadorias da 3951</i>.</p>
-    <form id="form-codigo" hidden>
-      <input id="codigo" type="password" placeholder="Código de acesso do time" autocomplete="off">
-      <button type="submit">Entrar</button>
-    </form>
-    <form id="form-busca" hidden>
-      <input id="q" type="search" placeholder="Ex.: válvula gaveta · 024 · situação da solicitação 3951" autocomplete="off">
-      <button type="submit">Consultar</button>
-    </form>
-    <p class="status" id="status" role="status"></p>
-    <button type="button" class="link" id="sair" hidden>Trocar o código de acesso</button>
-  </section>
+<header class="topo">
+  <svg class="forma forma-bolha" viewBox="0 0 200 200" aria-hidden="true">
+    <path d="M47.5,-60.3C61.2,-51.7,72,-37.2,76.3,-20.9C80.6,-4.6,78.5,13.5,70.8,28.6C63.1,43.7,49.9,55.8,34.6,63.6C19.3,71.4,1.9,74.9,-15.6,72.4C-33.1,69.9,-50.7,61.4,-62.4,47.6C-74.1,33.8,-79.9,14.7,-78.1,-3.6C-76.3,-21.9,-66.9,-39.4,-53.2,-48.2C-39.5,-57,-21.5,-57.1,-3.6,-52.8C14.3,-48.5,33.8,-68.9,47.5,-60.3Z" transform="translate(100 100)"/>
+  </svg>
+  <svg class="forma forma-ondas" viewBox="0 0 200 200" aria-hidden="true">
+    <path d="M20 150 C70 100 130 90 190 60"/><path d="M10 175 C70 125 140 115 195 90"/>
+    <path d="M15 198 C80 150 150 140 198 118"/>
+  </svg>
+  <div class="topo-conteudo">
+    <img class="bella" src="img/bella.png" alt="Bella, a agente de IA do Master Data" width="180" height="195">
+    <div class="topo-texto">
+      <p class="sobretitulo">Master Data · Sabesp</p>
+      <h1>Consulta da Bella</h1>
+      <p class="sub">Pesquise um material, um código de grupo (024, S24) ou um tipo de material (DIEN, NLAG).
+        Ou pergunte sobre uma solicitação: <em>situação da solicitação 3951</em>.</p>
 
-  <section class="cartao" id="solicitacao" hidden>
+      <form id="form-codigo" class="busca" autocomplete="off" hidden>
+        <label class="oculto" for="codigo">Código de acesso do time</label>
+        <input id="codigo" type="password" placeholder="Código de acesso do time" maxlength="200" required>
+        <button type="submit">Entrar</button>
+      </form>
+
+      <form id="form-busca" class="busca" role="search" autocomplete="off" hidden>
+        <label class="oculto" for="q">O que você quer consultar?</label>
+        <input id="q" type="search" maxlength="120" placeholder="Ex.: válvula gaveta · 024 · DIEN · situação da solicitação 3951" required>
+        <button type="submit" id="botao">Consultar</button>
+      </form>
+      <div class="atalhos" id="atalhos" hidden>
+        <span>Experimente:</span>
+        <button type="button" data-q="válvula gaveta">válvula gaveta</button>
+        <button type="button" data-q="024">024</button>
+        <button type="button" data-q="DIEN">DIEN</button>
+        <button type="button" data-q="situação da solicitação 3951">situação da 3951</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="cartao destaque" id="solicitacao" hidden>
     <div id="resposta"></div>
   </section>
 
   <section id="resultado" hidden>
     <div class="resumo">
-      <div class="cartao"><h2>Grupo de mercadorias</h2><div id="gms"></div><p class="reprovadas" id="reprovadas" hidden></p></div>
-      <div class="cartao"><h2>Grupo de compradores</h2><div id="gcs"></div></div>
+      <div class="cartao">
+        <h2>Grupo de mercadorias</h2>
+        <div id="gms"></div>
+        <p class="nota" id="reprovadas" hidden></p>
+      </div>
+      <div class="cartao">
+        <h2>Grupo de compradores</h2>
+        <div id="gcs"></div>
+      </div>
     </div>
     <div class="cartao">
       <h2 id="titulo-exemplos">Casos parecidos</h2>
       <div id="exemplos"></div>
     </div>
   </section>
+
+  <p class="aviso">O histórico do Webformat ainda está sendo validado pelo time: o que aparece como
+    <span class="selo nao">não validado</span> serve de referência, não de regra.</p>
 </main>
-<script>
-  const API = new URLSearchParams(location.search).get("api")
-    || "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/consultar";
-  const $ = (s) => document.getElementById(s);
-  const status = (t, tipo) => { $("status").textContent = t; $("status").className = "status " + (tipo || ""); };
-  const el = (tag, props, ...filhos) => { const e = Object.assign(document.createElement(tag), props || {}); e.append(...filhos); return e; };
-  let codigo = "";
-  try { codigo = localStorage.getItem("consulta-codigo") || ""; } catch (e) {}
 
-  function telas() {
-    $("form-codigo").hidden = !!codigo; $("form-busca").hidden = !codigo; $("sair").hidden = !codigo;
-    (codigo ? $("q") : $("codigo")).focus();
-  }
-
-  function barras(alvo, itens) {
-    if (!itens.length) { alvo.replaceChildren(el("p", { className: "sub", textContent: "—" })); return; }
-    const max = itens[0].vezes;
-    alvo.replaceChildren(...itens.map((g) => {
-      const cheio = el("div", { className: "cheio" }); cheio.style.width = `${(100 * g.vezes) / max}%`;
-      return el("div", { className: "barra" },
-        el("div", {}, el("b", { textContent: g.nome ? `${g.codigo} - ${g.nome}` : g.codigo }), ` · ${g.vezes}×`),
-        el("div", { className: "trilho" }, cheio));
-    }));
-  }
-
-  function selo(x) {
-    if (x.origem === "time") return el("span", { className: "selo time", textContent: "resposta do time" });
-    return x.validado ? el("span", { className: "selo ok", textContent: "validado" })
-                      : el("span", { className: "selo nao", textContent: "não validado" });
-  }
-
-  function mostrar(d) {
-    barras($("gms"), d.grupos_mercadorias); barras($("gcs"), d.grupos_compradores);
-    $("titulo-exemplos").textContent = d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
-      : d.por_grupo ? `Últimos casos do grupo (${d.exemplos.length})` : `Casos parecidos (${d.encontrados})`;
-    $("reprovadas").hidden = !d.reprovados;
-    $("reprovadas").textContent = d.reprovados ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
-    $("exemplos").replaceChildren(...(d.exemplos.length ? d.exemplos.map((x) => el("div", { className: "exemplo" },
-      el("div", { className: "desc" }, x.descricao, selo(x)),
-      el("div", { className: "meta" },
-        x.tipo ? el("span", {}, "Tipo ", el("b", { textContent: x.tipo }), " · ") : "",
-        "GM ", el("b", { textContent: x.gm ? (x.gm_nome ? `${x.gm} - ${x.gm_nome}` : `${x.gm} (SAP antigo)`) : "—" }),
-        " · GC ", el("b", { textContent: x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—" }),
-        x.codigo_definitivo ? el("span", {}, " · Código ", el("b", { textContent: x.codigo_definitivo }),
-          /^\d{10}$/.test(x.codigo_definitivo) ? "" : " (SAP antigo)") : "",
-        x.numero ? ` · solicitação ${x.numero}` : "", ` · ${x.semelhanca}% parecido`),
-      x.observacao ? el("div", { className: "obs", textContent: x.observacao }) : ""))
-      : [el("p", { className: "sub", textContent: "Nenhum caso parecido. Tente outra palavra ou a abreviação usada no Webformat." })]));
-    $("resultado").hidden = false;
-  }
-
-  async function pedir(params) {
-    const r = await fetch(`${API}?${new URLSearchParams(params)}`, { headers: { "x-codigo": codigo } });
-    const d = await r.json();
-    if (r.status === 401) { sair(); throw new Error("código de acesso inválido"); }
-    if (!r.ok) throw new Error(d.erro || r.status);
-    return d;
-  }
-
-  // Resposta do leitor: paragrafos separados por linha em branco e **negrito**.
-  function texto(md) {
-    return md.split(/\n\s*\n/).map((par) => el("p", {}, ...par.split(/\*\*(.+?)\*\*/).map((pedaco, i) =>
-      i % 2 ? el("b", { textContent: pedaco }) : document.createTextNode(pedaco))));
-  }
-
-  let espera = 0;
-  async function acompanhar(d) {
-    const minha = ++espera;  // uma consulta nova cancela a espera desta
-    status(d.leitor_vivo ? `Olhando a solicitação ${d.numero} no Webformat…`
-                         : `O leitor do Webformat está desligado agora. A pergunta sobre a ${d.numero} fica na fila; deixe esta página aberta.`);
-    const fim = Date.now() + (d.leitor_vivo ? 3 : 30) * 60 * 1000;
-    while (Date.now() < fim && minha === espera) {
-      await new Promise((ok) => setTimeout(ok, 1000));
-      if (minha !== espera) return;
-      const p = await pedir({ pedido: d.pedido });
-      if (p.status === "respondido" || p.status === "erro") {
-        status("");
-        $("resposta").replaceChildren(...texto(p.resposta || `Não consegui ler a solicitação ${d.numero} agora.`));
-        $("solicitacao").hidden = false;
-        return;
-      }
-    }
-    if (minha === espera) status("O Webformat não respondeu a tempo. Tente de novo daqui a pouco.", "erro");
-  }
-
-  async function consultar(q) {
-    status("Consultando…"); espera++;
-    $("resultado").hidden = true; $("solicitacao").hidden = true;
-    try {
-      const d = await pedir({ q });
-      if (d.pedido) await acompanhar(d);
-      else { status(""); mostrar(d); }
-    } catch (e) { status("Não consegui consultar: " + (e.message || e), "erro"); }
-  }
-
-  function sair() {
-    codigo = ""; try { localStorage.removeItem("consulta-codigo"); } catch (e) {}
-    $("resultado").hidden = true; $("solicitacao").hidden = true; espera++; status(""); telas();
-  }
-
-  $("form-codigo").addEventListener("submit", (ev) => {
-    ev.preventDefault(); codigo = $("codigo").value.trim(); $("codigo").value = "";
-    try { localStorage.setItem("consulta-codigo", codigo); } catch (e) {}
-    telas(); status("Código guardado neste navegador. Agora digite um material ou uma solicitação.");
-  });
-  $("form-busca").addEventListener("submit", (ev) => {
-    ev.preventDefault(); const q = $("q").value.trim(); if (q.length >= 2) consultar(q);
-  });
-  $("sair").addEventListener("click", sair);
-  telas();
-</script>
+<footer>
+  <span>Bella · agente de IA do time de Master Data da Sabesp · uso interno</span>
+  <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a>
+    <button type="button" class="link" id="sair" hidden>· Trocar o código de acesso</button></span>
+</footer>
+<script src="consulta.js"></script>
 </body>
 </html>

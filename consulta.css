@@ -1,0 +1,117 @@
+/* Consulta da Bella - cores e fonte do modelo de apresentacao da Sabesp:
+   azul-marinho #003854, ciano #12CDFF / #42BFEF, verde #199E38,
+   amarelo #F8C103, laranja #F08419, pessego #F6AD80; fonte Tahoma. */
+:root {
+  --marinho: #003854; --marinho-2: #0a4a6b; --ciano: #12cdff; --ciano-2: #42bfef;
+  --verde: #199e38; --amarelo: #f8c103; --laranja: #f08419; --pessego: #f6ad80;
+  --fundo: #f2f6f9; --papel: #ffffff; --tinta: #0d2233; --tinta-2: #4b6072; --linha: #d7e2ea;
+  --ciano-claro: #e3f8ff; --verde-claro: #e2f4e7; --amarelo-claro: #fff6d6; --erro: #b3261e;
+  --sombra: 0 1px 2px rgba(0, 56, 84, .06), 0 6px 20px rgba(0, 56, 84, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #071a26; --papel: #0d2a3c; --tinta: #e8f1f6; --tinta-2: #9fb6c6; --linha: #1d4259;
+    --ciano-claro: #0f3d52; --verde-claro: #143826; --amarelo-claro: #3a3110; --erro: #ff8a80;
+    --sombra: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--fundo); color: var(--tinta);
+  font: 16px/1.5 Tahoma, Verdana, "Segoe UI", system-ui, sans-serif;
+}
+[hidden] { display: none !important; }
+.oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+a { color: var(--ciano-2); }
+:focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; }
+
+/* ------------------------------------------------------------ topo */
+.topo { position: relative; overflow: hidden; background: var(--marinho); color: #fff; padding: 28px 16px 36px; }
+.forma { position: absolute; pointer-events: none; }
+.forma-bolha { width: 340px; right: -110px; top: -120px; fill: var(--ciano); opacity: .9; }
+.forma-ondas { width: 260px; left: -70px; bottom: -110px; fill: none; stroke: var(--ciano); stroke-width: 12;
+               stroke-linecap: round; opacity: .55; }
+.topo-conteudo { position: relative; max-width: 980px; margin: 0 auto; display: flex; gap: 28px; align-items: center; }
+.bella { flex: none; width: 150px; height: auto; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .35)); }
+.topo-texto { flex: 1; min-width: 0; }
+.sobretitulo { margin: 0; color: var(--ciano); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+h1 { margin: 2px 0 6px; font-size: 32px; line-height: 1.15; }
+.sub { margin: 0 0 18px; color: #cfe7f3; max-width: 640px; }
+.sub em { color: #fff; font-style: normal; border-bottom: 1px dashed var(--ciano); }
+
+.busca { display: flex; gap: 8px; background: #fff; border-radius: 999px; padding: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+.busca input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #0d2233;
+               font: inherit; padding: 10px 14px; border-radius: 999px; }
+.busca input::placeholder { color: #7b8d9b; }
+.busca button { flex: none; border: 0; border-radius: 999px; padding: 10px 22px; cursor: pointer;
+                background: var(--ciano); color: var(--marinho); font: inherit; font-weight: 700; }
+.busca button:hover { background: #4ddcff; }
+.busca button:disabled { opacity: .6; cursor: progress; }
+
+.atalhos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; font-size: 14px; color: #cfe7f3; }
+.atalhos button { font: inherit; font-size: 14px; color: #fff; background: rgba(18, 205, 255, .12);
+                  border: 1px solid rgba(18, 205, 255, .55); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.atalhos button:hover { background: rgba(18, 205, 255, .28); }
+
+/* ------------------------------------------------------------ resultado */
+main { max-width: 980px; margin: 0 auto; padding: 20px 16px 8px; }
+.status { min-height: 24px; margin: 0 0 12px; font-weight: 700; color: var(--tinta-2); display: flex; gap: 10px; align-items: center; }
+.status.erro { color: var(--erro); }
+.status.carregando::before { content: ""; width: 16px; height: 16px; border-radius: 50%; flex: none;
+  border: 3px solid var(--ciano-claro); border-top-color: var(--ciano); animation: gira .8s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .status.carregando::before { animation: none; } }
+
+.cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 20px 22px;
+          margin-bottom: 16px; box-shadow: var(--sombra); }
+.cartao h2 { margin: 0 0 12px; font-size: 15px; color: var(--marinho); text-transform: uppercase; letter-spacing: .04em; }
+@media (prefers-color-scheme: dark) { .cartao h2 { color: var(--ciano); } }
+.destaque { border-left: 6px solid var(--ciano); }
+#resposta p { margin: 0 0 8px; }
+#resposta p:first-child { font-size: 18px; color: var(--marinho); }
+@media (prefers-color-scheme: dark) { #resposta p:first-child { color: var(--ciano); } }
+.resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.barra { margin: 8px 0; font-size: 14px; }
+.barra b { color: var(--tinta); }
+.barra .vezes { color: var(--tinta-2); }
+.trilho { height: 8px; border-radius: 4px; background: var(--ciano-claro); margin-top: 4px; overflow: hidden; }
+.cheio { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--ciano-2), var(--ciano)); }
+.nota { font-size: 14px; color: var(--tinta-2); margin: 12px 0 0; }
+
+.exemplo { border-top: 1px solid var(--linha); padding: 12px 0; }
+.exemplo:first-child { border-top: 0; padding-top: 0; }
+.desc { font-weight: 700; overflow-wrap: anywhere; }
+.meta { font-size: 14px; color: var(--tinta-2); }
+.meta b { color: var(--tinta); }
+.obs { font-size: 13px; margin-top: 4px; color: var(--tinta-2); font-style: italic; }
+.selo { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 1px 9px;
+        margin-left: 6px; vertical-align: 1px; }
+.selo.time { background: var(--ciano-claro); color: var(--marinho); }
+.selo.ok { background: var(--verde-claro); color: var(--verde); }
+.selo.nao { background: var(--amarelo-claro); color: #7a5b00; }
+@media (prefers-color-scheme: dark) { .selo.time { color: var(--ciano); } .selo.nao { color: var(--amarelo); } .selo.ok { color: #5fd384; } }
+.vazio { color: var(--tinta-2); margin: 0; }
+
+.aviso { font-size: 13px; color: var(--tinta-2); margin: 8px 0 0; }
+
+/* ------------------------------------------------------------ rodape */
+footer { max-width: 980px; margin: 24px auto 0; padding: 16px; border-top: 4px solid var(--ciano);
+         display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; font-size: 13px; color: var(--tinta-2); }
+footer a { color: inherit; }
+.link { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+
+/* ------------------------------------------------------------ celular */
+@media (max-width: 680px) {
+  .topo { padding-top: 20px; }
+  .forma-bolha { width: 190px; right: -55px; top: -65px; }
+  .topo-conteudo { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .bella { width: 92px; position: absolute; right: 0; top: -6px; }
+  .sobretitulo, h1, .sub { padding-right: 96px; }
+  h1 { font-size: 26px; }
+  .sub { padding-right: 0; }
+  .busca { flex-direction: column; border-radius: 16px; }
+  .busca button { width: 100%; }
+  .resumo { grid-template-columns: 1fr; }
+}
