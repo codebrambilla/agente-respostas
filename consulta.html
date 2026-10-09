@@ -135,9 +135,10 @@
       el("div", { className: "desc" }, x.descricao, selo(x)),
       el("div", { className: "meta" },
         x.tipo ? el("span", {}, "Tipo ", el("b", { textContent: x.tipo }), " · ") : "",
-        "GM ", el("b", { textContent: x.gm ? (x.gm_nome ? `${x.gm} - ${x.gm_nome}` : x.gm) : "—" }),
+        "GM ", el("b", { textContent: x.gm ? (x.gm_nome ? `${x.gm} - ${x.gm_nome}` : `${x.gm} (SAP antigo)`) : "—" }),
         " · GC ", el("b", { textContent: x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—" }),
-        x.codigo_definitivo ? el("span", {}, " · Código ", el("b", { textContent: x.codigo_definitivo })) : "",
+        x.codigo_definitivo ? el("span", {}, " · Código ", el("b", { textContent: x.codigo_definitivo }),
+          /^\d{10}$/.test(x.codigo_definitivo) ? "" : " (SAP antigo)") : "",
         x.numero ? ` · solicitação ${x.numero}` : "", ` · ${x.semelhanca}% parecido`),
       x.observacao ? el("div", { className: "obs", textContent: x.observacao }) : ""))
       : [el("p", { className: "sub", textContent: "Nenhum caso parecido. Tente outra palavra ou a abreviação usada no Webformat." })]));
