@@ -164,13 +164,12 @@
                          : `O leitor do Webformat está desligado agora. A pergunta sobre a ${d.numero} fica na fila; deixe esta página aberta.`);
     const fim = Date.now() + (d.leitor_vivo ? 3 : 30) * 60 * 1000;
     while (Date.now() < fim && minha === espera) {
-      await new Promise((ok) => setTimeout(ok, 2500));
+      await new Promise((ok) => setTimeout(ok, 1000));
       if (minha !== espera) return;
       const p = await pedir({ pedido: d.pedido });
       if (p.status === "respondido" || p.status === "erro") {
         status("");
-        $("resposta").replaceChildren(...texto(p.status === "respondido" ? p.resposta
-          : `Não consegui ler a solicitação ${d.numero} no Webformat agora. Tente de novo daqui a pouco.`));
+        $("resposta").replaceChildren(...texto(p.resposta || `Não consegui ler a solicitação ${d.numero} agora.`));
         $("solicitacao").hidden = false;
         return;
       }
