@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consulta de grupos</title>
+<!--
+  Agente de consulta do Master Data, versao 1 (sem IA): digite o material e
+  veja o grupo de mercadorias e de compradores que o time ja usou em casos
+  parecidos. Pagina estatica e sem segredo; os dados vem da funcao
+  `consultar` do Supabase, que so responde com o codigo de acesso do time
+  (guardado so neste navegador).
+-->
+<style>
+  :root {
+    --fundo: #f2f5f7; --papel: #ffffff; --tinta: #14243a; --tinta-2: #4a5b70;
+    --linha: #d3dbe3; --acento: #0b6e8c; --acento-tinta: #ffffff; --acento-claro: #e1f0f5;
+    --ok: #1e7a4c; --ok-claro: #ddf1e5; --aviso: #8a5a00; --aviso-claro: #fbefd9; --erro: #a63a2e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fundo: #0f1a26; --papel: #162434; --tinta: #e7edf3; --tinta-2: #a9b6c4;
+            --linha: #2c3d50; --acento: #4fb5d3; --acento-tinta: #0b1b26; --acento-claro: #1b3a4b;
+            --ok: #5cc489; --ok-claro: #17382a; --aviso: #e9b75c; --aviso-claro: #3a2e14; --erro: #e4705f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--tinta);
+         font: 16px/1.5 "Segoe UI", system-ui, sans-serif; padding: 24px 16px 48px; }
+  main { max-width: 860px; margin: 0 auto; }
+  .cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .sub { color: var(--tinta-2); font-size: 14px; margin: 0; }
+  form { display: flex; gap: 8px; margin-top: 16px; }
+  input { flex: 1; min-width: 0; font: inherit; color: inherit; background: var(--papel);
+          border: 1px solid var(--linha); border-radius: 6px; padding: 10px 12px; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 6px; padding: 10px 18px;
+           background: var(--acento); color: var(--acento-tinta); cursor: pointer; }
+  .link { background: none; color: var(--acento); padding: 0; font-weight: 400; text-decoration: underline; font-size: 13px; }
+  .resumo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .resumo { grid-template-columns: 1fr; } form { flex-direction: column; } }
+  .barra { margin: 6px 0; font-size: 14px; }
+  .barra .trilho { height: 6px; border-radius: 3px; background: var(--fundo); margin-top: 3px; overflow: hidden; }
+  .barra .cheio { height: 100%; background: var(--acento); }
+  .exemplo { border-top: 1px solid var(--linha); padding: 12px 0; }
+  .exemplo:first-of-type { border-top: 0; }
+  .desc { font-weight: 600; }
+  .meta { font-size: 14px; color: var(--tinta-2); }
+  .meta b { color: var(--tinta); font-weight: 600; }
+  .obs { font-size: 13px; margin-top: 4px; }
+  .selo { display: inline-block; font-size: 12px; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
+  .selo.time { background: var(--acento-claro); color: var(--acento); }
+  .selo.ok { background: var(--ok-claro); color: var(--ok); }
+  .selo.nao { background: var(--aviso-claro); color: var(--aviso); }
+  .status { font-weight: 600; margin: 8px 0 0; }
+  .status.erro { color: var(--erro); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section class="cartao">
+    <h1>Consulta de grupos</h1>
+    <p class="sub">Digite o material e veja o grupo de mercadorias e de compradores que o Master Data já usou em casos parecidos. Também aceita um código de grupo (ex.: 024, S24).</p>
+    <form id="form-codigo" hidden>
+      <input id="codigo" type="password" placeholder="Código de acesso do time" autocomplete="off">
+      <button type="submit">Entrar</button>
+    </form>
+    <form id="form-busca" hidden>
+      <input id="q" type="search" placeholder="Ex.: suporte tubulação, luva pvc, válvula gaveta" autocomplete="off">
+      <button type="submit">Consultar</button>
+    </form>
+    <p class="status" id="status" role="status"></p>
+    <button type="button" class="link" id="sair" hidden>Trocar o código de acesso</button>
+  </section>
+
+  <section id="resultado" hidden>
+    <div class="resumo">
+      <div class="cartao"><h2>Grupo de mercadorias</h2><div id="gms"></div></div>
+      <div class="cartao"><h2>Grupo de compradores</h2><div id="gcs"></div></div>
+    </div>
+    <div class="cartao">
+      <h2 id="titulo-exemplos">Casos parecidos</h2>
+      <div id="exemplos"></div>
+    </div>
+  </section>
+</main>
+<script>
+  const API = new URLSearchParams(location.search).get("api")
+    || "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/consultar";
+  const $ = (s) => document.getElementById(s);
+  const status = (t, tipo) => { $("status").textContent = t; $("status").className = "status " + (tipo || ""); };
+  const el = (tag, props, ...filhos) => { const e = Object.assign(document.createElement(tag), props || {}); e.append(...filhos); return e; };
+  let codigo = "";
+  try { codigo = localStorage.getItem("consulta-codigo") || ""; } catch (e) {}
+
+  function telas() {
+    $("form-codigo").hidden = !!codigo; $("form-busca").hidden = !codigo; $("sair").hidden = !codigo;
+    (codigo ? $("q") : $("codigo")).focus();
+  }
+
+  function barras(alvo, itens) {
+    if (!itens.length) { alvo.replaceChildren(el("p", { className: "sub", textContent: "—" })); return; }
+    const max = itens[0].vezes;
+    alvo.replaceChildren(...itens.map((g) => {
+      const cheio = el("div", { className: "cheio" }); cheio.style.width = `${(100 * g.vezes) / max}%`;
+      return el("div", { className: "barra" },
+        el("div", {}, el("b", { textContent: g.nome ? `${g.codigo} - ${g.nome}` : g.codigo }), ` · ${g.vezes}×`),
+        el("div", { className: "trilho" }, cheio));
+    }));
+  }
+
+  function selo(x) {
+    if (x.origem === "time") return el("span", { className: "selo time", textContent: "resposta do time" });
+    return x.validado ? el("span", { className: "selo ok", textContent: "validado" })
+                      : el("span", { className: "selo nao", textContent: "não validado" });
+  }
+
+  function mostrar(d) {
+    barras($("gms"), d.grupos_mercadorias); barras($("gcs"), d.grupos_compradores);
+    $("titulo-exemplos").textContent = `Casos parecidos (${d.encontrados})`;
+    $("exemplos").replaceChildren(...(d.exemplos.length ? d.exemplos.map((x) => el("div", { className: "exemplo" },
+      el("div", { className: "desc" }, x.descricao, selo(x)),
+      el("div", { className: "meta" },
+        x.tipo ? el("span", {}, "Tipo ", el("b", { textContent: x.tipo }), " · ") : "",
+        "GM ", el("b", { textContent: x.gm ? (x.gm_nome ? `${x.gm} - ${x.gm_nome}` : x.gm) : "—" }),
+        " · GC ", el("b", { textContent: x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—" }),
+        x.numero ? ` · solicitação ${x.numero}` : "", ` · ${x.semelhanca}% parecido`),
+      x.observacao ? el("div", { className: "obs", textContent: x.observacao }) : ""))
+      : [el("p", { className: "sub", textContent: "Nenhum caso parecido. Tente outra palavra ou a abreviação usada no Webformat." })]));
+    $("resultado").hidden = false;
+  }
+
+  async function consultar(q) {
+    status("Consultando…");
+    try {
+      const r = await fetch(`${API}?q=${encodeURIComponent(q)}`, { headers: { "x-codigo": codigo } });
+      const d = await r.json();
+      if (r.status === 401) { sair(); status("Código de acesso inválido.", "erro"); return; }
+      if (!r.ok) throw new Error(d.erro || r.status);
+      status(""); mostrar(d);
+    } catch (e) { status("Não consegui consultar: " + (e.message || e), "erro"); }
+  }
+
+  function sair() {
+    codigo = ""; try { localStorage.removeItem("consulta-codigo"); } catch (e) {}
+    $("resultado").hidden = true; status(""); telas();
+  }
+
+  $("form-codigo").addEventListener("submit", (ev) => {
+    ev.preventDefault(); codigo = $("codigo").value.trim(); $("codigo").value = "";
+    try { localStorage.setItem("consulta-codigo", codigo); } catch (e) {}
+    telas(); status("Código guardado neste navegador. Agora digite um material.");
+  });
+  $("form-busca").addEventListener("submit", (ev) => {
+    ev.preventDefault(); const q = $("q").value.trim(); if (q.length >= 2) consultar(q);
+  });
+  $("sair").addEventListener("click", sair);
+  telas();
+</script>
+</body>
+</html>
