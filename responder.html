@@ -191,7 +191,7 @@
   }
 
   async function carregar() {
-    if (!id || !token || !api) { $("assunto").textContent = "Link incompleto"; return; }
+    if (!p.get("id") || !Number.isInteger(id) || !token || !api) { $("assunto").textContent = "Link incompleto"; return; }
     try {
       const r = await fetch(`${api}?id=${id}&token=${encodeURIComponent(token)}&formato=json`);
       if (!r.ok) throw new Error(await r.text());
