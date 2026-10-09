@@ -28,7 +28,9 @@ function telas() {
   $("form-codigo").hidden = !!codigo;
   $("form-busca").hidden = !codigo;
   $("atalhos").hidden = !codigo;
+  $("filtros").hidden = !codigo;
   $("sair").hidden = !codigo;
+  carregarListas();
   (codigo ? $("q") : $("codigo")).focus();
 }
 
@@ -82,7 +84,13 @@ function selo(x) {
                     : el("span", { className: "selo nao", textContent: "não validado" });
 }
 
-function exemplo(x) {
+function parecido(pct) {
+  const nivel = pct >= 85 ? "" : pct >= 60 ? " medio" : " baixo";
+  return el("span", { className: "parecido" + nivel, title: "Quanto a descrição se parece com o que você pesquisou",
+                      textContent: `${pct}% parecido` });
+}
+
+function exemplo(x, porTexto) {
   const meta = el("div", { className: "meta" });
   if (x.tipo) meta.append("Tipo ", el("b", { textContent: x.tipo }), " · ");
   meta.append("GM ", el("b", { textContent: nomeGrupo(x.gm, x.gm_nome) }),
@@ -92,23 +100,27 @@ function exemplo(x) {
                 /^\d{10}$/.test(x.codigo_definitivo) ? "" : " (SAP antigo)");
   }
   if (x.numero) meta.append(` · solicitação ${x.numero}`);
-  if (x.semelhanca && x.semelhanca < 100) meta.append(` · ${x.semelhanca}% parecido`);
   return el("div", { className: "exemplo" },
-    el("div", { className: "desc" }, x.descricao, selo(x)), meta,
+    el("div", { className: "desc" }, x.descricao, porTexto ? parecido(x.semelhanca) : null, selo(x)), meta,
     x.observacao ? el("div", { className: "obs", textContent: x.observacao }) : null);
 }
 
 function mostrar(d) {
   barras($("gms"), d.grupos_mercadorias);
   barras($("gcs"), d.grupos_compradores);
+  const porTexto = !d.por_tipo && !d.por_grupo;
   $("titulo-exemplos").textContent = d.por_tipo
     ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
-    : d.por_grupo ? `Últimos casos do grupo (${d.exemplos.length})` : `Casos parecidos (${d.encontrados})`;
+    : d.por_grupo ? `Últimos casos do grupo ${d.grupo} (${d.exemplos.length} de ${d.encontrados})`
+    : `Casos parecidos (${d.encontrados})`;
   $("reprovadas").hidden = !d.reprovados;
   $("reprovadas").textContent = d.reprovados
     ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
-  $("exemplos").replaceChildren(...(d.exemplos && d.exemplos.length ? d.exemplos.map(exemplo)
-    : [el("p", { className: "vazio", textContent: "Nenhum caso parecido. Tente outra palavra, a abreviação do Webformat (VALV, TUB, CONEX) ou um código de grupo." })]));
+  const filtrado = Object.keys(filtrosAtivos()).length > 0;
+  $("exemplos").replaceChildren(...(d.exemplos && d.exemplos.length ? d.exemplos.map((x) => exemplo(x, porTexto))
+    : [el("p", { className: "vazio", textContent: filtrado
+        ? "Nenhum caso com esses filtros. Experimente limpar os filtros."
+        : "Nenhum caso parecido. Tente outra palavra, a abreviação do Webformat (VALV, TUB, CONEX) ou um grupo (024, EPI)." })]));
   $("resultado").hidden = false;
 }
 
@@ -142,16 +154,55 @@ async function acompanhar(d) {
   if (minha === espera) status("O Webformat não respondeu a tempo. Tente de novo daqui a pouco.", "erro");
 }
 
+// ------------------------------------------------------------ filtros
+
+const FILTROS = { tipo: "f-tipo", origem: "f-origem", gc: "f-gc" };
+
+function filtrosAtivos() {
+  const f = {};
+  for (const [nome, id] of Object.entries(FILTROS)) if ($(id).value) f[nome] = $(id).value;
+  return f;
+}
+
+function marcarFiltros() {
+  for (const id of Object.values(FILTROS)) $(id).classList.toggle("ativo", !!$(id).value);
+  $("limpar-filtros").hidden = !Object.keys(filtrosAtivos()).length;
+}
+
+let listasCarregadas = false;
+async function carregarListas() {
+  if (listasCarregadas || !codigo) return;
+  try {
+    const d = await pedir({ listas: 1 });
+    $("f-tipo").append(...d.tipos.map((t) => el("option", { value: t, textContent: t })));
+    $("f-gc").append(...d.grupos_compradores.map((g) =>
+      el("option", { value: g.codigo, textContent: `${g.codigo} - ${g.descricao}` })));
+    listasCarregadas = true;
+  } catch (e) { /* sem as listas, os filtros ficam so com "Todos" */ }
+}
+
+let ultima = "";
+$("filtros").addEventListener("change", () => {
+  marcarFiltros();
+  if (ultima) consultar(ultima);
+});
+$("limpar-filtros").addEventListener("click", () => {
+  for (const id of Object.values(FILTROS)) $(id).value = "";
+  marcarFiltros();
+  if (ultima) consultar(ultima);
+});
+
 // ------------------------------------------------------------ fluxo
 
 async function consultar(q) {
+  ultima = q;
   espera++;
   $("resultado").hidden = true;
   $("solicitacao").hidden = true;
   $("botao").disabled = true;
   status("Consultando…", "carregando");
   try {
-    const d = await pedir({ q });
+    const d = await pedir({ q, ...filtrosAtivos() });
     if (d.pedido) await acompanhar(d);
     else { status(""); mostrar(d); }
   } catch (e) {

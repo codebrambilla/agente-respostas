@@ -35,7 +35,7 @@
     <div class="topo-texto">
       <p class="sobretitulo">Master Data · Sabesp</p>
       <h1>Consulta da Bella</h1>
-      <p class="sub">Pesquise um material, um código de grupo (024, S24) ou um tipo de material (DIEN, NLAG).
+      <p class="sub">Pesquise um material, um grupo (024, EPI, EPC) ou um tipo de material (DIEN, NLAG).
         Ou pergunte sobre uma solicitação: <em>situação da solicitação 3951</em>.</p>
 
       <form id="form-codigo" class="busca" autocomplete="off" hidden>
@@ -46,13 +46,13 @@
 
       <form id="form-busca" class="busca" role="search" autocomplete="off" hidden>
         <label class="oculto" for="q">O que você quer consultar?</label>
-        <input id="q" type="search" maxlength="120" placeholder="Ex.: válvula gaveta · 024 · DIEN · situação da solicitação 3951" required>
+        <input id="q" type="search" maxlength="120" placeholder="Ex.: válvula gaveta · EPI · DIEN · situação da solicitação 3951" required>
         <button type="submit" id="botao">Consultar</button>
       </form>
       <div class="atalhos" id="atalhos" hidden>
         <span>Experimente:</span>
         <button type="button" data-q="válvula gaveta">válvula gaveta</button>
-        <button type="button" data-q="024">024</button>
+        <button type="button" data-q="EPI">EPI</button>
         <button type="button" data-q="DIEN">DIEN</button>
         <button type="button" data-q="situação da solicitação 3951">situação da 3951</button>
       </div>
@@ -61,6 +61,22 @@
 </header>
 
 <main>
+  <form class="filtros" id="filtros" aria-label="Filtros da busca" hidden>
+    <span class="filtros-titulo">Filtrar</span>
+    <label>Tipo de material
+      <select id="f-tipo"><option value="">Todos</option></select></label>
+    <label>Origem
+      <select id="f-origem">
+        <option value="">Todas</option>
+        <option value="time">Resposta do time</option>
+        <option value="validado">Histórico validado</option>
+        <option value="nao_validado">Histórico não validado</option>
+      </select></label>
+    <label>Grupo de compradores
+      <select id="f-gc"><option value="">Todos</option></select></label>
+    <button type="button" class="link" id="limpar-filtros" hidden>Limpar filtros</button>
+  </form>
+
   <p class="status" id="status" role="status" aria-live="polite"></p>
 
   <section class="cartao destaque" id="solicitacao" hidden>
