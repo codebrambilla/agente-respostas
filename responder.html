@@ -11,6 +11,9 @@
   Pode ser hospedada de graca (GitHub Pages num repositorio publico so com
   este arquivo, Cloudflare Pages ou Netlify).
   Link esperado: responder.html?id=12&token=<uuid>&api=<URL da funcao responder>
+  Com &opcao=N (botao de uma opcao no Teams): mostra a opcao e so grava no
+  clique de "Confirmar". Abrir o link nunca grava nada - antivirus corporativos
+  abrem os links das mensagens para checar.
 
   Tudo se escolhe clicando (opcoes prontas, tipo, grupos). Tambem aceita
   resposta em texto livre: o texto vai como observacao e o agente le na
@@ -54,6 +57,11 @@
            border-radius: 6px; background: var(--acento); color: var(--acento-tinta); cursor: pointer; }
   .enviar:disabled { opacity: .6; cursor: default; }
   label { display: block; font-weight: 600; font-size: 14px; margin: 16px 0 6px; }
+  .confirmacao { margin: 8px 0 0; padding: 16px; border: 2px solid var(--acento); border-radius: 8px; }
+  .confirmacao .rotulo { font-size: 20px; font-weight: 700; display: block; margin-top: 2px; }
+  .confirmacao small { color: var(--tinta-2); }
+  .link { margin-top: 12px; width: 100%; padding: 8px; font: inherit; font-size: 14px; background: none;
+          border: 0; color: var(--acento); text-decoration: underline; cursor: pointer; }
   .status { margin-top: 16px; font-weight: 600; }
   .status.ok { color: var(--ok); } .status.erro { color: var(--erro); }
 </style>
@@ -64,6 +72,18 @@
   <p class="sub" id="numeros"></p>
   <p class="msg" id="mensagem" hidden></p>
   <p class="dica" id="informado"></p>
+
+  <section id="confirmar" hidden>
+    <div class="confirmacao">
+      <small>Você escolheu</small>
+      <span class="rotulo" id="conf-rotulo"></span>
+      <small id="conf-extra"></small>
+    </div>
+    <label for="por-conf">Seu nome</label>
+    <input id="por-conf" autocomplete="name">
+    <button type="button" class="enviar" id="conf-ok">Confirmar</button>
+    <button type="button" class="link" id="conf-outra">Escolher outra opção ou escrever</button>
+  </section>
 
   <form id="form" hidden>
     <section id="secao-opcoes" hidden>
@@ -96,6 +116,7 @@
   const SERVICOS = ["SERV", "DIEN"];
   const p = new URLSearchParams(location.search);
   const id = Number(p.get("id")), token = p.get("token") || "", api = p.get("api") || "";
+  const opcaoLink = /^\d+$/.test(p.get("opcao") || "") ? Number(p.get("opcao")) : null;
   const $ = (s) => document.getElementById(s);
   const status = (t, tipo) => { $("status").textContent = t; $("status").className = "status " + (tipo || ""); };
   const codigo = (v) => String(v || "").split(" - ")[0].trim();
@@ -197,14 +218,43 @@
       $("secao-opcoes").hidden = !opcoes.length;
       $("busca").addEventListener("input", desenharGMs);
       $("observacao").addEventListener("input", desenhar);
-      try { $("por").value = localStorage.getItem("agente-nome") || ""; } catch (e) {}
+      try { $("por").value = $("por-conf").value = localStorage.getItem("agente-nome") || ""; } catch (e) {}
+      const vinda = opcaoLink !== null ? opcoes[opcaoLink] : null;
+      if (vinda) {  // veio do botao de uma opcao: confirma antes de gravar
+        Object.assign(escolha, { tipo: vinda.tipo || "", gm: vinda.gm || "", gc: vinda.gc || "" });
+        $("conf-rotulo").textContent = vinda.rotulo || nomeGM(vinda.gm);
+        $("conf-extra").textContent = [vinda.tipo && `Tipo ${vinda.tipo}`, vinda.gc && nomeGC(vinda.gc),
+                                       opcaoLink === 0 && "sugestão do agente"].filter(Boolean).join(" · ");
+        $("confirmar").hidden = false;
+      } else {
+        $("form").hidden = false;
+      }
       desenhar();
-      $("form").hidden = false;
     } catch (e) {
       $("assunto").textContent = "Não consegui abrir a pergunta";
       status(String(e.message || e).slice(0, 200), "erro");
     }
   }
+
+  $("conf-outra").addEventListener("click", () => {
+    $("confirmar").hidden = true; $("form").hidden = false; status("");
+    $("por").value = $("por-conf").value; desenhar();
+  });
+
+  $("conf-ok").addEventListener("click", async () => {
+    $("conf-ok").disabled = true; status("Enviando…");
+    try { localStorage.setItem("agente-nome", $("por-conf").value); } catch (e) {}
+    try {
+      const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, token, opcao: opcaoLink, por: $("por-conf").value }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || d.resultado);
+      $("confirmar").hidden = true;
+      status(`Resposta registrada: ${d.rotulo || $("conf-rotulo").textContent}. Obrigado! O agente usa isso a partir da próxima rodada.`, "ok");
+    } catch (e) {
+      $("conf-ok").disabled = false; status("Não registrei: " + (e.message || e), "erro");
+    }
+  });
 
   $("form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
