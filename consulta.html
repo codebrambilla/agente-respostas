@@ -3,13 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Consulta de grupos</title>
+<title>Consulta da Bella</title>
 <!--
   Agente de consulta do Master Data, versao 1 (sem IA): digite o material e
   veja o grupo de mercadorias e de compradores que o time ja usou em casos
-  parecidos. Pagina estatica e sem segredo; os dados vem da funcao
-  `consultar` do Supabase, que so responde com o codigo de acesso do time
-  (guardado so neste navegador).
+  parecidos. Tambem responde sobre uma solicitacao ("situação da solicitação
+  3951", "grupo de mercadorias da 3951"): a pergunta vai para o leitor do
+  Webformat (o mesmo da Bella no Teams) e a pagina espera a resposta.
+  Pagina estatica e sem segredo; os dados vem da funcao `consultar` do
+  Supabase, que so responde com o codigo de acesso do time (guardado so
+  neste navegador).
 -->
 <style>
   :root {
@@ -53,29 +56,36 @@
   .selo.nao { background: var(--aviso-claro); color: var(--aviso); }
   .status { font-weight: 600; margin: 8px 0 0; }
   .status.erro { color: var(--erro); }
+  .reprovadas { font-size: 14px; color: var(--tinta-2); margin: 10px 0 0; }
+  #resposta p { margin: 0 0 8px; }
+  #resposta p:first-child { font-size: 17px; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
   <section class="cartao">
-    <h1>Consulta de grupos</h1>
-    <p class="sub">Digite o material e veja o grupo de mercadorias e de compradores que o Master Data já usou em casos parecidos. Também aceita um código de grupo (ex.: 024, S24).</p>
+    <h1>Consulta da Bella</h1>
+    <p class="sub">Digite um material para ver o grupo de mercadorias e de compradores que o Master Data já usou em casos parecidos, ou um código de grupo (ex.: 024, S24). Também respondo sobre uma solicitação: <i>situação da solicitação 3951</i>, <i>grupo de mercadorias da 3951</i>.</p>
     <form id="form-codigo" hidden>
       <input id="codigo" type="password" placeholder="Código de acesso do time" autocomplete="off">
       <button type="submit">Entrar</button>
     </form>
     <form id="form-busca" hidden>
-      <input id="q" type="search" placeholder="Ex.: suporte tubulação, luva pvc, válvula gaveta" autocomplete="off">
+      <input id="q" type="search" placeholder="Ex.: válvula gaveta · 024 · situação da solicitação 3951" autocomplete="off">
       <button type="submit">Consultar</button>
     </form>
     <p class="status" id="status" role="status"></p>
     <button type="button" class="link" id="sair" hidden>Trocar o código de acesso</button>
   </section>
 
+  <section class="cartao" id="solicitacao" hidden>
+    <div id="resposta"></div>
+  </section>
+
   <section id="resultado" hidden>
     <div class="resumo">
-      <div class="cartao"><h2>Grupo de mercadorias</h2><div id="gms"></div></div>
+      <div class="cartao"><h2>Grupo de mercadorias</h2><div id="gms"></div><p class="reprovadas" id="reprovadas" hidden></p></div>
       <div class="cartao"><h2>Grupo de compradores</h2><div id="gcs"></div></div>
     </div>
     <div class="cartao">
@@ -117,7 +127,10 @@
 
   function mostrar(d) {
     barras($("gms"), d.grupos_mercadorias); barras($("gcs"), d.grupos_compradores);
-    $("titulo-exemplos").textContent = `Casos parecidos (${d.encontrados})`;
+    $("titulo-exemplos").textContent = d.por_grupo ? `Últimos casos do grupo (${d.exemplos.length})`
+                                                    : `Casos parecidos (${d.encontrados})`;
+    $("reprovadas").hidden = !d.reprovados;
+    $("reprovadas").textContent = d.reprovados ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
     $("exemplos").replaceChildren(...(d.exemplos.length ? d.exemplos.map((x) => el("div", { className: "exemplo" },
       el("div", { className: "desc" }, x.descricao, selo(x)),
       el("div", { className: "meta" },
@@ -130,26 +143,60 @@
     $("resultado").hidden = false;
   }
 
+  async function pedir(params) {
+    const r = await fetch(`${API}?${new URLSearchParams(params)}`, { headers: { "x-codigo": codigo } });
+    const d = await r.json();
+    if (r.status === 401) { sair(); throw new Error("código de acesso inválido"); }
+    if (!r.ok) throw new Error(d.erro || r.status);
+    return d;
+  }
+
+  // Resposta do leitor: paragrafos separados por linha em branco e **negrito**.
+  function texto(md) {
+    return md.split(/\n\s*\n/).map((par) => el("p", {}, ...par.split(/\*\*(.+?)\*\*/).map((pedaco, i) =>
+      i % 2 ? el("b", { textContent: pedaco }) : document.createTextNode(pedaco))));
+  }
+
+  let espera = 0;
+  async function acompanhar(d) {
+    const minha = ++espera;  // uma consulta nova cancela a espera desta
+    status(d.leitor_vivo ? `Olhando a solicitação ${d.numero} no Webformat…`
+                         : `O leitor do Webformat está desligado agora. A pergunta sobre a ${d.numero} fica na fila; deixe esta página aberta.`);
+    const fim = Date.now() + (d.leitor_vivo ? 3 : 30) * 60 * 1000;
+    while (Date.now() < fim && minha === espera) {
+      await new Promise((ok) => setTimeout(ok, 2500));
+      if (minha !== espera) return;
+      const p = await pedir({ pedido: d.pedido });
+      if (p.status === "respondido" || p.status === "erro") {
+        status("");
+        $("resposta").replaceChildren(...texto(p.status === "respondido" ? p.resposta
+          : `Não consegui ler a solicitação ${d.numero} no Webformat agora. Tente de novo daqui a pouco.`));
+        $("solicitacao").hidden = false;
+        return;
+      }
+    }
+    if (minha === espera) status("O Webformat não respondeu a tempo. Tente de novo daqui a pouco.", "erro");
+  }
+
   async function consultar(q) {
-    status("Consultando…");
+    status("Consultando…"); espera++;
+    $("resultado").hidden = true; $("solicitacao").hidden = true;
     try {
-      const r = await fetch(`${API}?q=${encodeURIComponent(q)}`, { headers: { "x-codigo": codigo } });
-      const d = await r.json();
-      if (r.status === 401) { sair(); status("Código de acesso inválido.", "erro"); return; }
-      if (!r.ok) throw new Error(d.erro || r.status);
-      status(""); mostrar(d);
+      const d = await pedir({ q });
+      if (d.pedido) await acompanhar(d);
+      else { status(""); mostrar(d); }
     } catch (e) { status("Não consegui consultar: " + (e.message || e), "erro"); }
   }
 
   function sair() {
     codigo = ""; try { localStorage.removeItem("consulta-codigo"); } catch (e) {}
-    $("resultado").hidden = true; status(""); telas();
+    $("resultado").hidden = true; $("solicitacao").hidden = true; espera++; status(""); telas();
   }
 
   $("form-codigo").addEventListener("submit", (ev) => {
     ev.preventDefault(); codigo = $("codigo").value.trim(); $("codigo").value = "";
     try { localStorage.setItem("consulta-codigo", codigo); } catch (e) {}
-    telas(); status("Código guardado neste navegador. Agora digite um material.");
+    telas(); status("Código guardado neste navegador. Agora digite um material ou uma solicitação.");
   });
   $("form-busca").addEventListener("submit", (ev) => {
     ev.preventDefault(); const q = $("q").value.trim(); if (q.length >= 2) consultar(q);
