@@ -66,7 +66,7 @@
 <main>
   <section class="cartao">
     <h1>Consulta da Bella</h1>
-    <p class="sub">Digite um material para ver o grupo de mercadorias e de compradores que o Master Data já usou em casos parecidos, ou um código de grupo (ex.: 024, S24). Também respondo sobre uma solicitação: <i>situação da solicitação 3951</i>, <i>grupo de mercadorias da 3951</i>.</p>
+    <p class="sub">Digite um material para ver o grupo de mercadorias e de compradores que o Master Data já usou em casos parecidos, um código de grupo (ex.: 024, S24) ou um tipo de material (ex.: DIEN, NLAG). Também respondo sobre uma solicitação: <i>situação da solicitação 3951</i>, <i>grupo de mercadorias da 3951</i>.</p>
     <form id="form-codigo" hidden>
       <input id="codigo" type="password" placeholder="Código de acesso do time" autocomplete="off">
       <button type="submit">Entrar</button>
@@ -127,8 +127,8 @@
 
   function mostrar(d) {
     barras($("gms"), d.grupos_mercadorias); barras($("gcs"), d.grupos_compradores);
-    $("titulo-exemplos").textContent = d.por_grupo ? `Últimos casos do grupo (${d.exemplos.length})`
-                                                    : `Casos parecidos (${d.encontrados})`;
+    $("titulo-exemplos").textContent = d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
+      : d.por_grupo ? `Últimos casos do grupo (${d.exemplos.length})` : `Casos parecidos (${d.encontrados})`;
     $("reprovadas").hidden = !d.reprovados;
     $("reprovadas").textContent = d.reprovados ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
     $("exemplos").replaceChildren(...(d.exemplos.length ? d.exemplos.map((x) => el("div", { className: "exemplo" },
