@@ -102,9 +102,21 @@ function parecido(pct) {
 
 function exemplo(x, porTexto) {
   const meta = el("div", { className: "meta" });
-  if (x.tipo) meta.append("Tipo ", el("b", { textContent: x.tipo }), " · ");
-  meta.append("GM ", el("b", { textContent: nomeGrupo(x.gm, x.gm_nome) }),
-              " · GC ", el("b", { textContent: x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—" }));
+  const b = (t) => el("b", { textContent: t });
+  if (x.reprovada) {
+    // tipo_pedido = como foi aberta no Webformat; tipo = o certo, apontado na triagem
+    if (x.tipo_pedido) meta.append("Pedido como ", b(x.tipo_pedido), " · ");
+    meta.append(el("span", { className: "reprovada",
+      textContent: x.tipo ? `reprovada na triagem: o certo é ${x.tipo}` : "reprovada na triagem" }));
+  } else {
+    if (x.tipo_pedido && x.tipo && x.tipo_pedido !== x.tipo) {
+      meta.append("Pedido como ", b(x.tipo_pedido), " · o time trocou para ", b(x.tipo), " · ");
+    } else if (x.tipo) {
+      meta.append("Tipo ", b(x.tipo), " · ");
+    }
+    meta.append("GM ", b(nomeGrupo(x.gm, x.gm_nome)),
+                " · GC ", b(x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—"));
+  }
   if (x.codigo_definitivo) {
     meta.append(" · Código ", el("b", { textContent: x.codigo_definitivo }),
                 /^\d{10}$/.test(x.codigo_definitivo) ? "" : " (SAP antigo)");
@@ -112,7 +124,9 @@ function exemplo(x, porTexto) {
   if (x.numero) meta.append(` · solicitação ${x.numero}`);
   return el("div", { className: "exemplo" },
     el("div", { className: "desc" }, x.descricao, porTexto ? parecido(x.semelhanca) : null, selo(x)), meta,
-    x.observacao ? el("div", { className: "obs", textContent: x.observacao }) : null);
+    // a observacao de reprovacao ja virou a linha acima
+    x.observacao && !((x.reprovada || (x.tipo_pedido && x.tipo_pedido !== x.tipo)) && /reprova/i.test(x.observacao))
+      ? el("div", { className: "obs", textContent: x.observacao }) : null);
 }
 
 function mostrar(d) {
