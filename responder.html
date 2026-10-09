@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Responder ao agente</title>
+<!--
+  Formulario de resposta as perguntas do agente de aprovacao.
+  Pagina estatica, sem segredo nenhum: os dados vem da funcao `responder` do
+  Supabase, e so com o id + token que estao no link do cartao do Teams.
+  Pode ser hospedada de graca (GitHub Pages num repositorio publico so com
+  este arquivo, Cloudflare Pages ou Netlify).
+  Link esperado: responder.html?id=12&token=<uuid>&api=<URL da funcao responder>
+
+  Tudo se escolhe clicando (opcoes prontas, tipo, grupos). Tambem aceita
+  resposta em texto livre: o texto vai como observacao e o agente le na
+  proxima rodada; codigos que aparecem no texto viram botoes para confirmar.
+-->
+<style>
+  :root {
+    --fundo: #f2f5f7; --papel: #ffffff; --tinta: #14243a; --tinta-2: #4a5b70;
+    --linha: #d3dbe3; --acento: #0b6e8c; --acento-tinta: #ffffff; --acento-claro: #e1f0f5;
+    --ok: #1e7a4c; --erro: #a63a2e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fundo: #0f1a26; --papel: #162434; --tinta: #e7edf3; --tinta-2: #a9b6c4;
+            --linha: #2c3d50; --acento: #4fb5d3; --acento-tinta: #0b1b26; --acento-claro: #1b3a4b;
+            --ok: #5cc489; --erro: #e4705f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--tinta);
+         font: 16px/1.5 "Segoe UI", system-ui, sans-serif; padding: 24px 16px 48px; }
+  main { max-width: 680px; margin: 0 auto; background: var(--papel); border: 1px solid var(--linha);
+         border-radius: 10px; padding: 24px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 24px 0 8px; }
+  .sub { color: var(--tinta-2); font-size: 14px; margin: 0 0 16px; }
+  .msg { background: var(--fundo); border-left: 4px solid var(--acento); padding: 12px 14px; margin: 0 0 8px; }
+  .dica { color: var(--tinta-2); font-size: 13px; margin: 4px 0 0; }
+  .opcoes { display: grid; gap: 8px; }
+  .opcao { text-align: left; padding: 12px 14px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  button.escolha { font: inherit; font-size: 14px; color: var(--tinta); background: var(--papel);
+         border: 1px solid var(--linha); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+  button.escolha:hover { border-color: var(--acento); }
+  button.escolha[aria-pressed="true"] { background: var(--acento); color: var(--acento-tinta); border-color: var(--acento); }
+  .opcao small { display: block; font-weight: 400; opacity: .8; }
+  input, textarea { width: 100%; font: inherit; color: inherit; background: var(--papel);
+         border: 1px solid var(--linha); border-radius: 6px; padding: 8px 10px; }
+  textarea { min-height: 90px; resize: vertical; }
+  #busca { margin-bottom: 8px; }
+  .escolhido { margin-top: 20px; padding: 12px 14px; border-radius: 6px; background: var(--acento-claro); font-size: 14px; }
+  .enviar { margin-top: 18px; width: 100%; padding: 12px; font: inherit; font-weight: 600; border: 0;
+           border-radius: 6px; background: var(--acento); color: var(--acento-tinta); cursor: pointer; }
+  .enviar:disabled { opacity: .6; cursor: default; }
+  label { display: block; font-weight: 600; font-size: 14px; margin: 16px 0 6px; }
+  .status { margin-top: 16px; font-weight: 600; }
+  .status.ok { color: var(--ok); } .status.erro { color: var(--erro); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="assunto">Carregando…</h1>
+  <p class="sub" id="numeros"></p>
+  <p class="msg" id="mensagem" hidden></p>
+  <p class="dica" id="informado"></p>
+
+  <form id="form" hidden>
+    <section id="secao-opcoes" hidden>
+      <h2>Escolha uma opção</h2>
+      <div class="opcoes" id="opcoes"></div>
+    </section>
+
+    <h2>Ou monte a resposta</h2>
+    <label>Tipo de material</label>
+    <div class="chips" id="tipos"></div>
+    <label for="busca">Grupo de mercadorias</label>
+    <input id="busca" type="search" placeholder="Procure por código ou nome (ex.: fixação, 024, válvula)">
+    <div class="chips" id="gms"></div>
+    <label>Grupo de compradores</label>
+    <div class="chips" id="gcs"></div>
+
+    <h2>Ou responda com suas palavras</h2>
+    <textarea id="observacao" placeholder="Ex.: suporte de tubulação sempre vai no 024, qualquer tamanho. Ou: isso é NLAG, reprovar."></textarea>
+    <div class="chips" id="achados" style="margin-top:8px"></div>
+
+    <div class="escolhido" id="resumo"></div>
+    <label for="por">Seu nome</label>
+    <input id="por" autocomplete="name">
+    <button type="submit" class="enviar" id="enviar">Enviar resposta</button>
+  </form>
+  <p class="status" id="status" role="status"></p>
+</main>
+<script>
+  const TIPOS = ["NLAG", "ZMAT", "SERV", "DIEN", "ZCIL", "ZHID", "ZQUI", "ZRES", "ZSUC", "ZIMO"];
+  const SERVICOS = ["SERV", "DIEN"];
+  const p = new URLSearchParams(location.search);
+  const id = Number(p.get("id")), token = p.get("token") || "", api = p.get("api") || "";
+  const $ = (s) => document.getElementById(s);
+  const status = (t, tipo) => { $("status").textContent = t; $("status").className = "status " + (tipo || ""); };
+  const codigo = (v) => String(v || "").split(" - ")[0].trim();
+  const semAcento = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const escolha = { tipo: "", gm: "", gc: "" };
+  let gms = [], gcs = [];
+
+  function botao(texto, ativo, aoClicar, classe) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "escolha" + (classe ? " " + classe : "");
+    b.textContent = texto; b.setAttribute("aria-pressed", ativo ? "true" : "false");
+    b.addEventListener("click", aoClicar);
+    return b;
+  }
+  const nomeGM = (c) => { const g = gms.find((x) => x.codigo === c); return g ? `${g.codigo} - ${g.descricao}` : c; };
+  const nomeGC = (c) => { const g = gcs.find((x) => x.codigo === c); return g ? `${g.codigo} - ${g.descricao}` : c; };
+
+  function definir(campo, valor) {
+    escolha[campo] = escolha[campo] === valor ? "" : valor;  // clicar de novo desmarca
+    desenhar();
+  }
+
+  function desenharGMs() {
+    const lista = SERVICOS.includes(escolha.tipo) ? "SERVICOS" : (escolha.tipo ? "MATERIAIS" : "");
+    const termo = semAcento($("busca").value.trim());
+    let itens = gms.filter((g) => !lista || g.lista.startsWith(lista));
+    if (termo) {
+      // A lista oficial e abreviada ("VALV.REG", "TUB.CONEX"): cada palavra
+      // procurada vale pelo inicio dela (3 letras); quem tem a palavra inteira vem antes.
+      const palavras = termo.split(/\s+/);
+      const nota = (g) => {
+        const alvo = semAcento(`${g.codigo} ${g.descricao}`);
+        return palavras.every((w) => alvo.includes(w)) ? 2 : palavras.every((w) => alvo.includes(w.slice(0, 3))) ? 1 : 0;
+      };
+      itens = itens.map((g) => [nota(g), g]).filter(([n]) => n).sort((a, b) => b[0] - a[0]).map(([, g]) => g);
+    } else itens = itens.filter((g) => g.codigo === escolha.gm);  // sem busca: so o escolhido
+    $("gms").replaceChildren(...itens.slice(0, 24).map((g) =>
+      botao(`${g.codigo} - ${g.descricao}`, g.codigo === escolha.gm, () => definir("gm", g.codigo))));
+  }
+
+  // Codigos que aparecem no texto livre viram botoes para confirmar (nada e marcado sozinho).
+  function desenharAchados() {
+    const texto = $("observacao").value;
+    const palavras = new Set((texto.toUpperCase().match(/[A-Z0-9]+/g) || []));
+    const achados = [];
+    TIPOS.filter((t) => palavras.has(t)).forEach((t) => achados.push(["tipo", t, `Tipo ${t}`]));
+    gms.filter((g) => palavras.has(g.codigo) && /\D|^\d{3}$/.test(g.codigo))
+       .forEach((g) => achados.push(["gm", g.codigo, `${g.codigo} - ${g.descricao}`]));
+    gcs.filter((g) => g.codigo.length >= 2 && palavras.has(g.codigo))
+       .forEach((g) => achados.push(["gc", g.codigo, `${g.codigo} - ${g.descricao}`]));
+    const itens = achados.slice(0, 8).map(([campo, valor, rot]) =>
+      botao("Usar " + rot, escolha[campo] === valor, () => definir(campo, valor)));
+    $("achados").replaceChildren(...(itens.length ? [Object.assign(document.createElement("span"),
+      { className: "dica", textContent: "Encontrei no texto:" }), ...itens] : []));
+  }
+
+  function desenhar() {
+    $("tipos").replaceChildren(...TIPOS.map((t) => botao(t, t === escolha.tipo, () => definir("tipo", t))));
+    $("gcs").replaceChildren(...gcs.filter((g) => !/^\d/.test(g.codigo)).map((g) =>
+      botao(`${g.codigo} - ${g.descricao}`, g.codigo === escolha.gc, () => definir("gc", g.codigo))));
+    document.querySelectorAll("#opcoes button").forEach((b) => {
+      const o = JSON.parse(b.dataset.opcao);
+      b.setAttribute("aria-pressed", String(o.tipo === escolha.tipo && o.gm === escolha.gm && o.gc === escolha.gc));
+    });
+    desenharGMs(); desenharAchados();
+    const partes = [escolha.tipo && `Tipo ${escolha.tipo}`, escolha.gm && nomeGM(escolha.gm), escolha.gc && nomeGC(escolha.gc)]
+      .filter(Boolean);
+    const texto = $("observacao").value.trim();
+    $("resumo").textContent = partes.length || texto
+      ? "Vou enviar: " + [...partes, texto && `"${texto.slice(0, 120)}${texto.length > 120 ? "…" : ""}"`].filter(Boolean).join(" · ")
+      : "Escolha uma opção, monte a resposta ou escreva.";
+  }
+
+  async function carregar() {
+    if (!id || !token || !api) { $("assunto").textContent = "Link incompleto"; return; }
+    try {
+      const r = await fetch(`${api}?id=${id}&token=${encodeURIComponent(token)}&formato=json`);
+      if (!r.ok) throw new Error(await r.text());
+      const d = await r.json(), q = d.pergunta, s = q.sugestao || {};
+      $("assunto").textContent = q.assunto;
+      $("numeros").textContent = "Solicitações: " + (q.numeros || []).join(", ");
+      $("mensagem").textContent = q.mensagem; $("mensagem").hidden = false;
+      if (s.gm_informado) $("informado").textContent = "O solicitante informou o grupo " + s.gm_informado + ".";
+      if (q.status !== "aberta") { status("Esta pergunta já foi respondida.", "ok"); return; }
+      gms = d.grupos_mercadorias; gcs = d.grupos_compradores;
+      const opcoes = Array.isArray(s.opcoes) ? s.opcoes : [];
+      $("opcoes").replaceChildren(...opcoes.map((o, i) => {
+        const b = botao("", false, () => {
+          const igual = o.tipo === escolha.tipo && o.gm === escolha.gm && o.gc === escolha.gc;
+          Object.assign(escolha, igual ? { tipo: "", gm: "", gc: "" } : { tipo: o.tipo || "", gm: o.gm || "", gc: o.gc || "" });
+          desenhar();
+        }, "opcao");
+        b.dataset.opcao = JSON.stringify({ tipo: o.tipo || "", gm: o.gm || "", gc: o.gc || "" });
+        b.append(o.rotulo || nomeGM(o.gm));
+        const extra = [o.gc && nomeGC(o.gc), i === 0 && "sugestão do agente"].filter(Boolean).join(" · ");
+        if (extra) b.append(Object.assign(document.createElement("small"), { textContent: extra }));
+        return b;
+      }));
+      $("secao-opcoes").hidden = !opcoes.length;
+      $("busca").addEventListener("input", desenharGMs);
+      $("observacao").addEventListener("input", desenhar);
+      try { $("por").value = localStorage.getItem("agente-nome") || ""; } catch (e) {}
+      desenhar();
+      $("form").hidden = false;
+    } catch (e) {
+      $("assunto").textContent = "Não consegui abrir a pergunta";
+      status(String(e.message || e).slice(0, 200), "erro");
+    }
+  }
+
+  $("form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const observacao = $("observacao").value.trim();
+    if (!escolha.tipo && !escolha.gm && !escolha.gc && !observacao) {
+      status("Escolha uma opção ou escreva a resposta.", "erro"); return;
+    }
+    $("enviar").disabled = true; status("Enviando…");
+    try { localStorage.setItem("agente-nome", $("por").value); } catch (e) {}
+    try {
+      const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, token, ...escolha, observacao, por: $("por").value }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.erro || d.resultado);
+      $("form").hidden = true;
+      status("Resposta registrada. Obrigado! O agente usa isso a partir da próxima rodada.", "ok");
+    } catch (e) {
+      $("enviar").disabled = false; status("Não registrei: " + (e.message || e), "erro");
+    }
+  });
+  carregar();
+</script>
+</body>
+</html>
