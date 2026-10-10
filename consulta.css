@@ -233,3 +233,25 @@ footer a { color: inherit; }
   .filtros select { min-width: 0; width: 100%; }
   .filtros label { flex: 1 1 100%; }
 }
+
+/* ------------------------------------------------------------ conferir (validar) caso */
+.casos .link.conferir { font-size: 12px; font-weight: 700; color: var(--ciano-2); padding: 0; }
+.casos tr.conferir td { background: var(--fundo); }
+.casos tr.salvo td { animation: salvo 1.6s ease-out; }
+@keyframes salvo { from { background: var(--verde-claro); } to { background: transparent; } }
+.conferir-caixa, .conferir-correcao { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.conferir-correcao { flex-basis: 100%; }
+.conferir-correcao[hidden] { display: none; }
+.conferir-caixa p { margin: 0; flex-basis: 100%; font-size: 14px; }
+.conferir-caixa label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--tinta-2); min-width: 0; }
+.conferir-caixa input, .conferir-caixa select { font: inherit; font-size: 14px; color: var(--tinta); background: var(--papel);
+  border: 1px solid var(--linha); border-radius: 8px; padding: 6px 8px; max-width: 100%; }
+.conferir-caixa select { max-width: 280px; }
+.acao { font: inherit; font-size: 14px; font-weight: 700; border-radius: 999px; padding: 6px 16px; cursor: pointer;
+        border: 1px solid var(--linha); background: var(--papel); color: var(--titulo); }
+.acao:hover { border-color: var(--ciano-2); }
+.acao.principal { background: var(--verde); border-color: var(--verde); color: #fff; }
+.acao:disabled { opacity: .6; cursor: progress; }
+.conferir-caixa p.conferir-msg { font-size: 13px; color: var(--tinta-2); }
+.conferir-caixa p.conferir-msg:empty { display: none; }
+.conferir-caixa p.conferir-msg.erro { color: var(--erro); font-weight: 700; }

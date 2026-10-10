@@ -8,6 +8,7 @@
 "use strict";
 
 const API = "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/consultar";
+const API_VALIDAR = "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/validar";
 const TEMPO_LIMITE_MS = 20000;
 const $ = (id) => document.getElementById(id);
 const el = (tag, props, ...filhos) => {
@@ -37,14 +38,20 @@ function telas() {
 
 class ErroConsulta extends Error {}
 
-async function pedir(params) {
+// GET na consulta; com `corpo`, POST na validacao de caso.
+async function pedir(params, corpo) {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TEMPO_LIMITE_MS);
   let r;
   try {
-    r = await fetch(`${API}?${new URLSearchParams(params)}`, {
-      headers: { "x-codigo": codigo }, signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
-    });
+    r = corpo
+      ? await fetch(API_VALIDAR, {
+        method: "POST", body: JSON.stringify(corpo), headers: { "x-codigo": codigo, "content-type": "application/json" },
+        signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
+      })
+      : await fetch(`${API}?${new URLSearchParams(params)}`, {
+        headers: { "x-codigo": codigo }, signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
+      });
   } catch (e) {
     throw new ErroConsulta(e.name === "AbortError" ? "a consulta demorou demais" : "sem conexão com a consulta");
   } finally {
@@ -90,7 +97,10 @@ const SELOS = {
 
 function selo(x, curto) {
   const [classe, texto, explica] = SELOS[x.origem === "time" ? "time" : x.validado ? "ok" : "nao"];
-  return el("span", { className: classe, textContent: curto ? texto.replace("classificação ", "") : texto, title: explica });
+  const quem = x.validado && x.validado_por
+    ? ` Validada por ${x.validado_por}${x.validado_em ? " em " + dataHora(x.validado_em) : ""}.` : "";
+  return el("span", { className: classe, textContent: curto ? texto.replace("classificação ", "") : texto,
+                      title: explica + quem });
 }
 
 function parecido(pct, curto) {
@@ -125,10 +135,16 @@ function linhaCaso(x, porTexto) {
     ? td(el("span", { className: "codigo-sap", textContent: x.codigo_definitivo }),
       /^\d{10}$/.test(x.codigo_definitivo) ? null : pequeno("SAP antigo"))
     : td(el("span", { className: "pequeno", textContent: "—" }));
+  const conferir = x.origem === "historico" && x.id
+    ? el("button", { type: "button", className: "link conferir", textContent: x.validado ? "Desfazer" : "Conferir",
+                     title: x.validado ? "Voltar este caso para não validado" : "Confirmar ou corrigir o tipo e os grupos deste caso",
+                     onclick: (ev) => abrirConferir(x, ev.target.closest("tr"), porTexto) })
+    : null;
   return el("tr", {},
     porTexto ? td(parecido(x.semelhanca, true)) : null,
     el("td", { className: "material" }, el("b", { textContent: x.descricao }),
-      el("div", { className: "sob-material" }, x.numero ? el("span", {}, "Solicitação ", numeroLink(x.numero)) : null, selo(x, true)),
+      el("div", { className: "sob-material" }, x.numero ? el("span", {}, "Solicitação ", numeroLink(x.numero)) : null,
+        selo(x, true), conferir),
       obs ? pequeno(obs) : null),
     tipo,
     td(x.reprovada ? "—" : nomeGrupo(x.gm, x.gm_nome)),
@@ -169,9 +185,20 @@ function respostaPrincipal(d) {
 function mostrar(d) {
   barras($("gms"), d.grupos_mercadorias);
   barras($("gcs"), d.grupos_compradores);
-  const porTexto = !d.por_tipo && !d.por_grupo;
-  $("principal").replaceChildren(...respostaPrincipal(d));
-  $("titulo-exemplos").textContent = d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
+  const soLista = d.para_validar && !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
+  const porTexto = !d.por_tipo && !d.por_grupo && !soLista;
+  const principal = soLista
+    ? [el("p", { className: "principal-frase", textContent: d.encontrados
+      ? `${d.encontrados} ${d.encontrados === 1 ? "caso do histórico ainda não validado" : "casos do histórico ainda não validados"}.`
+      : "Nenhum caso para validar nesta busca." })]
+    : respostaPrincipal(d);
+  if (d.para_validar) {
+    principal.push(el("p", { className: "nota", textContent: "Em cada caso: “Conferir”, depois “Está certo” ou “Corrigir”. "
+      + "Só os casos validados são usados na triagem automática. Cada validação fica registrada com o nome de quem fez e pode ser desfeita." }));
+  }
+  $("principal").replaceChildren(...principal);
+  $("titulo-exemplos").textContent = d.para_validar ? `Para validar (${d.exemplos.length} de ${d.encontrados})`
+    : d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
     : d.por_grupo ? `Últimos casos do grupo ${d.grupo} (${d.exemplos.length} de ${d.encontrados})`
     : `Casos parecidos (${d.exemplos.length})`;
   const colunas = [porTexto ? "Parecido" : null, "Material", "Tipo", "Grupo de mercadorias", "Grupo de compradores",
@@ -187,6 +214,89 @@ function mostrar(d) {
   $("reprovadas").textContent = d.reprovados
     ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
   $("resultado").hidden = false;
+}
+
+// ------------------------------------------------------------ conferir (validar) um caso do historico
+
+const NOME_VALIDO = /^[\p{L}][\p{L} .'\-]{1,59}$/u;
+let quemValida = "";
+try { quemValida = localStorage.getItem("consulta-nome") || ""; } catch (e) { /* ok */ }
+
+function opcoes(mapa, atual) {
+  const lista = Object.entries(mapa);
+  if (atual && !mapa[atual]) lista.unshift([atual, "SAP antigo"]);
+  return lista.map(([cod, nome]) => el("option", { value: cod, textContent: `${cod} - ${nome}`, selected: cod === atual }));
+}
+
+// Abre (ou fecha) a caixa de conferencia logo abaixo da linha do caso.
+function abrirConferir(x, tr, porTexto) {
+  const seguinte = tr.nextElementSibling;
+  if (seguinte && seguinte.classList.contains("conferir")) { seguinte.remove(); return; }
+  const nome = el("input", { type: "text", maxLength: 60, value: quemValida, placeholder: "Nome e sobrenome", autocomplete: "name" });
+  const msg = el("p", { className: "conferir-msg", role: "status" });
+  const caixa = el("div", { className: "conferir-caixa" });
+  const linha = el("tr", { className: "conferir" }, el("td", { colSpan: tr.children.length }, caixa));
+  const fechar = el("button", { type: "button", className: "acao", textContent: "Fechar", onclick: () => linha.remove() });
+
+  async function enviar(corpo, botoes) {
+    const por = nome.value.replace(/\s+/g, " ").trim();
+    if (!NOME_VALIDO.test(por)) {
+      msg.textContent = "Informe seu nome (fica registrado na validação).";
+      msg.className = "conferir-msg erro";
+      nome.focus();
+      return;
+    }
+    quemValida = por;
+    try { localStorage.setItem("consulta-nome", por); } catch (e) { /* ok */ }
+    for (const b of botoes) b.disabled = true;
+    msg.textContent = "Gravando…";
+    msg.className = "conferir-msg";
+    try {
+      const r = await pedir(null, { id: x.id, por, ...corpo });
+      const c = r.caso || {};
+      Object.assign(x, { tipo: c.tipo_material, gm: c.gm, gc: c.gc, validado: c.validado, validado_por: c.validado_por,
+        validado_em: c.validado_em, gm_nome: c.gm ? listas.gms[c.gm] || "" : "", gc_nome: c.gc ? listas.gcs[c.gc] || "" : "" });
+      x.reprovada = x.reprovada && !x.gm;
+      const nova = linhaCaso(x, porTexto);
+      nova.classList.add("salvo");
+      tr.replaceWith(nova);
+      linha.remove();
+      status(corpo.acao === "desfazer" ? "Validação desfeita." : corpo.acao === "corrigir" ? "Caso corrigido e validado." : "Caso validado.");
+    } catch (e) {
+      msg.textContent = e instanceof ErroConsulta ? e.message : "Não foi possível gravar agora.";
+      msg.className = "conferir-msg erro";
+      for (const b of botoes) b.disabled = false;
+    }
+  }
+
+  const campoNome = el("label", {}, "Seu nome", nome);
+  if (x.validado) {
+    const desfazer = el("button", { type: "button", className: "acao principal", textContent: "Desfazer validação" });
+    desfazer.onclick = () => enviar({ acao: "desfazer" }, [desfazer]);
+    caixa.append(el("p", { textContent: `Validado${x.validado_por ? " por " + x.validado_por : ""}`
+      + `${x.validado_em ? " em " + dataHora(x.validado_em) : ""}. Desfazer volta o tipo e os grupos de antes e tira a validação.` }),
+      campoNome, desfazer, fechar, msg);
+  } else {
+    const certo = el("button", { type: "button", className: "acao principal", textContent: "Está certo" });
+    const corrigir = el("button", { type: "button", className: "acao", textContent: "Corrigir" });
+    const tipo = el("select", {}, ...(listas.tipos.length ? listas.tipos : [x.tipo || ""]).map((t) =>
+      el("option", { value: t, textContent: t, selected: t === x.tipo })));
+    const gm = el("select", {}, ...opcoes(listas.gms, x.gm));
+    const gc = el("select", {}, ...opcoes(listas.gcs, x.gc));
+    const salvar = el("button", { type: "button", className: "acao principal", textContent: "Salvar correção" });
+    const correcao = el("div", { className: "conferir-correcao", hidden: true },
+      el("label", {}, "Tipo de material", tipo), el("label", {}, "Grupo de mercadorias", gm),
+      el("label", {}, "Grupo de compradores", gc), salvar);
+    certo.onclick = () => enviar({ acao: "certo" }, [certo, corrigir]);
+    corrigir.onclick = () => { correcao.hidden = !correcao.hidden; if (!correcao.hidden) tipo.focus(); };
+    salvar.onclick = () => enviar({ acao: "corrigir", tipo: tipo.value, gm: gm.value, gc: gc.value }, [certo, corrigir, salvar]);
+    const atual = x.reprovada ? `reprovada (pedida como ${x.tipo_pedido || "?"}${x.tipo ? ", o certo é " + x.tipo : ""})`
+      : `${x.tipo || "—"} · ${nomeGrupo(x.gm, x.gm_nome)} · ${x.gc || "—"}`;
+    caixa.append(el("p", {}, "O time decidiu: ", el("b", { textContent: atual }), ". Está certo?"),
+      campoNome, certo, corrigir, fechar, correcao, msg);
+  }
+  tr.after(linha);
+  (nome.value ? caixa.querySelector(".acao.principal") : nome).focus();
 }
 
 // ------------------------------------------------------------ solicitacoes paradas
@@ -323,6 +433,7 @@ $("abrir-filtros").addEventListener("click", () => {
 });
 
 let listasCarregadas = false;
+const listas = { tipos: [], gms: {}, gcs: {} };
 async function carregarListas() {
   if (listasCarregadas || !codigo) return;
   try {
@@ -330,6 +441,9 @@ async function carregarListas() {
     $("f-tipo").append(...d.tipos.map((t) => el("option", { value: t, textContent: t })));
     $("f-gc").append(...d.grupos_compradores.map((g) =>
       el("option", { value: g.codigo, textContent: `${g.codigo} - ${g.descricao}` })));
+    listas.tipos = d.tipos;
+    for (const g of d.grupos_compradores) listas.gcs[g.codigo] = g.descricao;
+    for (const g of d.grupos_mercadorias || []) listas.gms[g.codigo] = g.descricao;
     listasCarregadas = true;
   } catch (e) { /* sem as listas, os filtros ficam so com "Todos" */ }
 }
@@ -400,6 +514,8 @@ const MODOS = {
               exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN"] },
   solicitacao: { dica: "Número da solicitação, ex.: 3951 (ou: GM da 3291, código SAP da 3231)",
                  exemplos: ["situação da 3951", "GM da 3291", "código SAP da 3231"] },
+  validar: { dica: "Ex.: para validar · para validar EPI · para validar válvula",
+             exemplos: ["para validar", "para validar EPI", "para validar DIEN", "para validar válvula"] },
   paradas: { dica: "Ex.: paradas com a CH há mais de 5 dias",
              exemplos: ["paradas com a CH há mais de 5 dias", "pendências há mais de 15 dias",
                         "paradas com o solicitante e não cobradas"] },
