@@ -19,8 +19,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261009w">
-<script src="tema.js?v=20261009w"></script>
+<link rel="stylesheet" href="consulta.css?v=20261010a">
+<script src="tema.js?v=20261010a"></script>
 </head>
 <body>
 <header class="topo">
@@ -58,7 +58,7 @@
         <div class="modos" role="group" aria-label="O que você quer consultar">
           <button type="button" class="modo" data-modo="material" aria-pressed="true">Grupo para um material</button>
           <button type="button" class="modo" data-modo="solicitacao" aria-pressed="false">Situação de uma solicitação</button>
-          <button type="button" class="modo" data-modo="paradas" aria-pressed="false">Solicitações paradas</button>
+          <button type="button" class="modo" data-modo="paradas" aria-pressed="false">Novas e paradas</button>
           <button type="button" class="modo" data-modo="validar" aria-pressed="false">Validar casos</button>
         </div>
         <div class="atalhos"><span>Exemplos:</span><span id="exemplos-modo"></span></div>
@@ -85,6 +85,17 @@
     </div>
   </section>
 
+  <section class="cartao" id="novas" hidden>
+    <h2 id="titulo-novas">Solicitações novas</h2>
+    <p class="nota" id="nota-novas"></p>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th>Nº</th><th>Entrou</th><th>Tipo</th><th>Descrição</th><th>Com quem</th><th>Pontos de atenção</th></tr></thead>
+        <tbody id="linhas-novas"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="resultado" hidden>
     <div class="cartao destaque principal" id="principal"></div>
 
@@ -107,6 +118,13 @@
           <select id="f-gc"><option value="">Todos</option></select></label>
         <button type="button" class="link" id="limpar-filtros" hidden>Limpar filtros</button>
       </form>
+      <div class="lote" id="lote" hidden>
+        <span id="lote-qtd"></span>
+        <label class="oculto" for="lote-nome">Seu nome</label>
+        <input id="lote-nome" type="text" maxlength="60" placeholder="Seu nome" autocomplete="name">
+        <button type="button" class="acao principal" id="lote-validar" disabled>Marcar selecionados como certos</button>
+        <p class="conferir-msg" id="lote-msg" role="status"></p>
+      </div>
       <div class="tabela-rolagem">
         <table class="tabela casos">
           <thead><tr id="cab-casos"></tr></thead>
@@ -152,6 +170,6 @@
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a>
     <button type="button" class="link" id="sair" hidden>· Trocar o código de acesso</button></span>
 </footer>
-<script src="consulta.js?v=20261009w"></script>
+<script src="consulta.js?v=20261010a"></script>
 </body>
 </html>

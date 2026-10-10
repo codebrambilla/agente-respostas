@@ -254,3 +254,20 @@ footer a { color: inherit; }
 .conferir-caixa p.conferir-msg { font-size: 13px; color: var(--tinta-2); }
 .conferir-caixa p.conferir-msg:empty { display: none; }
 .conferir-caixa p.conferir-msg.erro { color: var(--erro); font-weight: 700; }
+
+/* ------------------------------------------------------------ validar em lote, novas, codigo SAP */
+.lote { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--fundo);
+        border: 1px solid var(--linha); border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; font-size: 14px; }
+.lote input[type="text"] { font: inherit; font-size: 14px; color: var(--tinta); background: var(--papel);
+  border: 1px solid var(--linha); border-radius: 8px; padding: 6px 8px; min-width: 0; max-width: 220px; }
+.lote .conferir-msg { margin: 0; flex-basis: 100%; font-size: 13px; color: var(--tinta-2); }
+.lote .conferir-msg:empty { display: none; }
+.lote .conferir-msg.erro { color: var(--erro); font-weight: 700; }
+.casos .col-marca, .casos td:has(> input.marca) { width: 28px; }
+input.marca { width: 18px; height: 18px; accent-color: var(--verde); cursor: pointer; }
+#novas tr.com-ponto td { background: var(--amarelo-claro); }
+#novas .pontos { margin: 0; padding-left: 18px; font-size: 13px; }
+#novas .pontos li + li { margin-top: 4px; }
+#novas .pequeno { font-size: 12px; color: var(--tinta-2); }
+.lista-codigo { margin: 0 0 8px; padding-left: 18px; }
+.lista-codigo li { margin: 4px 0; }

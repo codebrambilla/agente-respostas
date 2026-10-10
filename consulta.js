@@ -140,7 +140,12 @@ function linhaCaso(x, porTexto) {
                      title: x.validado ? "Voltar este caso para não validado" : "Confirmar ou corrigir o tipo e os grupos deste caso",
                      onclick: (ev) => abrirConferir(x, ev.target.closest("tr"), porTexto) })
     : null;
-  return el("tr", {},
+  const marcavel = lote && x.origem === "historico" && x.id && !x.validado;
+  const marca = lote ? td(marcavel ? el("input", { type: "checkbox", className: "marca", checked: lote.has(x.id),
+    ariaLabel: `Selecionar o caso da solicitação ${x.numero || ""}`,
+    onchange: (ev) => { ev.target.checked ? lote.add(x.id) : lote.delete(x.id); atualizarLote(); } }) : null) : null;
+  const linha = el("tr", {},
+    marca,
     porTexto ? td(parecido(x.semelhanca, true)) : null,
     el("td", { className: "material" }, el("b", { textContent: x.descricao }),
       el("div", { className: "sob-material" }, x.numero ? el("span", {}, "Solicitação ", numeroLink(x.numero)) : null,
@@ -150,6 +155,8 @@ function linhaCaso(x, porTexto) {
     td(x.reprovada ? "—" : nomeGrupo(x.gm, x.gm_nome)),
     td(x.reprovada ? "—" : (x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—")),
     codigo);
+  if (x.id) linha.dataset.id = String(x.id);
+  return linha;
 }
 
 // A resposta em uma frase e os dois grupos mais usados, com o peso de cada um.
@@ -187,7 +194,9 @@ function mostrar(d) {
   barras($("gcs"), d.grupos_compradores);
   const soLista = d.para_validar && !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
   const porTexto = !d.por_tipo && !d.por_grupo && !soLista;
-  const principal = soLista
+  lote = d.para_validar ? new Set() : null;
+  casosMostrados = d.exemplos || [];
+  const principal = d.por_codigo ? respostaCodigo(d) : soLista
     ? [el("p", { className: "principal-frase", textContent: d.encontrados
       ? `${d.encontrados} ${d.encontrados === 1 ? "caso do histórico ainda não validado" : "casos do histórico ainda não validados"}.`
       : "Nenhum caso para validar nesta busca." })]
@@ -197,25 +206,107 @@ function mostrar(d) {
       + "Só os casos validados são usados na triagem automática. Cada validação fica registrada com o nome de quem fez e pode ser desfeita." }));
   }
   $("principal").replaceChildren(...principal);
-  $("titulo-exemplos").textContent = d.para_validar ? `Para validar (${d.exemplos.length} de ${d.encontrados})`
+  $("titulo-exemplos").textContent = d.por_codigo ? `Casos com o código ${d.por_codigo} (${d.exemplos.length})`
+    : d.para_validar ? `Para validar (${d.exemplos.length} de ${d.encontrados})`
     : d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
     : d.por_grupo ? `Últimos casos do grupo ${d.grupo} (${d.exemplos.length} de ${d.encontrados})`
     : `Casos parecidos (${d.exemplos.length})`;
-  const colunas = [porTexto ? "Parecido" : null, "Material", "Tipo", "Grupo de mercadorias", "Grupo de compradores",
-    "Código SAP"].filter(Boolean);
-  $("cab-casos").replaceChildren(...colunas.map((c) => el("th", { textContent: c })));
+  const colunas = [porTexto && !d.por_codigo ? "Parecido" : null, "Material", "Tipo", "Grupo de mercadorias",
+    "Grupo de compradores", "Código SAP"].filter(Boolean);
+  const todos = lote ? el("input", { type: "checkbox", className: "marca", ariaLabel: "Selecionar todos os casos da lista",
+    onchange: (ev) => {
+      for (const x of casosMostrados) if (x.origem === "historico" && x.id && !x.validado) ev.target.checked ? lote.add(x.id) : lote.delete(x.id);
+      for (const c of $("exemplos").querySelectorAll("input.marca")) c.checked = ev.target.checked;
+      atualizarLote();
+    } }) : null;
+  $("cab-casos").replaceChildren(...(lote ? [el("th", { className: "col-marca" }, todos)] : []),
+    ...colunas.map((c) => el("th", { textContent: c })));
   const casos = d.exemplos || [];
-  $("exemplos").replaceChildren(...casos.map((x) => linhaCaso(x, porTexto)));
+  porTextoAtual = porTexto && !d.por_codigo;
+  $("exemplos").replaceChildren(...casos.map((x) => linhaCaso(x, porTextoAtual)));
+  atualizarLote();
   $("cab-casos").parentElement.parentElement.hidden = !casos.length;
   const filtrado = Object.keys(filtrosAtivos()).length > 0;
   $("sem-casos").hidden = casos.length > 0;
-  $("sem-casos").textContent = filtrado ? "Nenhum caso com esses filtros." : "Nenhum caso parecido.";
+  $("sem-casos").textContent = filtrado ? "Nenhum caso com esses filtros."
+    : d.por_codigo ? "Nenhum caso da consulta com este código." : "Nenhum caso parecido.";
+  $("sem-casos").hidden = casos.length > 0 || (d.por_codigo && (d.com_codigo || []).length > 0);
   $("reprovadas").hidden = !d.reprovados;
   $("reprovadas").textContent = d.reprovados
     ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
   $("resumo-grupos").hidden = !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
   $("resultado").hidden = false;
 }
+
+// ------------------------------------------------------------ busca por codigo SAP
+
+function respostaCodigo(d) {
+  const sols = d.com_codigo || [];
+  const sap = /^\d{10}$/.test(d.por_codigo) ? "SAP S/4 HANA" : "SAP antigo";
+  if (!sols.length && !d.exemplos.length) {
+    return [el("p", { className: "principal-frase", textContent: `Nenhuma solicitação do Webformat com o código ${d.por_codigo}.` }),
+      el("p", { className: "nota", textContent: "Só aparecem códigos gravados em solicitações do Webformat. Material cadastrado direto no SAP não está aqui." })];
+  }
+  const partes = [el("p", { className: "principal-frase" }, "Código ", el("b", { textContent: d.por_codigo }),
+    ` (${sap}): ${sols.length || d.exemplos.length} ${(sols.length || d.exemplos.length) === 1 ? "solicitação" : "solicitações"}.`)];
+  if (sols.length) {
+    const soNoCampo = (x) => x.codigo_no_campo && x.codigo_no_campo.replace(/^0+/, "") === d.por_codigo.replace(/^0+/, "");
+    partes.push(el("ul", { className: "lista-codigo" }, ...sols.map((x) => el("li", {}, numeroLink(x.numero),
+      el("span", { textContent: ` · ${x.situacao}${x.tipo ? " · " + x.tipo : ""}${x.descricao ? " · " + x.descricao : ""}` }),
+      soNoCampo(x) ? el("div", { className: "aviso", textContent: `Este número está no campo do Webformat, mas a CH cadastrou o material com o código ${x.codigo_definitivo}.` }) : null))));
+  }
+  if (sols.filter((x) => x.codigo_definitivo && x.codigo_definitivo.replace(/^0+/, "") === d.por_codigo.replace(/^0+/, "")).length > 1) {
+    partes.push(el("p", { className: "aviso", textContent: "O mesmo código em mais de uma solicitação: confira se é o mesmo material ou se o código foi digitado errado." }));
+  }
+  return partes;
+}
+
+// ------------------------------------------------------------ validar em lote
+
+let lote = null;            // ids selecionados (so no modo "para validar")
+let casosMostrados = [];
+let porTextoAtual = false;
+
+function atualizarLote() {
+  const barra = $("lote");
+  if (!lote) { barra.hidden = true; return; }
+  const n = lote.size;
+  barra.hidden = false;
+  $("lote-qtd").textContent = n ? `${n} ${n === 1 ? "caso selecionado" : "casos selecionados"}` : "Selecione os casos certos para validar de uma vez.";
+  $("lote-validar").disabled = !n;
+  if (!$("lote-nome").value) $("lote-nome").value = quemValida;
+}
+
+$("lote-validar").addEventListener("click", async () => {
+  const por = $("lote-nome").value.replace(/\s+/g, " ").trim();
+  const msg = $("lote-msg");
+  if (!NOME_VALIDO.test(por)) { msg.textContent = "Informe seu nome (fica registrado na validação)."; msg.className = "conferir-msg erro"; $("lote-nome").focus(); return; }
+  const ids = [...lote];
+  if (!confirm(`Marcar ${ids.length} ${ids.length === 1 ? "caso" : "casos"} como certos, em nome de ${por}?`)) return;
+  quemValida = por;
+  try { localStorage.setItem("consulta-nome", por); } catch (e) { /* ok */ }
+  $("lote-validar").disabled = true;
+  msg.textContent = "Gravando…"; msg.className = "conferir-msg";
+  try {
+    const r = await pedir(null, { ids, acao: "certo", por });
+    const agora = new Date().toISOString();
+    for (const id of r.validados || []) {
+      const x = casosMostrados.find((c) => c.id === id);
+      if (!x) continue;
+      Object.assign(x, { validado: true, validado_por: por, validado_em: agora });
+      lote.delete(id);
+      const tr = $("exemplos").querySelector(`tr[data-id="${id}"]`);
+      if (tr) { const nova = linhaCaso(x, porTextoAtual); nova.classList.add("salvo"); tr.replaceWith(nova); }
+    }
+    const erros = r.erros || [];
+    msg.textContent = `${(r.validados || []).length} validados.` + (erros.length ? ` ${erros.length} não: ${erros.map((e) => e.erro).join("; ")}.` : "");
+    msg.className = "conferir-msg" + (erros.length ? " erro" : "");
+  } catch (e) {
+    msg.textContent = e instanceof ErroConsulta ? e.message : "Não foi possível gravar agora.";
+    msg.className = "conferir-msg erro";
+  }
+  atualizarLote();
+});
 
 // ------------------------------------------------------------ conferir (validar) um caso do historico
 
@@ -325,6 +416,31 @@ function mostrarParadas(r) {
     el("td", { textContent: x.cobranca || "", className: /^n[aã]o cobrada/.test(x.cobranca || "") ? "nao-cobrada" : "" }),
     el("td", { textContent: x.descricao || "" }))));
   $("paradas").hidden = false;
+}
+
+// ------------------------------------------------------------ solicitacoes novas
+
+function mostrarNovas(r) {
+  $("titulo-novas").textContent = r.titulo;
+  const com = r.itens.filter((x) => (x.pontos || []).length).length;
+  $("nota-novas").textContent = r.total
+    ? `${r.total} ${r.total === 1 ? "solicitação" : "solicitações"}, da mais nova para a mais antiga`
+      + (r.total > r.itens.length ? ` (aqui as ${r.itens.length} mais novas)` : "")
+      + `. ${com} com ponto de atenção.`
+    : "Nenhuma no período.";
+  $("linhas-novas").replaceChildren(...r.itens.map((x) => {
+    const pts = x.pontos || [];
+    return el("tr", { className: pts.length ? "com-ponto" : "" },
+      el("td", {}, numeroLink(x.numero)),
+      el("td", { textContent: dataHora(x.aberta_em) }),
+      el("td", { textContent: (x.tipo || "") + (x.urgente ? " · urgente" : "") }),
+      el("td", { textContent: x.descricao || "" }),
+      el("td", { textContent: x.com_quem || "" }),
+      el("td", {}, x.pontos === null ? el("span", { className: "pequeno", textContent: "em análise" })
+        : pts.length ? el("ul", { className: "pontos" }, ...pts.map((p) => el("li", { textContent: p })))
+        : el("span", { className: "pequeno", textContent: "nada a apontar" })));
+  }));
+  $("novas").hidden = false;
 }
 
 // ------------------------------------------------------------ solicitacao (leitor do Webformat)
@@ -470,12 +586,14 @@ async function consultar(q) {
   $("resultado").hidden = true;
   $("solicitacao").hidden = true;
   $("paradas").hidden = true;
+  $("novas").hidden = true;
   $("botao").disabled = true;
   status("Consultando…", "carregando");
   try {
     const d = await pedir({ q, ...filtrosAtivos() });
     if (d.pedido) await acompanhar(d);
     else if (d.paradas) { status(""); mostrarParadas(d.paradas); }
+    else if (d.novas) { status(""); mostrarNovas(d.novas); }
     else { status(""); mostrar(d); }
   } catch (e) {
     status("Falha na consulta: " + (e instanceof ErroConsulta ? e.message : "erro inesperado"), "erro");
@@ -513,14 +631,15 @@ $("form-busca").addEventListener("submit", (ev) => {
 // Os tres jeitos de usar a consulta: cada um troca o exemplo da caixa e os
 // atalhos. A funcao entende qualquer um pelo texto; o modo so orienta.
 const MODOS = {
-  material: { dica: "Descreva o material, ou digite um grupo (024, EPI) ou um tipo de material (DIEN)",
-              exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN"] },
+  material: { dica: "Descreva o material, ou digite um grupo (024, EPI), um tipo (DIEN) ou um código SAP",
+              exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN", "código 1300033644"] },
   solicitacao: { dica: "Número da solicitação, ex.: 3951 (ou: GM da 3291, código SAP da 3231)",
                  exemplos: ["situação da 3951", "GM da 3291", "código SAP da 3231"] },
   validar: { dica: "Ex.: para validar · para validar EPI · para validar válvula",
              exemplos: ["para validar", "para validar EPI", "para validar DIEN", "para validar válvula"] },
-  paradas: { dica: "Ex.: paradas com a CH há mais de 5 dias",
-             exemplos: ["paradas com a CH há mais de 5 dias", "pendências há mais de 15 dias",
+  paradas: { dica: "Ex.: novas de hoje · paradas com a CH há mais de 5 dias",
+             exemplos: ["novas de hoje", "novas da semana com ponto de atenção", "paradas com a CH há mais de 5 dias",
+                        "pendências há mais de 15 dias",
                         "paradas com o solicitante e não cobradas"] },
 };
 
