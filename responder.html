@@ -231,7 +231,7 @@
       }
       desenhar();
     } catch (e) {
-      $("assunto").textContent = "Não consegui abrir a pergunta";
+      $("assunto").textContent = "Não foi possível abrir a pergunta";
       status(String(e.message || e).slice(0, 200), "erro");
     }
   }

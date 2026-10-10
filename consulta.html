@@ -20,9 +20,15 @@
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
 <link rel="stylesheet" href="consulta.css">
+<script src="tema.js"></script>
 </head>
 <body>
 <header class="topo">
+  <button type="button" class="tema" id="tema" aria-pressed="false" title="Alternar entre modo claro e escuro">
+    <svg class="icone-lua" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    <svg class="icone-sol" viewBox="0 0 24 24" aria-hidden="true" hidden><circle cx="12" cy="12" r="4.5"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4zM4.2 5.6l1.4-1.4 2.8 2.8-1.4 1.4zM15.6 17l1.4-1.4 2.8 2.8-1.4 1.4zM4.2 18.4l2.8-2.8 1.4 1.4-2.8 2.8zM15.6 7l2.8-2.8 1.4 1.4-2.8 2.8z"/></svg>
+    <span class="tema-texto">Modo escuro</span>
+  </button>
   <svg class="forma forma-bolha" viewBox="0 0 200 200" aria-hidden="true">
     <path d="M47.5,-60.3C61.2,-51.7,72,-37.2,76.3,-20.9C80.6,-4.6,78.5,13.5,70.8,28.6C63.1,43.7,49.9,55.8,34.6,63.6C19.3,71.4,1.9,74.9,-15.6,72.4C-33.1,69.9,-50.7,61.4,-62.4,47.6C-74.1,33.8,-79.9,14.7,-78.1,-3.6C-76.3,-21.9,-66.9,-39.4,-53.2,-48.2C-39.5,-57,-21.5,-57.1,-3.6,-52.8C14.3,-48.5,33.8,-68.9,47.5,-60.3Z" transform="translate(100 100)"/>
   </svg>
@@ -35,8 +41,9 @@
     <div class="topo-texto">
       <p class="sobretitulo">Master Data · Sabesp</p>
       <h1>Consulta da Bella</h1>
-      <p class="sub">Pesquise um material, um grupo (024, EPI, EPC) ou um tipo de material (DIEN, NLAG).
-        Ou pergunte sobre uma solicitação: <em>situação da solicitação 3951</em>.</p>
+      <p class="sub">Material, grupo de mercadorias (024, EPI, EPC), tipo de material (DIEN, NLAG),
+        número de solicitação (<em>situação da 3951</em>) ou solicitações paradas
+        (<em>pendências há mais de 15 dias</em>).</p>
 
       <form id="form-codigo" class="busca" autocomplete="off" hidden>
         <label class="oculto" for="codigo">Código de acesso do time</label>
@@ -50,11 +57,12 @@
         <button type="submit" id="botao">Consultar</button>
       </form>
       <div class="atalhos" id="atalhos" hidden>
-        <span>Experimente:</span>
+        <span>Exemplos:</span>
         <button type="button" data-q="válvula gaveta">válvula gaveta</button>
         <button type="button" data-q="EPI">EPI</button>
         <button type="button" data-q="DIEN">DIEN</button>
         <button type="button" data-q="situação da solicitação 3951">situação da 3951</button>
+        <button type="button" data-q="paradas com a CH há mais de 5 dias">paradas com a CH</button>
       </div>
     </div>
   </div>
@@ -83,6 +91,17 @@
     <div id="resposta"></div>
   </section>
 
+  <section class="cartao" id="paradas" hidden>
+    <h2 id="titulo-paradas">Solicitações em aberto</h2>
+    <p class="nota" id="nota-paradas"></p>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th>Nº</th><th>Parada há</th><th>Com quem</th><th>Situação</th><th>Cobrança</th><th>Descrição</th></tr></thead>
+        <tbody id="linhas-paradas"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="resultado" hidden>
     <div class="resumo">
       <div class="cartao">
@@ -108,8 +127,7 @@
       <dd>O quanto a descrição do caso se parece com o que você digitou. Diz só que o <b>material</b> é parecido,
         não que o grupo dele está certo.</dd>
       <dt><span class="selo time">classificação definida pelo time</span></dt>
-      <dd>O time de Master Data respondeu à Bella qual era o tipo e os grupos certos para esse material.
-        É a referência mais confiável.</dd>
+      <dd>Tipo e grupos informados pelo time de Master Data. É a referência mais confiável.</dd>
       <dt><span class="selo ok">classificação validada</span></dt>
       <dd>Caso antigo do Webformat em que o time <b>conferiu</b> e confirmou o tipo de material e os grupos usados.</dd>
       <dt><span class="selo nao">classificação não validada</span></dt>
@@ -121,7 +139,7 @@
 </main>
 
 <footer>
-  <span>Bella · agente de IA do time de Master Data da Sabesp · uso interno</span>
+  <span>Master Data · Sabesp · uso interno</span>
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a>
     <button type="button" class="link" id="sair" hidden>· Trocar o código de acesso</button></span>
 </footer>

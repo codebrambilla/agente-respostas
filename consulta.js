@@ -82,7 +82,7 @@ function barras(alvo, itens) {
 // pesquisa: "validada" nao quer dizer "e isto que voce procura".
 const SELOS = {
   time: ["selo time", "classificação definida pelo time",
-         "O time respondeu à Bella qual era o tipo e os grupos certos para este material."],
+         "Tipo e grupos informados pelo time de Master Data."],
   ok: ["selo ok", "classificação validada",
        "Caso do histórico do Webformat: o time conferiu e confirmou o tipo e os grupos usados nele."],
   nao: ["selo nao", "classificação não validada",
@@ -143,9 +143,35 @@ function mostrar(d) {
   const filtrado = Object.keys(filtrosAtivos()).length > 0;
   $("exemplos").replaceChildren(...(d.exemplos && d.exemplos.length ? d.exemplos.map((x) => exemplo(x, porTexto))
     : [el("p", { className: "vazio", textContent: filtrado
-        ? "Nenhum caso com esses filtros. Experimente limpar os filtros."
-        : "Nenhum caso parecido. Tente outra palavra, a abreviação do Webformat (VALV, TUB, CONEX) ou um grupo (024, EPI)." })]));
+        ? "Nenhum caso com esses filtros."
+        : "Nenhum caso parecido. Tente a abreviação usada no Webformat (VALV, TUB, CONEX) ou o código do grupo (024, EPI)." })]));
   $("resultado").hidden = false;
+}
+
+// ------------------------------------------------------------ solicitacoes paradas
+
+function dataHora(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function mostrarParadas(r) {
+  $("titulo-paradas").textContent = r.titulo;
+  const mostradas = r.itens.length;
+  $("nota-paradas").textContent = (r.total
+    ? `${r.total} ${r.total === 1 ? "solicitação" : "solicitações"}, da mais antiga para a mais nova`
+      + (r.total > mostradas ? ` (aqui as ${mostradas} mais antigas)` : "") + "."
+    : "Nenhuma.") + (r.atualizado_em ? ` Lido do Webformat até ${dataHora(r.atualizado_em)}.` : "");
+  $("linhas-paradas").replaceChildren(...r.itens.map((x) => el("tr", {},
+    el("td", {}, el("button", { type: "button", className: "link numero", textContent: String(x.numero),
+      title: `Ver a situação da ${x.numero}`, onclick: () => { $("q").value = `situação da ${x.numero}`; consultar($("q").value); } })),
+    el("td", { textContent: `${x.dias} ${x.dias === 1 ? "dia" : "dias"}`, title: dataHora(x.ultimo_em) }),
+    el("td", { textContent: x.com_solicitante ? `solicitante (${x.solicitante || "?"})` : (x.com_quem || "?") }),
+    el("td", { textContent: x.situacao }),
+    el("td", { textContent: x.cobranca || "", className: /^n[aã]o cobrada/.test(x.cobranca || "") ? "nao-cobrada" : "" }),
+    el("td", { textContent: x.descricao || "" }))));
+  $("paradas").hidden = false;
 }
 
 // ------------------------------------------------------------ solicitacao (leitor do Webformat)
@@ -156,11 +182,65 @@ function texto(md) {
     i % 2 ? el("b", { textContent: pedaco }) : document.createTextNode(pedaco))));
 }
 
+// A resposta do leitor (o mesmo texto do Teams) vira ficha: cabecalho com a
+// situacao, andamento em linha do tempo e os campos em grade.
+const CAMPOS_FICHA = ["Descrição longa", "Descrição curta", "Tipo de material", "PDM", "Grupo de mercadorias",
+  "Grupo de compradores", "Classe de avaliação", "NCM", "Classe", "Nº de classe", "UAR", "Código definitivo",
+  "Dados complementares", "Fabricante", "Referência", "Unidade de medida", "Bem patrimonial", "Urgente",
+  "Motivo da urgência"];
+const LARGOS = new Set(["Descrição longa", "Tipo de material", "PDM", "Dados complementares", "Motivo da urgência"]);
+
+// "**004 - TUB.CONEX.FERRO** (SAP antigo)" -> negrito no que vem entre **, o resto discreto
+function valorRico(v) {
+  return v.split(/\*\*(.+?)\*\*/).map((pedaco, i) =>
+    i % 2 ? el("strong", { textContent: pedaco }) : el("span", { className: "valor-extra", textContent: pedaco }));
+}
+
+function situacaoDe(andamento) {
+  const t = andamento.join(" ");
+  const parada = t.match(/Está parada com (.+?) há (.+?)\./);
+  if (/^Concluída/m.test(andamento.join("\n"))) return ["concluida", "Concluída"];
+  if (andamento.some((l) => l.startsWith("Cancelada"))) return ["cancelada", "Cancelada"];
+  if (parada) return ["andamento", `Parada há ${parada[2]}`];
+  return ["andamento", "Em andamento"];
+}
+
+function montarFicha(md, numero) {
+  const pars = String(md || "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const cab = pars.length ? pars[0].match(/^\*\*Solicitação (\d+)\*\*(?: · (.*))?$/) : null;
+  if (!cab) return el("div", {}, ...texto(md || `Não foi possível ler a solicitação ${numero} agora.`));
+  const campos = [], andamento = [];
+  for (const p of pars.slice(1)) {
+    const m = p.match(/^([^:*]{2,30}): (.+)$/s);
+    if (m && CAMPOS_FICHA.includes(m[1])) campos.push([m[1], m[2]]);
+    else andamento.push(p.replace(/\*\*/g, ""));
+  }
+  const [classe, rotulo] = situacaoDe(andamento);
+  const topo = el("div", { className: "ficha-topo" },
+    el("div", {},
+      el("p", { className: "ficha-numero", textContent: `Solicitação ${cab[1]}` }),
+      cab[2] ? el("h3", { className: "ficha-titulo", textContent: cab[2] }) : null),
+    andamento.length ? el("span", { className: `ficha-situacao ${classe}`, textContent: rotulo }) : null);
+  const partes = [topo];
+  if (andamento.length) {
+    partes.push(el("ol", { className: "linha-tempo", ariaLabel: "Andamento" },
+      ...andamento.map((l) => el("li", { className: /^(Motivo|Antes disso)/.test(l) ? "detalhe" : "", textContent: l }))));
+  }
+  if (campos.length) {
+    partes.push(el("dl", { className: "ficha-campos" }, ...campos.flatMap(([rot, val]) => {
+      const codigo = rot === "Código definitivo" && /\d{5,}/.test(val);
+      return [el("div", { className: "campo" + (LARGOS.has(rot) ? " largo" : "") + (codigo ? " codigo" : "") },
+        el("dt", { textContent: rot }), el("dd", {}, ...valorRico(val)))];
+    })));
+  }
+  return el("div", { className: "ficha" }, ...partes);
+}
+
 let espera = 0;
 async function acompanhar(d) {
   const minha = ++espera;  // uma consulta nova cancela a espera desta
-  status(d.leitor_vivo ? `Olhando a solicitação ${d.numero} no Webformat…`
-    : `O leitor do Webformat está desligado agora. A pergunta sobre a ${d.numero} ficou na fila; deixe esta página aberta.`,
+  status(d.leitor_vivo ? `Lendo a solicitação ${d.numero} no Webformat…`
+    : `Leitor do Webformat desligado. A solicitação ${d.numero} ficou na fila e o resultado aparece aqui quando ele voltar (mantenha a página aberta).`,
     "carregando");
   const fim = Date.now() + (d.leitor_vivo ? 3 : 30) * 60 * 1000;
   while (Date.now() < fim && minha === espera) {
@@ -170,12 +250,12 @@ async function acompanhar(d) {
     try { p = await pedir({ pedido: d.pedido }); } catch (e) { continue; }  // falha passageira: tenta de novo
     if (p.status === "respondido" || p.status === "erro") {
       status("");
-      $("resposta").replaceChildren(...texto(p.resposta || `Não consegui ler a solicitação ${d.numero} agora.`));
+      $("resposta").replaceChildren(montarFicha(p.resposta, d.numero));
       $("solicitacao").hidden = false;
       return;
     }
   }
-  if (minha === espera) status("O Webformat não respondeu a tempo. Tente de novo daqui a pouco.", "erro");
+  if (minha === espera) status("O Webformat não respondeu a tempo. Tente de novo em alguns minutos.", "erro");
 }
 
 // ------------------------------------------------------------ filtros
@@ -223,14 +303,16 @@ async function consultar(q) {
   espera++;
   $("resultado").hidden = true;
   $("solicitacao").hidden = true;
+  $("paradas").hidden = true;
   $("botao").disabled = true;
   status("Consultando…", "carregando");
   try {
     const d = await pedir({ q, ...filtrosAtivos() });
     if (d.pedido) await acompanhar(d);
+    else if (d.paradas) { status(""); mostrarParadas(d.paradas); }
     else { status(""); mostrar(d); }
   } catch (e) {
-    status("Não consegui consultar: " + (e instanceof ErroConsulta ? e.message : "erro inesperado"), "erro");
+    status("Falha na consulta: " + (e instanceof ErroConsulta ? e.message : "erro inesperado"), "erro");
   } finally {
     $("botao").disabled = false;
   }
@@ -253,7 +335,7 @@ $("form-codigo").addEventListener("submit", (ev) => {
   if (!codigo) return;
   try { localStorage.setItem("consulta-codigo", codigo); } catch (e) { /* ok */ }
   telas();
-  status("Código guardado neste navegador. Agora digite um material ou uma solicitação.");
+  status("Código salvo neste navegador.");
 });
 
 $("form-busca").addEventListener("submit", (ev) => {
