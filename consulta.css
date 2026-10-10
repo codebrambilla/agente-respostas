@@ -241,7 +241,6 @@ footer a { color: inherit; }
 @keyframes salvo { from { background: var(--verde-claro); } to { background: transparent; } }
 .conferir-caixa, .conferir-correcao { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
 .conferir-correcao { flex-basis: 100%; }
-.conferir-correcao[hidden] { display: none; }
 .conferir-caixa p { margin: 0; flex-basis: 100%; font-size: 14px; }
 .conferir-caixa label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--tinta-2); min-width: 0; }
 .conferir-caixa input, .conferir-caixa select { font: inherit; font-size: 14px; color: var(--tinta); background: var(--papel);

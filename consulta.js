@@ -213,6 +213,7 @@ function mostrar(d) {
   $("reprovadas").hidden = !d.reprovados;
   $("reprovadas").textContent = d.reprovados
     ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
+  $("resumo-grupos").hidden = !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
   $("resultado").hidden = false;
 }
 
@@ -229,9 +230,10 @@ function opcoes(mapa, atual) {
 }
 
 // Abre (ou fecha) a caixa de conferencia logo abaixo da linha do caso.
-function abrirConferir(x, tr, porTexto) {
+async function abrirConferir(x, tr, porTexto) {
   const seguinte = tr.nextElementSibling;
   if (seguinte && seguinte.classList.contains("conferir")) { seguinte.remove(); return; }
+  if (!listasCarregadas) await carregarListas();  // a correcao precisa da lista de grupos
   const nome = el("input", { type: "text", maxLength: 60, value: quemValida, placeholder: "Nome e sobrenome", autocomplete: "name" });
   const msg = el("p", { className: "conferir-msg", role: "status" });
   const caixa = el("div", { className: "conferir-caixa" });
@@ -278,7 +280,8 @@ function abrirConferir(x, tr, porTexto) {
       campoNome, desfazer, fechar, msg);
   } else {
     const certo = el("button", { type: "button", className: "acao principal", textContent: "Está certo" });
-    const corrigir = el("button", { type: "button", className: "acao", textContent: "Corrigir" });
+    const corrigir = el("button", { type: "button", className: "acao", textContent: "Corrigir", disabled: !listasCarregadas,
+                                    title: listasCarregadas ? "" : "Lista de grupos indisponível agora; tente de novo em instantes" });
     const tipo = el("select", {}, ...(listas.tipos.length ? listas.tipos : [x.tipo || ""]).map((t) =>
       el("option", { value: t, textContent: t, selected: t === x.tipo })));
     const gm = el("select", {}, ...opcoes(listas.gms, x.gm));
