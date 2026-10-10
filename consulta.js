@@ -28,7 +28,6 @@ function telas() {
   $("form-codigo").hidden = !!codigo;
   $("form-busca").hidden = !codigo;
   $("atalhos").hidden = !codigo;
-  $("filtros").hidden = !codigo;
   $("sair").hidden = !codigo;
   carregarListas();
   (codigo ? $("q") : $("codigo")).focus();
@@ -89,62 +88,104 @@ const SELOS = {
         "Caso do histórico do Webformat, como foi aprovado na época. O time ainda não conferiu se o tipo e os grupos estavam certos."],
 };
 
-function selo(x) {
+function selo(x, curto) {
   const [classe, texto, explica] = SELOS[x.origem === "time" ? "time" : x.validado ? "ok" : "nao"];
-  return el("span", { className: classe, textContent: texto, title: explica });
+  return el("span", { className: classe, textContent: curto ? texto.replace("classificação ", "") : texto, title: explica });
 }
 
-function parecido(pct) {
+function parecido(pct, curto) {
   const nivel = pct >= 85 ? "" : pct >= 60 ? " medio" : " baixo";
   return el("span", { className: "parecido" + nivel, title: "Quanto a descrição deste caso se parece com o que você digitou. Não diz se o grupo está certo.",
-                      textContent: `${pct}% parecido` });
+                      textContent: curto ? `${pct}%` : `${pct}% parecido` });
 }
 
-function exemplo(x, porTexto) {
-  const meta = el("div", { className: "meta" });
-  const b = (t) => el("b", { textContent: t });
-  if (x.reprovada) {
-    // tipo_pedido = como foi aberta no Webformat; tipo = o certo, apontado na triagem
-    if (x.tipo_pedido) meta.append("Pedido como ", b(x.tipo_pedido), " · ");
-    meta.append(el("span", { className: "reprovada",
-      textContent: x.tipo ? `reprovada na triagem: o certo é ${x.tipo}` : "reprovada na triagem" }));
-  } else {
-    if (x.tipo_pedido && x.tipo && x.tipo_pedido !== x.tipo) {
-      meta.append("Pedido como ", b(x.tipo_pedido), " · o time trocou para ", b(x.tipo), " · ");
-    } else if (x.tipo) {
-      meta.append("Tipo ", b(x.tipo), " · ");
-    }
-    meta.append("GM ", b(nomeGrupo(x.gm, x.gm_nome)),
-                " · GC ", b(x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—"));
+function abrirSolicitacao(n) {
+  $("q").value = `situação da ${n}`;
+  consultar($("q").value);
+}
+
+function numeroLink(n) {
+  return el("button", { type: "button", className: "link numero", textContent: String(n),
+    title: `Ver a situação da solicitação ${n}`, onclick: () => abrirSolicitacao(n) });
+}
+
+// Uma linha da tabela de casos. Reprovada: o tipo pedido e o certo; tipo
+// trocado pelo time: "ZMAT -> NLAG".
+function linhaCaso(x, porTexto) {
+  const td = (...f) => el("td", {}, ...f);
+  const pequeno = (t, classe) => el("div", { className: "pequeno " + (classe || ""), textContent: t });
+  const trocou = x.tipo_pedido && x.tipo && x.tipo_pedido !== x.tipo;
+  const tipo = x.reprovada
+    ? td(el("b", { textContent: x.tipo_pedido || "—" }), pequeno(x.tipo ? `reprovada: o certo é ${x.tipo}` : "reprovada", "reprovada"))
+    : trocou ? td(el("b", { textContent: x.tipo }), pequeno(`pedido como ${x.tipo_pedido}`))
+    : td(el("b", { textContent: x.tipo || "—" }));
+  // a observacao de reprovacao/troca ja esta na coluna do tipo
+  const obs = x.observacao && !((x.reprovada || trocou) && /reprova|trocou/i.test(x.observacao)) ? x.observacao : "";
+  const codigo = x.codigo_definitivo
+    ? td(el("span", { className: "codigo-sap", textContent: x.codigo_definitivo }),
+      /^\d{10}$/.test(x.codigo_definitivo) ? null : pequeno("SAP antigo"))
+    : td(el("span", { className: "pequeno", textContent: "—" }));
+  return el("tr", {},
+    porTexto ? td(parecido(x.semelhanca, true)) : null,
+    el("td", { className: "material" }, el("b", { textContent: x.descricao }),
+      el("div", { className: "sob-material" }, x.numero ? el("span", {}, "Solicitação ", numeroLink(x.numero)) : null, selo(x, true)),
+      obs ? pequeno(obs) : null),
+    tipo,
+    td(x.reprovada ? "—" : nomeGrupo(x.gm, x.gm_nome)),
+    td(x.reprovada ? "—" : (x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—")),
+    codigo);
+}
+
+// A resposta em uma frase e os dois grupos mais usados, com o peso de cada um.
+function respostaPrincipal(d) {
+  const gm = (d.grupos_mercadorias || [])[0], gc = (d.grupos_compradores || [])[0];
+  const base = (lista) => Math.max(d.encontrados || 0, (lista || []).reduce((t, g) => t + g.vezes, 0)) || 1;
+  if (!gm && !gc) {
+    return [el("p", { className: "principal-frase", textContent: "Nenhum caso encontrado para esta busca." }),
+      el("p", { className: "nota", textContent: "Tente a abreviação usada no Webformat (VALV, TUB, CONEX), o código do grupo (024, EPI) ou um tipo de material (DIEN)." })];
   }
-  if (x.codigo_definitivo) {
-    meta.append(" · Código ", el("b", { textContent: x.codigo_definitivo }),
-                /^\d{10}$/.test(x.codigo_definitivo) ? "" : " (SAP antigo)");
+  const frase = d.por_grupo ? `Grupo de mercadorias ${d.grupo}: ${d.encontrados} ${d.encontrados === 1 ? "caso" : "casos"} no histórico.`
+    : d.por_tipo ? `Tipo de material ${d.por_tipo}: ${d.encontrados} ${d.encontrados === 1 ? "caso" : "casos"} no histórico.`
+    : `Em ${d.encontrados} ${d.encontrados === 1 ? "caso parecido" : "casos parecidos"} com “${d.busca}”, o time usou:`;
+  const bloco = (rotulo, g, lista) => {
+    if (!g) return null;
+    const total = base(lista), pct = Math.round((100 * g.vezes) / total);
+    return el("div", { className: "bloco" },
+      el("div", { className: "bloco-rotulo", textContent: rotulo }),
+      el("div", { className: "bloco-valor", textContent: nomeGrupo(g.codigo, g.nome) }),
+      el("div", { className: "bloco-peso", textContent: `em ${g.vezes} de ${total} ${total === 1 ? "caso" : "casos"} (${pct}%)` }));
+  };
+  const pctGm = gm ? gm.vezes / base(d.grupos_mercadorias) : 1;
+  const partes = [el("p", { className: "principal-frase", textContent: frase }),
+    el("div", { className: "blocos" },
+      d.por_grupo ? null : bloco("Grupo de mercadorias mais usado", gm, d.grupos_mercadorias),
+      bloco("Grupo de compradores mais usado", gc, d.grupos_compradores))];
+  if (!d.por_grupo && pctGm < 0.6) {
+    partes.push(el("p", { className: "aviso", textContent: "Os casos se dividem entre grupos diferentes. Compare as descrições na tabela abaixo antes de escolher." }));
   }
-  if (x.numero) meta.append(` · solicitação ${x.numero}`);
-  return el("div", { className: "exemplo" },
-    el("div", { className: "desc" }, x.descricao, porTexto ? parecido(x.semelhanca) : null, selo(x)), meta,
-    // a observacao de reprovacao ja virou a linha acima
-    x.observacao && !((x.reprovada || (x.tipo_pedido && x.tipo_pedido !== x.tipo)) && /reprova/i.test(x.observacao))
-      ? el("div", { className: "obs", textContent: x.observacao }) : null);
+  return partes;
 }
 
 function mostrar(d) {
   barras($("gms"), d.grupos_mercadorias);
   barras($("gcs"), d.grupos_compradores);
   const porTexto = !d.por_tipo && !d.por_grupo;
-  $("titulo-exemplos").textContent = d.por_tipo
-    ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
+  $("principal").replaceChildren(...respostaPrincipal(d));
+  $("titulo-exemplos").textContent = d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
     : d.por_grupo ? `Últimos casos do grupo ${d.grupo} (${d.exemplos.length} de ${d.encontrados})`
-    : `Casos parecidos (${d.encontrados})`;
+    : `Casos parecidos (${d.exemplos.length})`;
+  const colunas = [porTexto ? "Parecido" : null, "Material", "Tipo", "Grupo de mercadorias", "Grupo de compradores",
+    "Código SAP"].filter(Boolean);
+  $("cab-casos").replaceChildren(...colunas.map((c) => el("th", { textContent: c })));
+  const casos = d.exemplos || [];
+  $("exemplos").replaceChildren(...casos.map((x) => linhaCaso(x, porTexto)));
+  $("cab-casos").parentElement.parentElement.hidden = !casos.length;
+  const filtrado = Object.keys(filtrosAtivos()).length > 0;
+  $("sem-casos").hidden = casos.length > 0;
+  $("sem-casos").textContent = filtrado ? "Nenhum caso com esses filtros." : "Nenhum caso parecido.";
   $("reprovadas").hidden = !d.reprovados;
   $("reprovadas").textContent = d.reprovados
     ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
-  const filtrado = Object.keys(filtrosAtivos()).length > 0;
-  $("exemplos").replaceChildren(...(d.exemplos && d.exemplos.length ? d.exemplos.map((x) => exemplo(x, porTexto))
-    : [el("p", { className: "vazio", textContent: filtrado
-        ? "Nenhum caso com esses filtros."
-        : "Nenhum caso parecido. Tente a abreviação usada no Webformat (VALV, TUB, CONEX) ou o código do grupo (024, EPI)." })]));
   $("resultado").hidden = false;
 }
 
@@ -164,8 +205,7 @@ function mostrarParadas(r) {
       + (r.total > mostradas ? ` (aqui as ${mostradas} mais antigas)` : "") + "."
     : "Nenhuma.") + (r.atualizado_em ? ` Lido do Webformat até ${dataHora(r.atualizado_em)}.` : "");
   $("linhas-paradas").replaceChildren(...r.itens.map((x) => el("tr", {},
-    el("td", {}, el("button", { type: "button", className: "link numero", textContent: String(x.numero),
-      title: `Ver a situação da ${x.numero}`, onclick: () => { $("q").value = `situação da ${x.numero}`; consultar($("q").value); } })),
+    el("td", {}, numeroLink(x.numero)),
     el("td", { textContent: `${x.dias} ${x.dias === 1 ? "dia" : "dias"}`, title: dataHora(x.ultimo_em) }),
     el("td", { textContent: x.com_solicitante ? `solicitante (${x.solicitante || "?"})` : (x.com_quem || "?") }),
     el("td", { textContent: x.situacao }),
@@ -270,8 +310,17 @@ function filtrosAtivos() {
 
 function marcarFiltros() {
   for (const id of Object.values(FILTROS)) $(id).classList.toggle("ativo", !!$(id).value);
-  $("limpar-filtros").hidden = !Object.keys(filtrosAtivos()).length;
+  const n = Object.keys(filtrosAtivos()).length;
+  $("limpar-filtros").hidden = !n;
+  $("abrir-filtros").textContent = n ? `Filtrar (${n})` : "Filtrar";
+  $("abrir-filtros").classList.toggle("ativo", n > 0);
 }
+
+$("abrir-filtros").addEventListener("click", () => {
+  const abrir = $("filtros").hidden;
+  $("filtros").hidden = !abrir;
+  $("abrir-filtros").setAttribute("aria-expanded", abrir ? "true" : "false");
+});
 
 let listasCarregadas = false;
 async function carregarListas() {
@@ -344,10 +393,33 @@ $("form-busca").addEventListener("submit", (ev) => {
   if (q.length >= 2) consultar(q);
 });
 
+// Os tres jeitos de usar a consulta: cada um troca o exemplo da caixa e os
+// atalhos. A funcao entende qualquer um pelo texto; o modo so orienta.
+const MODOS = {
+  material: { dica: "Descreva o material, ou digite um grupo (024, EPI) ou um tipo de material (DIEN)",
+              exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN"] },
+  solicitacao: { dica: "Número da solicitação, ex.: 3951 (ou: GM da 3291, código SAP da 3231)",
+                 exemplos: ["situação da 3951", "GM da 3291", "código SAP da 3231"] },
+  paradas: { dica: "Ex.: paradas com a CH há mais de 5 dias",
+             exemplos: ["paradas com a CH há mais de 5 dias", "pendências há mais de 15 dias",
+                        "paradas com o solicitante e não cobradas"] },
+};
+
+function escolherModo(nome) {
+  const m = MODOS[nome] || MODOS.material;
+  for (const b of document.querySelectorAll(".modo")) b.setAttribute("aria-pressed", b.dataset.modo === nome ? "true" : "false");
+  $("q").placeholder = m.dica;
+  $("exemplos-modo").replaceChildren(...m.exemplos.map((q) => el("button", { type: "button", textContent: q })));
+  for (const [i, b] of [...$("exemplos-modo").children].entries()) b.dataset.q = m.exemplos[i];
+}
+
 $("atalhos").addEventListener("click", (ev) => {
+  const modo = ev.target.closest("button[data-modo]")?.dataset.modo;
+  if (modo) { escolherModo(modo); $("q").focus(); return; }
   const q = ev.target.closest("button[data-q]")?.dataset.q;
   if (q) { $("q").value = q; consultar(q); }
 });
+escolherModo("material");
 
 $("sair").addEventListener("click", sair);
 telas();

@@ -41,9 +41,7 @@
     <div class="topo-texto">
       <p class="sobretitulo">Master Data · Sabesp</p>
       <h1>Consulta da Bella</h1>
-      <p class="sub">Material, grupo de mercadorias (024, EPI, EPC), tipo de material (DIEN, NLAG),
-        número de solicitação (<em>situação da 3951</em>) ou solicitações paradas
-        (<em>pendências há mais de 15 dias</em>).</p>
+      <p class="sub">Grupos usados em materiais parecidos, situação de solicitações e o que está parado no Webformat.</p>
 
       <form id="form-codigo" class="busca" autocomplete="off" hidden>
         <label class="oculto" for="codigo">Código de acesso do time</label>
@@ -56,35 +54,19 @@
         <input id="q" type="search" maxlength="120" placeholder="Ex.: válvula gaveta · EPI · DIEN · situação da solicitação 3951" required>
         <button type="submit" id="botao">Consultar</button>
       </form>
-      <div class="atalhos" id="atalhos" hidden>
-        <span>Exemplos:</span>
-        <button type="button" data-q="válvula gaveta">válvula gaveta</button>
-        <button type="button" data-q="EPI">EPI</button>
-        <button type="button" data-q="DIEN">DIEN</button>
-        <button type="button" data-q="situação da solicitação 3951">situação da 3951</button>
-        <button type="button" data-q="paradas com a CH há mais de 5 dias">paradas com a CH</button>
+      <div id="atalhos" hidden>
+        <div class="modos" role="group" aria-label="O que você quer consultar">
+          <button type="button" class="modo" data-modo="material" aria-pressed="true">Grupo para um material</button>
+          <button type="button" class="modo" data-modo="solicitacao" aria-pressed="false">Situação de uma solicitação</button>
+          <button type="button" class="modo" data-modo="paradas" aria-pressed="false">Solicitações paradas</button>
+        </div>
+        <div class="atalhos"><span>Exemplos:</span><span id="exemplos-modo"></span></div>
       </div>
     </div>
   </div>
 </header>
 
 <main>
-  <form class="filtros" id="filtros" aria-label="Filtros da busca" hidden>
-    <span class="filtros-titulo">Filtrar</span>
-    <label>Tipo de material
-      <select id="f-tipo"><option value="">Todos</option></select></label>
-    <label>Classificação
-      <select id="f-origem">
-        <option value="">Todas</option>
-        <option value="time">Definida pelo time</option>
-        <option value="validado">Validada (histórico conferido)</option>
-        <option value="nao_validado">Não validada (histórico não conferido)</option>
-      </select></label>
-    <label>Grupo de compradores
-      <select id="f-gc"><option value="">Todos</option></select></label>
-    <button type="button" class="link" id="limpar-filtros" hidden>Limpar filtros</button>
-  </form>
-
   <p class="status" id="status" role="status" aria-live="polite"></p>
 
   <section class="cartao destaque" id="solicitacao" hidden>
@@ -103,24 +85,50 @@
   </section>
 
   <section id="resultado" hidden>
+    <div class="cartao destaque principal" id="principal"></div>
+
+    <div class="cartao">
+      <div class="cartao-cabeca">
+        <h2 id="titulo-exemplos">Casos</h2>
+        <button type="button" class="botao-filtro" id="abrir-filtros" aria-expanded="false" aria-controls="filtros">Filtrar</button>
+      </div>
+      <form class="filtros" id="filtros" aria-label="Filtros dos casos" hidden>
+        <label>Tipo de material
+          <select id="f-tipo"><option value="">Todos</option></select></label>
+        <label>Classificação
+          <select id="f-origem">
+            <option value="">Todas</option>
+            <option value="time">Definida pelo time</option>
+            <option value="validado">Validada (histórico conferido)</option>
+            <option value="nao_validado">Não validada (histórico não conferido)</option>
+          </select></label>
+        <label>Grupo de compradores
+          <select id="f-gc"><option value="">Todos</option></select></label>
+        <button type="button" class="link" id="limpar-filtros" hidden>Limpar filtros</button>
+      </form>
+      <div class="tabela-rolagem">
+        <table class="tabela casos">
+          <thead><tr id="cab-casos"></tr></thead>
+          <tbody id="exemplos"></tbody>
+        </table>
+      </div>
+      <p class="vazio" id="sem-casos" hidden></p>
+      <p class="nota" id="reprovadas" hidden></p>
+    </div>
+
     <div class="resumo">
       <div class="cartao">
-        <h2>Grupo de mercadorias</h2>
+        <h2>Grupos de mercadorias usados</h2>
         <div id="gms"></div>
-        <p class="nota" id="reprovadas" hidden></p>
       </div>
       <div class="cartao">
-        <h2>Grupo de compradores</h2>
+        <h2>Grupos de compradores usados</h2>
         <div id="gcs"></div>
       </div>
     </div>
-    <div class="cartao">
-      <h2 id="titulo-exemplos">Casos parecidos</h2>
-      <div id="exemplos"></div>
-    </div>
   </section>
 
-  <details class="legenda" id="legenda" open>
+  <details class="legenda" id="legenda">
     <summary>Como ler o resultado</summary>
     <dl>
       <dt><span class="parecido">93% parecido</span></dt>
