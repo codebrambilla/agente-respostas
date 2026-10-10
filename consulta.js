@@ -8,7 +8,6 @@
 "use strict";
 
 const API = "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/consultar";
-const API_VALIDAR = "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/validar";
 const TEMPO_LIMITE_MS = 20000;
 const $ = (id) => document.getElementById(id);
 const el = (tag, props, ...filhos) => {
@@ -38,20 +37,14 @@ function telas() {
 
 class ErroConsulta extends Error {}
 
-// GET na consulta; com `corpo`, POST na validacao de caso.
-async function pedir(params, corpo) {
+async function pedir(params) {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TEMPO_LIMITE_MS);
   let r;
   try {
-    r = corpo
-      ? await fetch(API_VALIDAR, {
-        method: "POST", body: JSON.stringify(corpo), headers: { "x-codigo": codigo, "content-type": "application/json" },
-        signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
-      })
-      : await fetch(`${API}?${new URLSearchParams(params)}`, {
-        headers: { "x-codigo": codigo }, signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
-      });
+    r = await fetch(`${API}?${new URLSearchParams(params)}`, {
+      headers: { "x-codigo": codigo }, signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
+    });
   } catch (e) {
     throw new ErroConsulta(e.name === "AbortError" ? "a consulta demorou demais" : "sem conexão com a consulta");
   } finally {
@@ -135,21 +128,11 @@ function linhaCaso(x, porTexto) {
     ? td(el("span", { className: "codigo-sap", textContent: x.codigo_definitivo }),
       /^\d{10}$/.test(x.codigo_definitivo) ? null : pequeno("SAP antigo"))
     : td(el("span", { className: "pequeno", textContent: "—" }));
-  const conferir = x.origem === "historico" && x.id
-    ? el("button", { type: "button", className: "link conferir", textContent: x.validado ? "Desfazer" : "Conferir",
-                     title: x.validado ? "Voltar este caso para não validado" : "Confirmar ou corrigir o tipo e os grupos deste caso",
-                     onclick: (ev) => abrirConferir(x, ev.target.closest("tr"), porTexto) })
-    : null;
-  const marcavel = lote && x.origem === "historico" && x.id && !x.validado;
-  const marca = lote ? td(marcavel ? el("input", { type: "checkbox", className: "marca", checked: lote.has(x.id),
-    ariaLabel: `Selecionar o caso da solicitação ${x.numero || ""}`,
-    onchange: (ev) => { ev.target.checked ? lote.add(x.id) : lote.delete(x.id); atualizarLote(); } }) : null) : null;
   const linha = el("tr", {},
-    marca,
     porTexto ? td(parecido(x.semelhanca, true)) : null,
     el("td", { className: "material" }, el("b", { textContent: x.descricao }),
       el("div", { className: "sob-material" }, x.numero ? el("span", {}, "Solicitação ", numeroLink(x.numero)) : null,
-        selo(x, true), conferir),
+        selo(x, true)),
       obs ? pequeno(obs) : null),
     tipo,
     td(x.reprovada ? "—" : nomeGrupo(x.gm, x.gm_nome)),
@@ -194,17 +177,11 @@ function mostrar(d) {
   barras($("gcs"), d.grupos_compradores);
   const soLista = d.para_validar && !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
   const porTexto = !d.por_tipo && !d.por_grupo && !soLista;
-  lote = d.para_validar ? new Set() : null;
-  casosMostrados = d.exemplos || [];
   const principal = d.por_codigo ? respostaCodigo(d) : soLista
     ? [el("p", { className: "principal-frase", textContent: d.encontrados
       ? `${d.encontrados} ${d.encontrados === 1 ? "caso do histórico ainda não validado" : "casos do histórico ainda não validados"}.`
       : "Nenhum caso para validar nesta busca." })]
     : respostaPrincipal(d);
-  if (d.para_validar) {
-    principal.push(el("p", { className: "nota", textContent: "Em cada caso: “Conferir”, depois “Está certo” ou “Corrigir”. "
-      + "Só os casos validados são usados na triagem automática. Cada validação fica registrada com o nome de quem fez e pode ser desfeita." }));
-  }
   $("principal").replaceChildren(...principal);
   $("titulo-exemplos").textContent = d.por_codigo ? `Casos com o código ${d.por_codigo} (${d.exemplos.length})`
     : d.para_validar ? `Para validar (${d.exemplos.length} de ${d.encontrados})`
@@ -213,18 +190,10 @@ function mostrar(d) {
     : `Casos parecidos (${d.exemplos.length})`;
   const colunas = [porTexto && !d.por_codigo ? "Parecido" : null, "Material", "Tipo", "Grupo de mercadorias",
     "Grupo de compradores", "Código SAP"].filter(Boolean);
-  const todos = lote ? el("input", { type: "checkbox", className: "marca", ariaLabel: "Selecionar todos os casos da lista",
-    onchange: (ev) => {
-      for (const x of casosMostrados) if (x.origem === "historico" && x.id && !x.validado) ev.target.checked ? lote.add(x.id) : lote.delete(x.id);
-      for (const c of $("exemplos").querySelectorAll("input.marca")) c.checked = ev.target.checked;
-      atualizarLote();
-    } }) : null;
-  $("cab-casos").replaceChildren(...(lote ? [el("th", { className: "col-marca" }, todos)] : []),
+  $("cab-casos").replaceChildren(
     ...colunas.map((c) => el("th", { textContent: c })));
   const casos = d.exemplos || [];
-  porTextoAtual = porTexto && !d.por_codigo;
-  $("exemplos").replaceChildren(...casos.map((x) => linhaCaso(x, porTextoAtual)));
-  atualizarLote();
+  $("exemplos").replaceChildren(...casos.map((x) => linhaCaso(x, porTexto && !d.por_codigo)));
   $("cab-casos").parentElement.parentElement.hidden = !casos.length;
   const filtrado = Object.keys(filtrosAtivos()).length > 0;
   $("sem-casos").hidden = casos.length > 0;
@@ -259,138 +228,6 @@ function respostaCodigo(d) {
     partes.push(el("p", { className: "aviso", textContent: "O mesmo código em mais de uma solicitação: confira se é o mesmo material ou se o código foi digitado errado." }));
   }
   return partes;
-}
-
-// ------------------------------------------------------------ validar em lote
-
-let lote = null;            // ids selecionados (so no modo "para validar")
-let casosMostrados = [];
-let porTextoAtual = false;
-
-function atualizarLote() {
-  const barra = $("lote");
-  if (!lote) { barra.hidden = true; return; }
-  const n = lote.size;
-  barra.hidden = false;
-  $("lote-qtd").textContent = n ? `${n} ${n === 1 ? "caso selecionado" : "casos selecionados"}` : "Selecione os casos certos para validar de uma vez.";
-  $("lote-validar").disabled = !n;
-  if (!$("lote-nome").value) $("lote-nome").value = quemValida;
-}
-
-$("lote-validar").addEventListener("click", async () => {
-  const por = $("lote-nome").value.replace(/\s+/g, " ").trim();
-  const msg = $("lote-msg");
-  if (!NOME_VALIDO.test(por)) { msg.textContent = "Informe seu nome (fica registrado na validação)."; msg.className = "conferir-msg erro"; $("lote-nome").focus(); return; }
-  const ids = [...lote];
-  if (!confirm(`Marcar ${ids.length} ${ids.length === 1 ? "caso" : "casos"} como certos, em nome de ${por}?`)) return;
-  quemValida = por;
-  try { localStorage.setItem("consulta-nome", por); } catch (e) { /* ok */ }
-  $("lote-validar").disabled = true;
-  msg.textContent = "Gravando…"; msg.className = "conferir-msg";
-  try {
-    const r = await pedir(null, { ids, acao: "certo", por });
-    const agora = new Date().toISOString();
-    for (const id of r.validados || []) {
-      const x = casosMostrados.find((c) => c.id === id);
-      if (!x) continue;
-      Object.assign(x, { validado: true, validado_por: por, validado_em: agora });
-      lote.delete(id);
-      const tr = $("exemplos").querySelector(`tr[data-id="${id}"]`);
-      if (tr) { const nova = linhaCaso(x, porTextoAtual); nova.classList.add("salvo"); tr.replaceWith(nova); }
-    }
-    const erros = r.erros || [];
-    msg.textContent = `${(r.validados || []).length} validados.` + (erros.length ? ` ${erros.length} não: ${erros.map((e) => e.erro).join("; ")}.` : "");
-    msg.className = "conferir-msg" + (erros.length ? " erro" : "");
-  } catch (e) {
-    msg.textContent = e instanceof ErroConsulta ? e.message : "Não foi possível gravar agora.";
-    msg.className = "conferir-msg erro";
-  }
-  atualizarLote();
-});
-
-// ------------------------------------------------------------ conferir (validar) um caso do historico
-
-const NOME_VALIDO = /^[\p{L}][\p{L} .'\-]{1,59}$/u;
-let quemValida = "";
-try { quemValida = localStorage.getItem("consulta-nome") || ""; } catch (e) { /* ok */ }
-
-function opcoes(mapa, atual) {
-  const lista = Object.entries(mapa);
-  if (atual && !mapa[atual]) lista.unshift([atual, "SAP antigo"]);
-  return lista.map(([cod, nome]) => el("option", { value: cod, textContent: `${cod} - ${nome}`, selected: cod === atual }));
-}
-
-// Abre (ou fecha) a caixa de conferencia logo abaixo da linha do caso.
-async function abrirConferir(x, tr, porTexto) {
-  const seguinte = tr.nextElementSibling;
-  if (seguinte && seguinte.classList.contains("conferir")) { seguinte.remove(); return; }
-  if (!listasCarregadas) await carregarListas();  // a correcao precisa da lista de grupos
-  const nome = el("input", { type: "text", maxLength: 60, value: quemValida, placeholder: "Nome e sobrenome", autocomplete: "name" });
-  const msg = el("p", { className: "conferir-msg", role: "status" });
-  const caixa = el("div", { className: "conferir-caixa" });
-  const linha = el("tr", { className: "conferir" }, el("td", { colSpan: tr.children.length }, caixa));
-  const fechar = el("button", { type: "button", className: "acao", textContent: "Fechar", onclick: () => linha.remove() });
-
-  async function enviar(corpo, botoes) {
-    const por = nome.value.replace(/\s+/g, " ").trim();
-    if (!NOME_VALIDO.test(por)) {
-      msg.textContent = "Informe seu nome (fica registrado na validação).";
-      msg.className = "conferir-msg erro";
-      nome.focus();
-      return;
-    }
-    quemValida = por;
-    try { localStorage.setItem("consulta-nome", por); } catch (e) { /* ok */ }
-    for (const b of botoes) b.disabled = true;
-    msg.textContent = "Gravando…";
-    msg.className = "conferir-msg";
-    try {
-      const r = await pedir(null, { id: x.id, por, ...corpo });
-      const c = r.caso || {};
-      Object.assign(x, { tipo: c.tipo_material, gm: c.gm, gc: c.gc, validado: c.validado, validado_por: c.validado_por,
-        validado_em: c.validado_em, gm_nome: c.gm ? listas.gms[c.gm] || "" : "", gc_nome: c.gc ? listas.gcs[c.gc] || "" : "" });
-      x.reprovada = x.reprovada && !x.gm;
-      const nova = linhaCaso(x, porTexto);
-      nova.classList.add("salvo");
-      tr.replaceWith(nova);
-      linha.remove();
-      status(corpo.acao === "desfazer" ? "Validação desfeita." : corpo.acao === "corrigir" ? "Caso corrigido e validado." : "Caso validado.");
-    } catch (e) {
-      msg.textContent = e instanceof ErroConsulta ? e.message : "Não foi possível gravar agora.";
-      msg.className = "conferir-msg erro";
-      for (const b of botoes) b.disabled = false;
-    }
-  }
-
-  const campoNome = el("label", {}, "Seu nome", nome);
-  if (x.validado) {
-    const desfazer = el("button", { type: "button", className: "acao principal", textContent: "Desfazer validação" });
-    desfazer.onclick = () => enviar({ acao: "desfazer" }, [desfazer]);
-    caixa.append(el("p", { textContent: `Validado${x.validado_por ? " por " + x.validado_por : ""}`
-      + `${x.validado_em ? " em " + dataHora(x.validado_em) : ""}. Desfazer volta o tipo e os grupos de antes e tira a validação.` }),
-      campoNome, desfazer, fechar, msg);
-  } else {
-    const certo = el("button", { type: "button", className: "acao principal", textContent: "Está certo" });
-    const corrigir = el("button", { type: "button", className: "acao", textContent: "Corrigir", disabled: !listasCarregadas,
-                                    title: listasCarregadas ? "" : "Lista de grupos indisponível agora; tente de novo em instantes" });
-    const tipo = el("select", {}, ...(listas.tipos.length ? listas.tipos : [x.tipo || ""]).map((t) =>
-      el("option", { value: t, textContent: t, selected: t === x.tipo })));
-    const gm = el("select", {}, ...opcoes(listas.gms, x.gm));
-    const gc = el("select", {}, ...opcoes(listas.gcs, x.gc));
-    const salvar = el("button", { type: "button", className: "acao principal", textContent: "Salvar correção" });
-    const correcao = el("div", { className: "conferir-correcao", hidden: true },
-      el("label", {}, "Tipo de material", tipo), el("label", {}, "Grupo de mercadorias", gm),
-      el("label", {}, "Grupo de compradores", gc), salvar);
-    certo.onclick = () => enviar({ acao: "certo" }, [certo, corrigir]);
-    corrigir.onclick = () => { correcao.hidden = !correcao.hidden; if (!correcao.hidden) tipo.focus(); };
-    salvar.onclick = () => enviar({ acao: "corrigir", tipo: tipo.value, gm: gm.value, gc: gc.value }, [certo, corrigir, salvar]);
-    const atual = x.reprovada ? `reprovada (pedida como ${x.tipo_pedido || "?"}${x.tipo ? ", o certo é " + x.tipo : ""})`
-      : `${x.tipo || "—"} · ${nomeGrupo(x.gm, x.gm_nome)} · ${x.gc || "—"}`;
-    caixa.append(el("p", {}, "O time decidiu: ", el("b", { textContent: atual }), ". Está certo?"),
-      campoNome, certo, corrigir, fechar, correcao, msg);
-  }
-  tr.after(linha);
-  (nome.value ? caixa.querySelector(".acao.principal") : nome).focus();
 }
 
 // ------------------------------------------------------------ solicitacoes paradas
@@ -553,7 +390,6 @@ $("abrir-filtros").addEventListener("click", () => {
 });
 
 let listasCarregadas = false;
-const listas = { tipos: [], gms: {}, gcs: {} };
 async function carregarListas() {
   if (listasCarregadas || !codigo) return;
   try {
@@ -561,9 +397,6 @@ async function carregarListas() {
     $("f-tipo").append(...d.tipos.map((t) => el("option", { value: t, textContent: t })));
     $("f-gc").append(...d.grupos_compradores.map((g) =>
       el("option", { value: g.codigo, textContent: `${g.codigo} - ${g.descricao}` })));
-    listas.tipos = d.tipos;
-    for (const g of d.grupos_compradores) listas.gcs[g.codigo] = g.descricao;
-    for (const g of d.grupos_mercadorias || []) listas.gms[g.codigo] = g.descricao;
     listasCarregadas = true;
   } catch (e) { /* sem as listas, os filtros ficam so com "Todos" */ }
 }
@@ -636,8 +469,6 @@ const MODOS = {
               exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN", "código 1300033644"] },
   solicitacao: { dica: "Número da solicitação, ex.: 3951 (ou: GM da 3291, código SAP da 3231)",
                  exemplos: ["situação da 3951", "GM da 3291", "código SAP da 3231"] },
-  validar: { dica: "Ex.: para validar · para validar EPI · para validar válvula",
-             exemplos: ["para validar", "para validar EPI", "para validar DIEN", "para validar válvula"] },
   paradas: { dica: "Ex.: novas de hoje · paradas com a CH há mais de 5 dias",
              exemplos: ["novas de hoje", "novas da semana com ponto de atenção", "paradas com a CH há mais de 5 dias",
                         "pendências há mais de 15 dias",

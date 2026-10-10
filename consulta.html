@@ -19,8 +19,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261010b">
-<script src="tema.js?v=20261010b"></script>
+<link rel="stylesheet" href="consulta.css?v=20261010c">
+<script src="tema.js?v=20261010c"></script>
 </head>
 <body>
 <header class="topo">
@@ -59,7 +59,6 @@
           <button type="button" class="modo" data-modo="material" aria-pressed="true">Grupo para um material</button>
           <button type="button" class="modo" data-modo="solicitacao" aria-pressed="false">Situação de uma solicitação</button>
           <button type="button" class="modo" data-modo="paradas" aria-pressed="false">Novas e paradas</button>
-          <button type="button" class="modo" data-modo="validar" aria-pressed="false">Validar casos</button>
         </div>
         <div class="atalhos"><span>Exemplos:</span><span id="exemplos-modo"></span></div>
       </div>
@@ -118,13 +117,6 @@
           <select id="f-gc"><option value="">Todos</option></select></label>
         <button type="button" class="link" id="limpar-filtros" hidden>Limpar filtros</button>
       </form>
-      <div class="lote" id="lote" hidden>
-        <span id="lote-qtd"></span>
-        <label class="oculto" for="lote-nome">Seu nome</label>
-        <input id="lote-nome" type="text" maxlength="60" placeholder="Seu nome" autocomplete="name">
-        <button type="button" class="acao principal" id="lote-validar" disabled>Marcar selecionados como certos</button>
-        <p class="conferir-msg" id="lote-msg" role="status"></p>
-      </div>
       <div class="tabela-rolagem">
         <table class="tabela casos">
           <thead><tr id="cab-casos"></tr></thead>
@@ -170,6 +162,6 @@
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a>
     <button type="button" class="link" id="sair" hidden>· Trocar o código de acesso</button></span>
 </footer>
-<script src="consulta.js?v=20261010b"></script>
+<script src="consulta.js?v=20261010c"></script>
 </body>
 </html>
