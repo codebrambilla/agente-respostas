@@ -428,17 +428,18 @@ function mostrarNovas(r) {
       + (r.total > r.itens.length ? ` (aqui as ${r.itens.length} mais novas)` : "")
       + `. ${com} com ponto de atenção.`
     : "Nenhuma no período.";
-  $("linhas-novas").replaceChildren(...r.itens.map((x) => {
+  // os pontos de atencao numa linha propria, logo abaixo da solicitacao (texto longo)
+  $("linhas-novas").replaceChildren(...r.itens.flatMap((x) => {
     const pts = x.pontos || [];
-    return el("tr", { className: pts.length ? "com-ponto" : "" },
+    const linha = el("tr", { className: pts.length ? "com-ponto" : "" },
       el("td", {}, numeroLink(x.numero)),
       el("td", { textContent: dataHora(x.aberta_em) }),
       el("td", { textContent: (x.tipo || "") + (x.urgente ? " · urgente" : "") }),
       el("td", { textContent: x.descricao || "" }),
-      el("td", { textContent: x.com_quem || "" }),
-      el("td", {}, x.pontos === null ? el("span", { className: "pequeno", textContent: "em análise" })
-        : pts.length ? el("ul", { className: "pontos" }, ...pts.map((p) => el("li", { textContent: p })))
-        : el("span", { className: "pequeno", textContent: "nada a apontar" })));
+      el("td", { textContent: x.com_quem || "" }));
+    if (!pts.length) return [linha];
+    return [linha, el("tr", { className: "pontos-linha" }, el("td", { colSpan: 5 },
+      el("ul", { className: "pontos" }, ...pts.map((p) => el("li", { textContent: p })))))];
   }));
   $("novas").hidden = false;
 }

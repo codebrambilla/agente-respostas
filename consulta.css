@@ -265,8 +265,10 @@ footer a { color: inherit; }
 .lote .conferir-msg.erro { color: var(--erro); font-weight: 700; }
 .casos .col-marca, .casos td:has(> input.marca) { width: 28px; }
 input.marca { width: 18px; height: 18px; accent-color: var(--verde); cursor: pointer; }
-#novas tr.com-ponto td { background: var(--amarelo-claro); }
-#novas .pontos { margin: 0; padding-left: 18px; font-size: 13px; }
+#novas tr.com-ponto td { border-bottom: 0; }
+#novas tr.pontos-linha td { padding-top: 0; }
+#novas .pontos { margin: 0; padding: 8px 12px 8px 28px; font-size: 13px; background: var(--amarelo-claro);
+                 color: var(--amarelo-texto); border-radius: 8px; }
 #novas .pontos li + li { margin-top: 4px; }
 #novas .pequeno { font-size: 12px; color: var(--tinta-2); }
 .lista-codigo { margin: 0 0 8px; padding-left: 18px; }
