@@ -299,7 +299,7 @@ function mostrarSolicitacoes(r) {
       m.cobranca ? el("td", { textContent: x.cobranca || "", className: /^n[aã]o cobrada/.test(x.cobranca || "") ? "nao-cobrada" : "" }) : null,
       m.ultimo_por ? el("td", { textContent: x.ultimo_por || "" }) : null);
     const extra = [];
-    if (m.motivo && x.motivo) extra.push(el("p", { className: "motivo", textContent: `Motivo: ${x.motivo}` }));
+    if (m.motivo && x.motivo) extra.push(el("p", { className: "motivo", textContent: `Motivo: ${x.motivo.replace(/^\s*motivo\s*:\s*/i, "")}` }));
     if ((x.pontos || []).length) extra.push(el("ul", { className: "pontos" }, ...x.pontos.map((pt) => el("li", { textContent: pt }))));
     if (x.codigo_no_campo) extra.push(el("p", { className: "motivo", textContent: `Código informado pela CH: ${x.codigo_definitivo}; o campo do Webformat está com ${x.codigo_no_campo}.` }));
     return extra.length ? [linha, el("tr", { className: "sub-linha" }, el("td", { colSpan: colunas.length }, ...extra))] : [linha];
