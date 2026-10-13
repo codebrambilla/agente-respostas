@@ -254,6 +254,7 @@ function linhaGrupo(l, maior, g) {
     el("td", {}, el("b", { textContent: l.chave }), el("div", { className: "trilho" }, cheio)),
     el("td", { className: "num", textContent: numeroFmt(l.n) }),
     el("td", { className: "num", textContent: `${String(l.pct).replace(".", ",")}%` }),
+    l.abertas !== undefined ? el("td", { className: "num", textContent: numeroFmt(l.abertas) }) : null,
     g.taxa ? el("td", { className: "num", textContent: `${String(l.taxa).replace(".", ",")}%` }) : null,
     g.medida ? el("td", { className: "num", textContent: `${l.media_dias} (${l.mediana_dias})` }) : null);
 }
@@ -261,8 +262,9 @@ function linhaGrupo(l, maior, g) {
 function mostrarSolicitacoes(r) {
   $("titulo-sol").textContent = r.titulo;
   chips($("entendido-sol"), r.entendido);
-  let frase = r.grupos || r.tempo ? `${plural(r.total, "solicitação", "solicitações")} na conta.`
-    : r.total ? `${plural(r.total, "solicitação", "solicitações")}.` : "Nenhuma solicitação com esses critérios.";
+  const emAberto = r.abertas !== undefined && r.abertas !== null ? `, ${numeroFmt(r.abertas)} em aberto` : "";
+  let frase = r.grupos || r.tempo ? `${plural(r.total, "solicitação", "solicitações")} na conta${emAberto}.`
+    : r.total ? `${plural(r.total, "solicitação", "solicitações")}${emAberto}.` : "Nenhuma solicitação com esses critérios.";
   if (r.tempo) {
     frase = `Média de ${plural(r.tempo.media_dias, "dia", "dias")} (mediana ${r.tempo.mediana_dias}), ${r.tempo.medida}, ` +
       `em ${plural(r.tempo.base, "solicitação", "solicitações")}.`;
@@ -272,7 +274,9 @@ function mostrarSolicitacoes(r) {
   const g = r.grupos;
   $("grupos-sol-caixa").hidden = !g;
   if (g) {
-    $("cab-grupos-sol").replaceChildren(...[g.por, "Quantidade", "% do total", g.taxa ? `% ${g.taxa}` : null,
+    const comAbertas = g.linhas.some((l) => l.abertas !== undefined);
+    $("cab-grupos-sol").replaceChildren(...[g.por, "Quantidade", "% do total", comAbertas ? "Em aberto" : null,
+      g.taxa ? `% ${g.taxa}` : null,
       g.medida ? `Média (mediana) de ${g.medida}` : null].filter(Boolean).map((c) => el("th", { textContent: c })));
     const maior = Math.max(...g.linhas.map((l) => (g.taxa ? l.taxa : g.medida ? l.media_dias : l.n) || 0));
     $("grupos-sol").replaceChildren(...g.linhas.map((l) => linhaGrupo(l, maior, g)));
@@ -314,12 +318,16 @@ function mostrarCatalogo(c) {
   $("nota-cat").textContent = c.nota;
   const partes = [];
   if (c.linhas && c.linhas.length) {
+    // tipos de material: quantas solicitacoes de cada um (e quantas em aberto)
+    const sol = c.linhas.some((l) => l.solicitacoes !== undefined);
+    const num = (v) => el("td", { className: "num", textContent: v ? numeroFmt(v) : "—" });
     partes.push(el("div", { className: "tabela-rolagem" }, el("table", { className: "tabela" },
-      el("thead", {}, el("tr", {}, ...["Código", "Nome", "Casos no histórico"].map((x) => el("th", { textContent: x })))),
+      el("thead", {}, el("tr", {}, ...["Código", "Nome", sol ? "Solicitações" : null, sol ? "Em aberto" : null,
+        sol ? "Casos na consulta" : "Casos no histórico"].filter(Boolean).map((x) => el("th", { textContent: x })))),
       el("tbody", {}, ...c.linhas.map((l) => el("tr", {},
         el("td", {}, el("button", { type: "button", className: "link numero", textContent: l.codigo,
           onclick: () => { $("q").value = l.codigo; consultar(l.codigo); } })),
-        el("td", { textContent: l.nome }), el("td", { className: "num", textContent: l.casos ? numeroFmt(l.casos) : "—" })))))));
+        el("td", { textContent: l.nome }), sol ? num(l.solicitacoes) : null, sol ? num(l.abertas) : null, num(l.casos)))))));
   }
   for (const e of c.exemplos || []) {
     partes.push(el("div", { className: "exemplos-tema" }, el("h3", { className: "subtitulo", textContent: e.tema }),
@@ -399,12 +407,18 @@ async function acompanhar(d) {
     : d.nuvem ? `Buscando a solicitação ${d.numero} no Webformat. Pode levar uns 2 minutos…`
     : `Leitor do Webformat desligado. A solicitação ${d.numero} ficou na fila e o resultado aparece aqui quando ele voltar (mantenha a página aberta).`,
     "carregando");
-  const fim = Date.now() + (d.leitor_vivo ? 3 : d.nuvem ? 8 : 30) * 60 * 1000;
+  let fim = Date.now() + (d.leitor_vivo ? 3 : d.nuvem ? 8 : 30) * 60 * 1000;
+  let acordou = !!d.nuvem;
   while (Date.now() < fim && minha === espera) {
     await new Promise((ok) => setTimeout(ok, 1000));
     if (minha !== espera) return;
     let p;
     try { p = await pedir({ pedido: d.pedido }); } catch (e) { continue; }  // falha passageira: tenta de novo
+    if (p.nuvem && !acordou) {
+      acordou = true;
+      fim = Math.max(fim, Date.now() + 8 * 60 * 1000);
+      status(`Está demorando mais que o normal. Buscando a solicitação ${d.numero} de outro jeito, mais uns 2 minutos…`, "carregando");
+    }
     if (p.status === "respondido" || p.status === "erro") {
       status("");
       $("resposta").replaceChildren(montarFicha(p.resposta, d.numero));
