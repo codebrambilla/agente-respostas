@@ -230,7 +230,7 @@ function respostaCodigo(d) {
   return partes;
 }
 
-// ------------------------------------------------------------ solicitacoes paradas
+// ------------------------------------------------------------ perguntas sobre as solicitacoes
 
 function dataHora(iso) {
   if (!iso) return "";
@@ -238,47 +238,96 @@ function dataHora(iso) {
   return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-function mostrarParadas(r) {
-  $("titulo-paradas").textContent = r.titulo;
-  const mostradas = r.itens.length;
-  $("nota-paradas").textContent = (r.total
-    ? `${r.total} ${r.total === 1 ? "solicitação" : "solicitações"}, da mais antiga para a mais nova`
-      + (r.total > mostradas ? ` (aqui as ${mostradas} mais antigas)` : "") + "."
-    : "Nenhuma.") + (r.atualizado_em ? ` Lido do Webformat até ${dataHora(r.atualizado_em)}.` : "");
-  $("linhas-paradas").replaceChildren(...r.itens.map((x) => el("tr", {},
-    el("td", {}, numeroLink(x.numero)),
-    el("td", { textContent: `${x.dias} ${x.dias === 1 ? "dia" : "dias"}`, title: dataHora(x.ultimo_em) }),
-    el("td", { textContent: x.com_solicitante ? `solicitante (${x.solicitante || "?"})` : (x.com_quem || "?") }),
-    el("td", { textContent: x.situacao }),
-    el("td", { textContent: x.cobranca || "", className: /^n[aã]o cobrada/.test(x.cobranca || "") ? "nao-cobrada" : "" }),
-    el("td", { textContent: x.descricao || "" }))));
-  $("paradas").hidden = false;
+const numeroFmt = (n) => Number(n).toLocaleString("pt-BR");
+const plural = (n, um, varios) => `${numeroFmt(n)} ${n === 1 ? um : varios}`;
+
+function chips(alvo, lista) {
+  alvo.replaceChildren(el("span", { className: "entendido-rotulo", textContent: "Entendido como:" }),
+    ...lista.map((e) => el("span", { className: "chip", textContent: e })));
+  alvo.hidden = !lista.length;
 }
 
-// ------------------------------------------------------------ solicitacoes novas
+function linhaGrupo(l, maior, g) {
+  const cheio = el("div", { className: "cheio" });
+  cheio.style.width = `${Math.max(3, (100 * (g.taxa ? l.taxa : g.medida ? l.media_dias : l.n)) / (maior || 1))}%`;
+  return el("tr", {},
+    el("td", {}, el("b", { textContent: l.chave }), el("div", { className: "trilho" }, cheio)),
+    el("td", { className: "num", textContent: numeroFmt(l.n) }),
+    el("td", { className: "num", textContent: `${String(l.pct).replace(".", ",")}%` }),
+    g.taxa ? el("td", { className: "num", textContent: `${String(l.taxa).replace(".", ",")}%` }) : null,
+    g.medida ? el("td", { className: "num", textContent: `${l.media_dias} (${l.mediana_dias})` }) : null);
+}
 
-function mostrarNovas(r) {
-  $("titulo-novas").textContent = r.titulo;
-  const com = r.itens.filter((x) => (x.pontos || []).length).length;
-  $("nota-novas").textContent = r.total
-    ? `${r.total} ${r.total === 1 ? "solicitação" : "solicitações"}, da mais nova para a mais antiga`
-      + (r.total > r.itens.length ? ` (aqui as ${r.itens.length} mais novas)` : "")
-      + `. ${com} com ponto de atenção.`
-    : "Nenhuma no período.";
-  // os pontos de atencao numa linha propria, logo abaixo da solicitacao (texto longo)
-  $("linhas-novas").replaceChildren(...r.itens.flatMap((x) => {
-    const pts = x.pontos || [];
-    const linha = el("tr", { className: pts.length ? "com-ponto" : "" },
-      el("td", {}, numeroLink(x.numero)),
-      el("td", { textContent: dataHora(x.aberta_em) }),
-      el("td", { textContent: (x.tipo || "") + (x.urgente ? " · urgente" : "") }),
+function mostrarSolicitacoes(r) {
+  $("titulo-sol").textContent = r.titulo;
+  chips($("entendido-sol"), r.entendido);
+  let frase = r.grupos || r.tempo ? `${plural(r.total, "solicitação", "solicitações")} na conta.`
+    : r.total ? `${plural(r.total, "solicitação", "solicitações")}.` : "Nenhuma solicitação com esses critérios.";
+  if (r.tempo) {
+    frase = `Média de ${plural(r.tempo.media_dias, "dia", "dias")} (mediana ${r.tempo.mediana_dias}), ${r.tempo.medida}, ` +
+      `em ${plural(r.tempo.base, "solicitação", "solicitações")}.`;
+  }
+  $("frase-sol").textContent = frase;
+
+  const g = r.grupos;
+  $("grupos-sol-caixa").hidden = !g;
+  if (g) {
+    $("cab-grupos-sol").replaceChildren(...[g.por, "Quantidade", "% do total", g.taxa ? `% ${g.taxa}` : null,
+      g.medida ? `Média (mediana) de ${g.medida}` : null].filter(Boolean).map((c) => el("th", { textContent: c })));
+    const maior = Math.max(...g.linhas.map((l) => (g.taxa ? l.taxa : g.medida ? l.media_dias : l.n) || 0));
+    $("grupos-sol").replaceChildren(...g.linhas.map((l) => linhaGrupo(l, maior, g)));
+  }
+
+  const m = r.mostrar || {};
+  const itens = r.itens || [];
+  $("sub-sol").hidden = !(g || r.tempo) || !itens.length;
+  $("sub-sol").textContent = r.tempo ? "As que mais demoraram" : "Algumas delas";
+  $("lista-sol-caixa").hidden = !itens.length;
+  const terminadas = itens.length && itens.every((x) => x.terminada);
+  const colunas = ["Nº", "Situação", "Com quem", terminadas ? "Levou" : "Parada há", "Tipo", "Descrição",
+    m.cobranca ? "Cobrança" : null, m.ultimo_por ? "Último trâmite por" : null].filter(Boolean);
+  $("cab-sol").replaceChildren(...colunas.map((c) => el("th", { textContent: c })));
+  $("linhas-sol").replaceChildren(...itens.flatMap((x) => {
+    const com = x.terminada ? "—" : x.com_solicitante ? `solicitante (${x.solicitante || "?"})` : (x.com_quem || "?");
+    const linha = el("tr", { className: (x.pontos || []).length ? "com-ponto" : "" },
+      el("td", {}, numeroLink(x.numero), x.urgente ? el("span", { className: "selo urgente", textContent: "urgente" }) : null),
+      el("td", { textContent: x.situacao }),
+      el("td", { textContent: com }),
+      el("td", { textContent: plural(x.dias, "dia", "dias"), title: dataHora(x.ultimo_em) }),
+      el("td", { textContent: x.tipo || "" }),
       el("td", { textContent: x.descricao || "" }),
-      el("td", { textContent: x.com_quem || "" }));
-    if (!pts.length) return [linha];
-    return [linha, el("tr", { className: "pontos-linha" }, el("td", { colSpan: 5 },
-      el("ul", { className: "pontos" }, ...pts.map((p) => el("li", { textContent: p })))))];
+      m.cobranca ? el("td", { textContent: x.cobranca || "", className: /^n[aã]o cobrada/.test(x.cobranca || "") ? "nao-cobrada" : "" }) : null,
+      m.ultimo_por ? el("td", { textContent: x.ultimo_por || "" }) : null);
+    const extra = [];
+    if (m.motivo && x.motivo) extra.push(el("p", { className: "motivo", textContent: `Motivo: ${x.motivo}` }));
+    if ((x.pontos || []).length) extra.push(el("ul", { className: "pontos" }, ...x.pontos.map((pt) => el("li", { textContent: pt }))));
+    if (x.codigo_no_campo) extra.push(el("p", { className: "motivo", textContent: `Código informado pela CH: ${x.codigo_definitivo}; o campo do Webformat está com ${x.codigo_no_campo}.` }));
+    return extra.length ? [linha, el("tr", { className: "sub-linha" }, el("td", { colSpan: colunas.length }, ...extra))] : [linha];
   }));
-  $("novas").hidden = false;
+  $("nota-sol").textContent = (r.total > itens.length && itens.length ? `Mostrando ${itens.length} de ${numeroFmt(r.total)}. ` : "")
+    + (r.atualizado_em ? `Lido do Webformat até ${dataHora(r.atualizado_em)}.` : "");
+  $("solicitacoes").hidden = false;
+}
+
+function mostrarCatalogo(c) {
+  $("titulo-cat").textContent = c.titulo;
+  $("nota-cat").textContent = c.nota;
+  const partes = [];
+  if (c.linhas && c.linhas.length) {
+    partes.push(el("div", { className: "tabela-rolagem" }, el("table", { className: "tabela" },
+      el("thead", {}, el("tr", {}, ...["Código", "Nome", "Casos no histórico"].map((x) => el("th", { textContent: x })))),
+      el("tbody", {}, ...c.linhas.map((l) => el("tr", {},
+        el("td", {}, el("button", { type: "button", className: "link numero", textContent: l.codigo,
+          onclick: () => { $("q").value = l.codigo; consultar(l.codigo); } })),
+        el("td", { textContent: l.nome }), el("td", { className: "num", textContent: l.casos ? numeroFmt(l.casos) : "—" })))))));
+  }
+  for (const e of c.exemplos || []) {
+    partes.push(el("div", { className: "exemplos-tema" }, el("h3", { className: "subtitulo", textContent: e.tema }),
+      el("div", { className: "exemplos-botoes" }, ...e.perguntas.map((q) => el("button", { type: "button", className: "exemplo",
+        textContent: q, onclick: () => { $("q").value = q; consultar(q); } })))));
+  }
+  $("corpo-cat").replaceChildren(...partes);
+  $("catalogo").hidden = false;
 }
 
 // ------------------------------------------------------------ solicitacao (leitor do Webformat)
@@ -419,15 +468,15 @@ async function consultar(q) {
   espera++;
   $("resultado").hidden = true;
   $("solicitacao").hidden = true;
-  $("paradas").hidden = true;
-  $("novas").hidden = true;
+  $("solicitacoes").hidden = true;
+  $("catalogo").hidden = true;
   $("botao").disabled = true;
   status("Consultando…", "carregando");
   try {
     const d = await pedir({ q, ...filtrosAtivos() });
     if (d.pedido) await acompanhar(d);
-    else if (d.paradas) { status(""); mostrarParadas(d.paradas); }
-    else if (d.novas) { status(""); mostrarNovas(d.novas); }
+    else if (d.solicitacoes) { status(""); mostrarSolicitacoes(d.solicitacoes); }
+    else if (d.catalogo) { status(""); mostrarCatalogo(d.catalogo); }
     else { status(""); mostrar(d); }
   } catch (e) {
     status("Falha na consulta: " + (e instanceof ErroConsulta ? e.message : "erro inesperado"), "erro");
@@ -469,10 +518,13 @@ const MODOS = {
               exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN", "código 1300033644"] },
   solicitacao: { dica: "Número da solicitação, ex.: 3951 (ou: GM da 3291, código SAP da 3231)",
                  exemplos: ["situação da 3951", "GM da 3291", "código SAP da 3231"] },
-  paradas: { dica: "Ex.: novas de hoje · paradas com a CH há mais de 5 dias",
-             exemplos: ["novas de hoje", "novas da semana com ponto de atenção", "paradas com a CH há mais de 5 dias",
-                        "pendências há mais de 15 dias",
-                        "paradas com o solicitante e não cobradas"] },
+  acompanhar: { dica: "Pergunte do seu jeito: urgentes com pendência técnica, paradas com a CH há mais de 5 dias...",
+                exemplos: ["urgentes com pendência técnica", "paradas com a CH há mais de 5 dias", "novas de hoje",
+                           "o que está com a área técnica há mais de 10 dias", "pendências técnicas não cobradas",
+                           "o que posso perguntar"] },
+  numeros: { dica: "Ex.: solicitações abertas por área · taxa de reprovação por tipo · tempo médio até encerrar uma NLAG",
+             exemplos: ["solicitações abertas por área", "quantas solicitações entraram por mês", "taxa de reprovação por tipo",
+                        "tempo médio até encerrar uma NLAG", "qual área demora mais", "quem mais reprova"] },
 };
 
 function escolherModo(nome) {
