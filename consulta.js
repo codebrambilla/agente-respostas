@@ -396,9 +396,10 @@ let espera = 0;
 async function acompanhar(d) {
   const minha = ++espera;  // uma consulta nova cancela a espera desta
   status(d.leitor_vivo ? `Lendo a solicitação ${d.numero} no Webformat…`
+    : d.nuvem ? `Buscando a solicitação ${d.numero} no Webformat. Pode levar uns 2 minutos…`
     : `Leitor do Webformat desligado. A solicitação ${d.numero} ficou na fila e o resultado aparece aqui quando ele voltar (mantenha a página aberta).`,
     "carregando");
-  const fim = Date.now() + (d.leitor_vivo ? 3 : 30) * 60 * 1000;
+  const fim = Date.now() + (d.leitor_vivo ? 3 : d.nuvem ? 8 : 30) * 60 * 1000;
   while (Date.now() < fim && minha === espera) {
     await new Promise((ok) => setTimeout(ok, 1000));
     if (minha !== espera) return;
