@@ -392,3 +392,9 @@ body:not(.logado) footer { flex: none; margin: 0 auto; width: 100%; }
 @media (max-width: 680px) {
   body:not(.logado) .topo { padding-top: 64px; padding-bottom: 40px; }
 }
+
+/* atalhos da conversa vazia: discretos, sem cara de botao */
+.ideias { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 2px; }
+.ideia { font: inherit; font-size: 13px; color: var(--tinta-2); background: none; border: 0; padding: 2px 0; cursor: pointer; }
+.ideia::before { content: "↳ "; color: var(--ciano-2); }
+.ideia:hover { color: var(--titulo); text-decoration: underline; text-underline-offset: 3px; }

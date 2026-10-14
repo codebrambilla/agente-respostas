@@ -330,6 +330,7 @@ function desenhar(m) {
 
 function adicionar(m) {
   historico.push(m);
+  $("ideias")?.remove();
   salvar();
   const n = desenhar(m);
   $("conversa").append(n);
@@ -346,24 +347,21 @@ function digitando(texto) {
   return n;
 }
 
+// poucos atalhos, discretos, e so na conversa vazia (somem na primeira pergunta)
 const EXEMPLOS = [
-  "quantas estão com a CH há mais de 48 h úteis?", "urgentes com pendência técnica", "o que a CH quer na 4779?",
-  "já existe válvula gaveta DN 100?", "o que é o 1300031697?", "situação da 3951", "como estão as minhas?",
-  "taxa de reprovação por tipo", "o que é NLAG?",
+  "quantas com a CH há mais de 48 h úteis?", "já existe válvula gaveta DN 100?", "como estão as minhas?",
 ];
 
 function boasVindas() {
   return el("div", { className: "msg da-bella" }, avatar(),
     el("div", { className: "coluna" },
       el("div", { className: "balao" },
-        el("p", {}, nome ? `Oi, ${nome}! Eu sou a ` : "Oi! Eu sou a ", el("strong", { textContent: "Bella" }),
-          " 😊 Pode conversar comigo do seu jeito, como falaria com alguém do time."),
-        el("p", { textContent: "Eu consulto as solicitações do Webformat, o catálogo de materiais do SAP e a base de conhecimento do time. Só consulto: não aprovo nem altero nada." }),
-        el("p", { className: "dica", textContent: "Clique num número de solicitação ou num código do SAP para eu abrir; listas grandes dá para baixar em planilha." }),
+        el("p", {}, nome ? `Oi, ${nome}! ` : "Oi! ", "Sou a ", el("strong", { textContent: "Bella" }),
+          " 😊 Pergunte do seu jeito sobre solicitações do Webformat, materiais do SAP ou dúvidas do cadastro."),
         nome ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. Peça o seu código pessoal no chat pessoal comigo no Teams: ",
           el("em", { textContent: "“qual o meu código de acesso?”" }))),
-      el("div", { className: "sugestoes" }, ...EXEMPLOS.map((q) =>
-        el("button", { type: "button", className: "sugestao", textContent: q, onclick: () => enviar(q) })))));
+      historico.length ? null : el("div", { className: "ideias", id: "ideias" }, ...EXEMPLOS.map((q) =>
+        el("button", { type: "button", className: "ideia", textContent: q, onclick: () => enviar(q) })))));
 }
 
 function redesenhar() {
