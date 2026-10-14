@@ -358,3 +358,37 @@ body.logado footer { flex: none; margin: 0 auto; width: 100%; padding: 6px 16px;
 }
 /* conversa curta fica junto da caixa de mensagem (como no Teams), sem buraco no meio */
 body.logado .conversa > :first-child { margin-top: auto; }
+/* logado: cabeçalho enxuto (mais espaço para a conversa), chat mais largo e rolagem discreta */
+body.logado .topo { padding: 12px 16px; }
+body.logado .topo-conteudo { gap: 16px; max-width: 1060px; }
+body.logado .bella { width: 58px; }
+body.logado h1 { font-size: 22px; margin: 0; }
+body.logado .sub { display: none; }
+body.logado .sobretitulo { font-size: 11px; }
+body.logado .forma-bolha { width: 220px; right: -90px; top: -110px; }
+body.logado .forma-ondas { display: none; }
+body.logado main#chat, body.logado footer { max-width: 1060px; }
+body.logado .msg .coluna { max-width: min(820px, 100%); }
+.conversa { scrollbar-width: thin; scrollbar-color: var(--linha) transparent; }
+.conversa::-webkit-scrollbar { width: 8px; }
+.conversa::-webkit-scrollbar-thumb { background: var(--linha); border-radius: 8px; }
+.conversa::-webkit-scrollbar-thumb:hover { background: var(--tinta-2); }
+.conversa::-webkit-scrollbar-button { display: none; }
+@media (max-width: 680px) {
+  body.logado .topo { padding-top: 48px; }
+  body.logado .bella { width: 48px; top: 0; }
+}
+/* entrada (sem código): o cabeçalho ocupa a tela, com tudo no meio e o rodapé no fim */
+body:not(.logado) { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+body:not(.logado) .topo { flex: 1 0 auto; display: flex; align-items: center; padding-top: 64px; padding-bottom: 64px; }
+body:not(.logado) .topo-conteudo { width: 100%; }
+@media (min-width: 681px) {
+  body:not(.logado) .bella { width: 190px; }
+  body:not(.logado) h1 { font-size: 40px; }
+  body:not(.logado) .forma-bolha { width: 520px; right: -170px; top: -190px; }
+  body:not(.logado) .forma-ondas { width: 380px; left: -90px; bottom: -150px; }
+}
+body:not(.logado) footer { flex: none; margin: 0 auto; width: 100%; }
+@media (max-width: 680px) {
+  body:not(.logado) .topo { padding-top: 64px; padding-bottom: 40px; }
+}
