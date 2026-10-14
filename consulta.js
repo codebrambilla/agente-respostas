@@ -1,14 +1,15 @@
-// Consulta da Bella (pagina estatica). Seguranca:
-//  - o endereco da funcao e fixo (antes um ?api= na URL podia mandar o codigo
-//    de acesso para outro servidor); a politica da pagina tambem so deixa
-//    falar com ele;
+// Consulta da Bella (pagina estatica): a mesma conversa do Teams, no navegador.
+// Seguranca:
+//  - o endereco da funcao e fixo; a politica da pagina tambem so deixa falar com ele;
 //  - todo texto que vem da funcao entra como texto (textContent), nunca como
-//    HTML: nada do banco de dados vira codigo na pagina;
-//  - o codigo de acesso fica so neste navegador (localStorage).
+//    HTML: o markdown da Bella (negrito, listas, links) e montado aqui, peca a peca;
+//  - link so abre se for https;
+//  - o codigo de acesso fica so neste navegador (localStorage); a conversa, so
+//    nesta aba (sessionStorage).
 "use strict";
 
 const API = "https://zweuntyaeelxnktllxqc.supabase.co/functions/v1/consultar";
-const TEMPO_LIMITE_MS = 20000;
+const TEMPO_LIMITE_MS = 60000;  // a IA pode consultar varias coisas antes de responder
 const $ = (id) => document.getElementById(id);
 const el = (tag, props, ...filhos) => {
   const e = Object.assign(document.createElement(tag), props || {});
@@ -16,37 +17,41 @@ const el = (tag, props, ...filhos) => {
   return e;
 };
 
-let codigo = "";
-try { codigo = localStorage.getItem("consulta-codigo") || ""; } catch (e) { /* navegador sem armazenamento */ }
+const guardar = (onde, chave, valor) => { try { onde.setItem(chave, valor); } catch (e) { /* sem armazenamento */ } };
+const ler = (onde, chave) => { try { return onde.getItem(chave) || ""; } catch (e) { return ""; } };
+const novoId = () => (crypto.randomUUID ? crypto.randomUUID()
+  : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+    (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 
-function status(texto, tipo) {
-  $("status").textContent = texto;
-  $("status").className = "status " + (tipo || "");
-}
+let codigo = ler(localStorage, "consulta-codigo");
+// o navegador (para "as minhas") e a conversa desta aba
+let navegador = ler(localStorage, "consulta-navegador");
+if (!navegador) { navegador = novoId(); guardar(localStorage, "consulta-navegador", navegador); }
+let sessao = ler(sessionStorage, "consulta-sessao");
+if (!sessao) { sessao = novoId(); guardar(sessionStorage, "consulta-sessao", sessao); }
 
-function telas() {
-  $("form-codigo").hidden = !!codigo;
-  $("form-busca").hidden = !codigo;
-  $("atalhos").hidden = !codigo;
-  $("sair").hidden = !codigo;
-  carregarListas();
-  (codigo ? $("q") : $("codigo")).focus();
-}
+// historico desta aba: [{de: "pessoa"|"bella", texto, mensagem?, verMais?, ficha?}]
+let historico = [];
+try { historico = JSON.parse(ler(sessionStorage, "consulta-historico") || "[]"); } catch (e) { historico = []; }
+const salvar = () => guardar(sessionStorage, "consulta-historico", JSON.stringify(historico.slice(-60)));
 
 // ------------------------------------------------------------ chamadas
 
 class ErroConsulta extends Error {}
 
-async function pedir(params) {
+async function chamar(params, corpo) {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TEMPO_LIMITE_MS);
   let r;
   try {
     r = await fetch(`${API}?${new URLSearchParams(params)}`, {
-      headers: { "x-codigo": codigo }, signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
+      method: corpo ? "POST" : "GET",
+      headers: corpo ? { "x-codigo": codigo, "content-type": "application/json" } : { "x-codigo": codigo },
+      body: corpo ? JSON.stringify(corpo) : undefined,
+      signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
     });
   } catch (e) {
-    throw new ErroConsulta(e.name === "AbortError" ? "a consulta demorou demais" : "sem conexão com a consulta");
+    throw new ErroConsulta(e.name === "AbortError" ? "a resposta demorou demais" : "sem conexão com a consulta");
   } finally {
     clearTimeout(relogio);
   }
@@ -57,304 +62,53 @@ async function pedir(params) {
   return d;
 }
 
-// ------------------------------------------------------------ resultado da busca
+// ------------------------------------------------------------ markdown da Bella -> DOM (sem innerHTML)
 
-function nomeGrupo(codigoGrupo, nome) {
-  if (!codigoGrupo) return "—";
-  return nome ? `${codigoGrupo} - ${nome}` : `${codigoGrupo} (SAP antigo)`;
-}
-
-function barras(alvo, itens) {
-  if (!itens || !itens.length) { alvo.replaceChildren(el("p", { className: "vazio", textContent: "—" })); return; }
-  const max = itens[0].vezes || 1;
-  alvo.replaceChildren(...itens.map((g) => {
-    const cheio = el("div", { className: "cheio" });
-    cheio.style.width = `${Math.max(4, (100 * g.vezes) / max)}%`;
-    return el("div", { className: "barra" },
-      el("div", {}, el("b", { textContent: nomeGrupo(g.codigo, g.nome) }),
-        el("span", { className: "vezes", textContent: ` · ${g.vezes} ${g.vezes === 1 ? "caso" : "casos"}` })),
-      el("div", { className: "trilho" }, cheio));
-  }));
-}
-
-// O selo fala da CLASSIFICACAO daquele caso antigo (tipo e grupos), nao da
-// pesquisa: "validada" nao quer dizer "e isto que voce procura".
-const SELOS = {
-  time: ["selo time", "classificação definida pelo time",
-         "Tipo e grupos informados pelo time de Master Data."],
-  ok: ["selo ok", "classificação validada",
-       "Caso do histórico do Webformat: o time conferiu e confirmou o tipo e os grupos usados nele."],
-  nao: ["selo nao", "classificação não validada",
-        "Caso do histórico do Webformat, como foi aprovado na época. O time ainda não conferiu se o tipo e os grupos estavam certos."],
-};
-
-function selo(x, curto) {
-  const [classe, texto, explica] = SELOS[x.origem === "time" ? "time" : x.validado ? "ok" : "nao"];
-  const quem = x.validado && x.validado_por
-    ? ` Validada por ${x.validado_por}${x.validado_em ? " em " + dataHora(x.validado_em) : ""}.` : "";
-  return el("span", { className: classe, textContent: curto ? texto.replace("classificação ", "") : texto,
-                      title: explica + quem });
-}
-
-function parecido(pct, curto) {
-  const nivel = pct >= 85 ? "" : pct >= 60 ? " medio" : " baixo";
-  return el("span", { className: "parecido" + nivel, title: "Quanto a descrição deste caso se parece com o que você digitou. Não diz se o grupo está certo.",
-                      textContent: curto ? `${pct}%` : `${pct}% parecido` });
-}
-
-function abrirSolicitacao(n) {
-  $("q").value = `situação da ${n}`;
-  consultar($("q").value);
-}
-
-function numeroLink(n) {
-  return el("button", { type: "button", className: "link numero", textContent: String(n),
-    title: `Ver a situação da solicitação ${n}`, onclick: () => abrirSolicitacao(n) });
-}
-
-// Uma linha da tabela de casos. Reprovada: o tipo pedido e o certo; tipo
-// trocado pelo time: "ZMAT -> NLAG".
-function linhaCaso(x, porTexto) {
-  const td = (...f) => el("td", {}, ...f);
-  const pequeno = (t, classe) => el("div", { className: "pequeno " + (classe || ""), textContent: t });
-  const trocou = x.tipo_pedido && x.tipo && x.tipo_pedido !== x.tipo;
-  const tipo = x.reprovada
-    ? td(el("b", { textContent: x.tipo_pedido || "—" }), pequeno(x.tipo ? `reprovada: o certo é ${x.tipo}` : "reprovada", "reprovada"))
-    : trocou ? td(el("b", { textContent: x.tipo }), pequeno(`pedido como ${x.tipo_pedido}`))
-    : td(el("b", { textContent: x.tipo || "—" }));
-  // a observacao de reprovacao/troca ja esta na coluna do tipo
-  const obs = x.observacao && !((x.reprovada || trocou) && /reprova|trocou/i.test(x.observacao)) ? x.observacao : "";
-  const codigo = x.codigo_definitivo
-    ? td(el("span", { className: "codigo-sap", textContent: x.codigo_definitivo }),
-      /^\d{10}$/.test(x.codigo_definitivo) ? null : pequeno("SAP antigo"))
-    : td(el("span", { className: "pequeno", textContent: "—" }));
-  const linha = el("tr", {},
-    porTexto ? td(parecido(x.semelhanca, true)) : null,
-    el("td", { className: "material" }, el("b", { textContent: x.descricao }),
-      el("div", { className: "sob-material" }, x.numero ? el("span", {}, "Solicitação ", numeroLink(x.numero)) : null,
-        selo(x, true)),
-      obs ? pequeno(obs) : null),
-    tipo,
-    td(x.reprovada ? "—" : nomeGrupo(x.gm, x.gm_nome)),
-    td(x.reprovada ? "—" : (x.gc ? (x.gc_nome ? `${x.gc} - ${x.gc_nome}` : x.gc) : "—")),
-    codigo);
-  if (x.id) linha.dataset.id = String(x.id);
-  return linha;
-}
-
-// A resposta em uma frase e os dois grupos mais usados, com o peso de cada um.
-function respostaPrincipal(d) {
-  const gm = (d.grupos_mercadorias || [])[0], gc = (d.grupos_compradores || [])[0];
-  const base = (lista) => Math.max(d.encontrados || 0, (lista || []).reduce((t, g) => t + g.vezes, 0)) || 1;
-  if (!gm && !gc) {
-    return [el("p", { className: "principal-frase", textContent: "Nenhum caso encontrado para esta busca." }),
-      el("p", { className: "nota", textContent: "Tente a abreviação usada no Webformat (VALV, TUB, CONEX), o código do grupo (024, EPI) ou um tipo de material (DIEN)." })];
-  }
-  const frase = d.por_grupo ? `Grupo de mercadorias ${d.grupo}: ${d.encontrados} ${d.encontrados === 1 ? "caso" : "casos"} no histórico.`
-    : d.por_tipo ? `Tipo de material ${d.por_tipo}: ${d.encontrados} ${d.encontrados === 1 ? "caso" : "casos"} no histórico.`
-    : `Em ${d.encontrados} ${d.encontrados === 1 ? "caso parecido" : "casos parecidos"} com “${d.busca}”, o time usou:`;
-  const bloco = (rotulo, g, lista) => {
-    if (!g) return null;
-    const total = base(lista), pct = Math.round((100 * g.vezes) / total);
-    return el("div", { className: "bloco" },
-      el("div", { className: "bloco-rotulo", textContent: rotulo }),
-      el("div", { className: "bloco-valor", textContent: nomeGrupo(g.codigo, g.nome) }),
-      el("div", { className: "bloco-peso", textContent: `em ${g.vezes} de ${total} ${total === 1 ? "caso" : "casos"} (${pct}%)` }));
-  };
-  const pctGm = gm ? gm.vezes / base(d.grupos_mercadorias) : 1;
-  const partes = [el("p", { className: "principal-frase", textContent: frase }),
-    el("div", { className: "blocos" },
-      d.por_grupo ? null : bloco("Grupo de mercadorias mais usado", gm, d.grupos_mercadorias),
-      bloco("Grupo de compradores mais usado", gc, d.grupos_compradores))];
-  if (!d.por_grupo && pctGm < 0.6) {
-    partes.push(el("p", { className: "aviso", textContent: "Os casos se dividem entre grupos diferentes. Compare as descrições na tabela abaixo antes de escolher." }));
-  }
-  return partes;
-}
-
-function mostrar(d) {
-  barras($("gms"), d.grupos_mercadorias);
-  barras($("gcs"), d.grupos_compradores);
-  const soLista = d.para_validar && !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
-  const porTexto = !d.por_tipo && !d.por_grupo && !soLista;
-  const principal = d.por_codigo ? respostaCodigo(d) : soLista
-    ? [el("p", { className: "principal-frase", textContent: d.encontrados
-      ? `${d.encontrados} ${d.encontrados === 1 ? "caso do histórico ainda não validado" : "casos do histórico ainda não validados"}.`
-      : "Nenhum caso para validar nesta busca." })]
-    : respostaPrincipal(d);
-  $("principal").replaceChildren(...principal);
-  $("titulo-exemplos").textContent = d.por_codigo ? `Casos com o código ${d.por_codigo} (${d.exemplos.length})`
-    : d.para_validar ? `Para validar (${d.exemplos.length} de ${d.encontrados})`
-    : d.por_tipo ? `Últimos casos do tipo ${d.por_tipo} (${d.exemplos.length} de ${d.encontrados})`
-    : d.por_grupo ? `Últimos casos do grupo ${d.grupo} (${d.exemplos.length} de ${d.encontrados})`
-    : `Casos parecidos (${d.exemplos.length})`;
-  const colunas = [porTexto && !d.por_codigo ? "Parecido" : null, "Material", "Tipo", "Grupo de mercadorias",
-    "Grupo de compradores", "Código SAP"].filter(Boolean);
-  $("cab-casos").replaceChildren(
-    ...colunas.map((c) => el("th", { textContent: c })));
-  const casos = d.exemplos || [];
-  $("exemplos").replaceChildren(...casos.map((x) => linhaCaso(x, porTexto && !d.por_codigo)));
-  $("cab-casos").parentElement.parentElement.hidden = !casos.length;
-  const filtrado = Object.keys(filtrosAtivos()).length > 0;
-  $("sem-casos").hidden = casos.length > 0;
-  $("sem-casos").textContent = filtrado ? "Nenhum caso com esses filtros."
-    : d.por_codigo ? "Nenhum caso da consulta com este código." : "Nenhum caso parecido.";
-  $("sem-casos").hidden = casos.length > 0 || (d.por_codigo && (d.com_codigo || []).length > 0);
-  $("reprovadas").hidden = !d.reprovados;
-  $("reprovadas").textContent = d.reprovados
-    ? `E ${d.reprovados} ${d.reprovados === 1 ? "caso parecido foi reprovado" : "casos parecidos foram reprovados"} na triagem.` : "";
-  $("resumo-grupos").hidden = !(d.grupos_mercadorias || []).length && !(d.grupos_compradores || []).length;
-  $("resultado").hidden = false;
-}
-
-// ------------------------------------------------------------ busca por codigo SAP
-
-function respostaCodigo(d) {
-  const sols = d.com_codigo || [];
-  const sap = /^\d{10}$/.test(d.por_codigo) ? "SAP S/4 HANA" : "SAP antigo";
-  if (!sols.length && !d.exemplos.length) {
-    return [el("p", { className: "principal-frase", textContent: `Nenhuma solicitação do Webformat com o código ${d.por_codigo}.` }),
-      el("p", { className: "nota", textContent: "Só aparecem códigos gravados em solicitações do Webformat. Material cadastrado direto no SAP não está aqui." })];
-  }
-  const partes = [el("p", { className: "principal-frase" }, "Código ", el("b", { textContent: d.por_codigo }),
-    ` (${sap}): ${sols.length || d.exemplos.length} ${(sols.length || d.exemplos.length) === 1 ? "solicitação" : "solicitações"}.`)];
-  if (sols.length) {
-    const soNoCampo = (x) => x.codigo_no_campo && x.codigo_no_campo.replace(/^0+/, "") === d.por_codigo.replace(/^0+/, "");
-    partes.push(el("ul", { className: "lista-codigo" }, ...sols.map((x) => el("li", {}, numeroLink(x.numero),
-      el("span", { textContent: ` · ${x.situacao}${x.tipo ? " · " + x.tipo : ""}${x.descricao ? " · " + x.descricao : ""}` }),
-      soNoCampo(x) ? el("div", { className: "aviso", textContent: `Este número está no campo do Webformat, mas a CH cadastrou o material com o código ${x.codigo_definitivo}.` }) : null))));
-  }
-  if (sols.filter((x) => x.codigo_definitivo && x.codigo_definitivo.replace(/^0+/, "") === d.por_codigo.replace(/^0+/, "")).length > 1) {
-    partes.push(el("p", { className: "aviso", textContent: "O mesmo código em mais de uma solicitação: confira se é o mesmo material ou se o código foi digitado errado." }));
-  }
-  return partes;
-}
-
-// ------------------------------------------------------------ perguntas sobre as solicitacoes
-
-function dataHora(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-}
-
-const numeroFmt = (n) => Number(n).toLocaleString("pt-BR");
-const plural = (n, um, varios) => `${numeroFmt(n)} ${n === 1 ? um : varios}`;
-
-function chips(alvo, lista) {
-  alvo.replaceChildren(el("span", { className: "entendido-rotulo", textContent: "Entendido como:" }),
-    ...lista.map((e) => el("span", { className: "chip", textContent: e })));
-  alvo.hidden = !lista.length;
-}
-
-function linhaGrupo(l, maior, g) {
-  const cheio = el("div", { className: "cheio" });
-  cheio.style.width = `${Math.max(3, (100 * (g.taxa ? l.taxa : g.medida ? l.media_dias : l.n)) / (maior || 1))}%`;
-  return el("tr", {},
-    el("td", {}, el("b", { textContent: l.chave }), el("div", { className: "trilho" }, cheio)),
-    el("td", { className: "num", textContent: numeroFmt(l.n) }),
-    el("td", { className: "num", textContent: `${String(l.pct).replace(".", ",")}%` }),
-    l.abertas !== undefined ? el("td", { className: "num", textContent: numeroFmt(l.abertas) }) : null,
-    g.taxa ? el("td", { className: "num", textContent: `${String(l.taxa).replace(".", ",")}%` }) : null,
-    g.medida ? el("td", { className: "num", textContent: `${l.media_dias} (${l.mediana_dias})` }) : null);
-}
-
-function mostrarSolicitacoes(r) {
-  $("titulo-sol").textContent = r.titulo;
-  chips($("entendido-sol"), r.entendido);
-  const emAberto = r.abertas !== undefined && r.abertas !== null ? `, ${numeroFmt(r.abertas)} em aberto` : "";
-  let frase = r.grupos || r.tempo ? `${plural(r.total, "solicitação", "solicitações")} na conta${emAberto}.`
-    : r.total ? `${plural(r.total, "solicitação", "solicitações")}${emAberto}.` : "Nenhuma solicitação com esses critérios.";
-  if (r.tempo) {
-    frase = `Média de ${plural(r.tempo.media_dias, "dia", "dias")} (mediana ${r.tempo.mediana_dias}), ${r.tempo.medida}, ` +
-      `em ${plural(r.tempo.base, "solicitação", "solicitações")}.`;
-  }
-  $("frase-sol").textContent = frase;
-
-  const g = r.grupos;
-  $("grupos-sol-caixa").hidden = !g;
-  if (g) {
-    const comAbertas = g.linhas.some((l) => l.abertas !== undefined);
-    $("cab-grupos-sol").replaceChildren(...[g.por, "Quantidade", "% do total", comAbertas ? "Em aberto" : null,
-      g.taxa ? `% ${g.taxa}` : null,
-      g.medida ? `Média (mediana) de ${g.medida}` : null].filter(Boolean).map((c) => el("th", { textContent: c })));
-    const maior = Math.max(...g.linhas.map((l) => (g.taxa ? l.taxa : g.medida ? l.media_dias : l.n) || 0));
-    $("grupos-sol").replaceChildren(...g.linhas.map((l) => linhaGrupo(l, maior, g)));
-  }
-
-  const m = r.mostrar || {};
-  const itens = r.itens || [];
-  $("sub-sol").hidden = !(g || r.tempo) || !itens.length;
-  $("sub-sol").textContent = r.tempo ? "As que mais demoraram" : "Algumas delas";
-  $("lista-sol-caixa").hidden = !itens.length;
-  const terminadas = itens.length && itens.every((x) => x.terminada);
-  const colunas = ["Nº", "Situação", "Com quem", terminadas ? "Levou" : "Parada há", "Tipo", "Descrição",
-    m.cobranca ? "Cobrança" : null, m.ultimo_por ? "Último trâmite por" : null].filter(Boolean);
-  $("cab-sol").replaceChildren(...colunas.map((c) => el("th", { textContent: c })));
-  $("linhas-sol").replaceChildren(...itens.flatMap((x) => {
-    const com = x.terminada ? "—" : x.com_solicitante ? `solicitante (${x.solicitante || "?"})` : (x.com_quem || "?");
-    const linha = el("tr", { className: (x.pontos || []).length ? "com-ponto" : "" },
-      el("td", {}, numeroLink(x.numero), x.urgente ? el("span", { className: "selo urgente", textContent: "urgente" }) : null),
-      el("td", { textContent: x.situacao }),
-      el("td", { textContent: com }),
-      el("td", { textContent: plural(x.dias, "dia", "dias"), title: dataHora(x.ultimo_em) }),
-      el("td", { textContent: x.tipo || "" }),
-      el("td", { textContent: x.descricao || "" }),
-      m.cobranca ? el("td", { textContent: x.cobranca || "", className: /^n[aã]o cobrada/.test(x.cobranca || "") ? "nao-cobrada" : "" }) : null,
-      m.ultimo_por ? el("td", { textContent: x.ultimo_por || "" }) : null);
-    const extra = [];
-    if (m.motivo && x.motivo) extra.push(el("p", { className: "motivo", textContent: `Motivo: ${x.motivo.replace(/^\s*motivo\s*:\s*/i, "")}` }));
-    if ((x.pontos || []).length) extra.push(el("ul", { className: "pontos" }, ...x.pontos.map((pt) => el("li", { textContent: pt }))));
-    if (x.codigo_no_campo) extra.push(el("p", { className: "motivo", textContent: `Código informado pela CH: ${x.codigo_definitivo}; o campo do Webformat está com ${x.codigo_no_campo}.` }));
-    return extra.length ? [linha, el("tr", { className: "sub-linha" }, el("td", { colSpan: colunas.length }, ...extra))] : [linha];
-  }));
-  $("nota-sol").textContent = (r.total > itens.length && itens.length ? `Mostrando ${itens.length} de ${numeroFmt(r.total)}. ` : "")
-    + (r.atualizado_em ? `Lido do Webformat até ${dataHora(r.atualizado_em)}.` : "");
-  $("solicitacoes").hidden = false;
-}
-
-function mostrarCatalogo(c) {
-  $("titulo-cat").textContent = c.titulo;
-  $("nota-cat").textContent = c.nota;
+// **negrito**, *italico* ou _italico_, `codigo` e [texto](https://...)
+function trechos(linha) {
   const partes = [];
-  if (c.linhas && c.linhas.length) {
-    // tipos de material: quantas solicitacoes de cada um (e quantas em aberto)
-    const sol = c.linhas.some((l) => l.solicitacoes !== undefined);
-    const num = (v) => el("td", { className: "num", textContent: v ? numeroFmt(v) : "—" });
-    partes.push(el("div", { className: "tabela-rolagem" }, el("table", { className: "tabela" },
-      el("thead", {}, el("tr", {}, ...["Código", "Nome", sol ? "Solicitações" : null, sol ? "Em aberto" : null,
-        sol ? "Casos na consulta" : "Casos no histórico"].filter(Boolean).map((x) => el("th", { textContent: x })))),
-      el("tbody", {}, ...c.linhas.map((l) => el("tr", {},
-        el("td", {}, el("button", { type: "button", className: "link numero", textContent: l.codigo,
-          onclick: () => { $("q").value = l.codigo; consultar(l.codigo); } })),
-        el("td", { textContent: l.nome }), sol ? num(l.solicitacoes) : null, sol ? num(l.abertas) : null, num(l.casos)))))));
+  const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\((https:\/\/[^\s)]+)\)|(?<![\w*])[_*](?![\s_*])(.+?)(?<!\s)[_*](?![\w*])|`([^`]+)`/g;
+  let fim = 0, m;
+  while ((m = re.exec(linha))) {
+    if (m.index > fim) partes.push(document.createTextNode(linha.slice(fim, m.index)));
+    if (m[1] !== undefined) partes.push(el("strong", {}, ...trechos(m[1])));
+    else if (m[2] !== undefined) partes.push(el("a", { href: m[3], textContent: m[2], target: "_blank", rel: "noopener noreferrer" }));
+    else if (m[4] !== undefined) partes.push(el("em", {}, ...trechos(m[4])));
+    else partes.push(el("code", { textContent: m[5] }));
+    fim = re.lastIndex;
   }
-  for (const e of c.exemplos || []) {
-    partes.push(el("div", { className: "exemplos-tema" }, el("h3", { className: "subtitulo", textContent: e.tema }),
-      el("div", { className: "exemplos-botoes" }, ...e.perguntas.map((q) => el("button", { type: "button", className: "exemplo",
-        textContent: q, onclick: () => { $("q").value = q; consultar(q); } })))));
-  }
-  $("corpo-cat").replaceChildren(...partes);
-  $("catalogo").hidden = false;
+  if (fim < linha.length) partes.push(document.createTextNode(linha.slice(fim)));
+  return partes;
 }
 
-// ------------------------------------------------------------ solicitacao (leitor do Webformat)
-
-// Paragrafos separados por linha em branco e **negrito**: montados como texto.
-function texto(md) {
-  return String(md).split(/\n\s*\n/).map((par) => el("p", {}, ...par.split(/\*\*(.+?)\*\*/).map((pedaco, i) =>
-    i % 2 ? el("b", { textContent: pedaco }) : document.createTextNode(pedaco))));
+function markdown(md) {
+  const blocos = [];
+  let lista = null, par = null;
+  const fechar = () => { lista = null; par = null; };
+  for (const bruta of String(md || "").split("\n")) {
+    const linha = bruta.trimEnd();
+    if (!linha.trim()) { fechar(); continue; }
+    const item = linha.match(/^\s*(?:[-•*]|\d+[.)])\s+(.*)$/);
+    if (item) {
+      if (!lista) { lista = el(/^\s*\d/.test(linha) ? "ol" : "ul"); blocos.push(lista); par = null; }
+      lista.append(el("li", {}, ...trechos(item[1])));
+      continue;
+    }
+    lista = null;
+    if (!par) { par = el("p"); blocos.push(par); } else par.append(el("br"));
+    par.append(...trechos(linha.replace(/^#{1,4}\s+/, "")));
+  }
+  return blocos;
 }
 
-// A resposta do leitor (o mesmo texto do Teams) vira ficha: cabecalho com a
-// situacao, andamento em linha do tempo e os campos em grade.
+// ------------------------------------------------------------ ficha de uma solicitacao (leitor do Webformat)
+
 const CAMPOS_FICHA = ["Descrição longa", "Descrição curta", "Tipo de material", "PDM", "Grupo de mercadorias",
   "Grupo de compradores", "Classe de avaliação", "NCM", "Classe", "Nº de classe", "UAR", "Código definitivo",
   "Dados complementares", "Fabricante", "Referência", "Unidade de medida", "Bem patrimonial", "Urgente",
   "Motivo da urgência"];
 const LARGOS = new Set(["Descrição longa", "Tipo de material", "PDM", "Dados complementares", "Motivo da urgência"]);
 
-// "**004 - TUB.CONEX.FERRO** (SAP antigo)" -> negrito no que vem entre **, o resto discreto
 function valorRico(v) {
   return v.split(/\*\*(.+?)\*\*/).map((pedaco, i) =>
     i % 2 ? el("strong", { textContent: pedaco }) : el("span", { className: "valor-extra", textContent: pedaco }));
@@ -372,7 +126,7 @@ function situacaoDe(andamento) {
 function montarFicha(md, numero) {
   const pars = String(md || "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const cab = pars.length ? pars[0].match(/^\*\*Solicitação (\d+)\*\*(?: · (.*))?$/) : null;
-  if (!cab) return el("div", {}, ...texto(md || `Não foi possível ler a solicitação ${numero} agora.`));
+  if (!cab) return el("div", {}, ...markdown(md || `Não consegui ler a solicitação ${numero} agora.`));
   const campos = [], andamento = [];
   for (const p of pars.slice(1)) {
     const m = p.match(/^([^:*]{2,30}): (.+)$/s);
@@ -380,133 +134,191 @@ function montarFicha(md, numero) {
     else andamento.push(p.replace(/\*\*/g, ""));
   }
   const [classe, rotulo] = situacaoDe(andamento);
-  const topo = el("div", { className: "ficha-topo" },
+  const partes = [el("div", { className: "ficha-topo" },
     el("div", {},
       el("p", { className: "ficha-numero", textContent: `Solicitação ${cab[1]}` }),
       cab[2] ? el("h3", { className: "ficha-titulo", textContent: cab[2] }) : null),
-    andamento.length ? el("span", { className: `ficha-situacao ${classe}`, textContent: rotulo }) : null);
-  const partes = [topo];
+    andamento.length ? el("span", { className: `ficha-situacao ${classe}`, textContent: rotulo }) : null)];
   if (andamento.length) {
     partes.push(el("ol", { className: "linha-tempo", ariaLabel: "Andamento" },
       ...andamento.map((l) => el("li", { className: /^(Motivo|Antes disso)/.test(l) ? "detalhe" : "", textContent: l }))));
   }
   if (campos.length) {
-    partes.push(el("dl", { className: "ficha-campos" }, ...campos.flatMap(([rot, val]) => {
-      const codigo = rot === "Código definitivo" && /\d{5,}/.test(val);
-      return [el("div", { className: "campo" + (LARGOS.has(rot) ? " largo" : "") + (codigo ? " codigo" : "") },
-        el("dt", { textContent: rot }), el("dd", {}, ...valorRico(val)))];
-    })));
+    partes.push(el("dl", { className: "ficha-campos" }, ...campos.map(([rot, val]) =>
+      el("div", { className: "campo" + (LARGOS.has(rot) ? " largo" : "") + (rot === "Código definitivo" && /\d{5,}/.test(val) ? " codigo" : "") },
+        el("dt", { textContent: rot }), el("dd", {}, ...valorRico(val))))));
   }
   return el("div", { className: "ficha" }, ...partes);
 }
 
+// ------------------------------------------------------------ mensagens na tela
+
+const rolar = () => requestAnimationFrame(() => $("fim").scrollIntoView({ block: "end", behavior: "smooth" }));
+
+function avatar() {
+  return el("img", { className: "avatar", src: "img/favicon.png", alt: "", width: 32, height: 32 });
+}
+
+function botoesAvaliar(m) {
+  if (!m.mensagem) return null;
+  const caixa = el("div", { className: "avaliar" });
+  if (m.avaliada) {
+    caixa.append(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
+    return caixa;
+  }
+  const votar = async (reacao) => {
+    for (const b of caixa.querySelectorAll("button")) b.disabled = true;
+    try {
+      await chamar({ avaliacao: 1 }, { sessao, mensagem: m.mensagem, reacao });
+      m.avaliada = reacao;
+      salvar();
+      caixa.replaceChildren(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
+    } catch (e) {
+      for (const b of caixa.querySelectorAll("button")) b.disabled = false;
+    }
+  };
+  caixa.append(
+    el("button", { type: "button", className: "voto", title: "Ajudou", ariaLabel: "Ajudou", textContent: "👍", onclick: () => votar("like") }),
+    el("button", { type: "button", className: "voto", title: "Não ajudou", ariaLabel: "Não ajudou", textContent: "👎", onclick: () => votar("dislike") }));
+  return caixa;
+}
+
+function desenhar(m) {
+  if (m.de === "pessoa") {
+    return el("div", { className: "msg da-pessoa" }, el("div", { className: "balao" }, ...markdown(m.texto)));
+  }
+  const corpo = m.ficha ? [montarFicha(m.texto, m.ficha)] : markdown(m.texto);
+  const extras = [];
+  if (m.verMais) {
+    extras.push(el("div", { className: "sugestoes" },
+      el("button", { type: "button", className: "sugestao", textContent: "Ver mais", onclick: () => enviar("ver mais") })));
+  }
+  return el("div", { className: "msg da-bella" + (m.erro ? " erro" : "") }, avatar(),
+    el("div", { className: "coluna" }, el("div", { className: "balao" }, ...corpo), ...extras, botoesAvaliar(m)));
+}
+
+function adicionar(m) {
+  historico.push(m);
+  salvar();
+  const n = desenhar(m);
+  $("conversa").append(n);
+  rolar();
+  return n;
+}
+
+function digitando(texto) {
+  const n = el("div", { className: "msg da-bella digitando" }, avatar(),
+    el("div", { className: "balao" }, el("span", { className: "pontinhos", ariaHidden: "true" }, el("i"), el("i"), el("i")),
+      el("span", { className: "digitando-texto", textContent: texto || "Bella está digitando…" })));
+  $("conversa").append(n);
+  rolar();
+  return n;
+}
+
+const EXEMPLOS = [
+  "quantas estão com a CH há mais de 48 h úteis?", "urgentes com pendência técnica", "o que a CH quer na 4779?",
+  "já existe válvula gaveta DN 100?", "o que é o 1300031697?", "situação da 3951", "como estão as minhas?",
+  "taxa de reprovação por tipo", "o que é NLAG?",
+];
+
+function boasVindas() {
+  return el("div", { className: "msg da-bella" }, avatar(),
+    el("div", { className: "coluna" },
+      el("div", { className: "balao" },
+        el("p", {}, "Oi! Eu sou a ", el("strong", { textContent: "Bella" }), " 😊 Pode conversar comigo do seu jeito, como falaria com alguém do time."),
+        el("p", { textContent: "Eu consulto as solicitações do Webformat, o catálogo de materiais do SAP e a base de conhecimento do time. Só consulto: não aprovo nem altero nada." })),
+      el("div", { className: "sugestoes" }, ...EXEMPLOS.map((q) =>
+        el("button", { type: "button", className: "sugestao", textContent: q, onclick: () => enviar(q) })))));
+}
+
+function redesenhar() {
+  $("conversa").replaceChildren(boasVindas(), ...historico.map(desenhar));
+  rolar();
+}
+
+// ------------------------------------------------------------ conversa
+
+let ocupado = false;
 let espera = 0;
-async function acompanhar(d) {
-  const minha = ++espera;  // uma consulta nova cancela a espera desta
-  status(d.leitor_vivo ? `Lendo a solicitação ${d.numero} no Webformat…`
+
+// "situação da 3951": o leitor do Webformat responde em segundos (ou minutos, se precisar acordar)
+async function acompanhar(d, aviso) {
+  const minha = ++espera;
+  const texto = aviso.querySelector(".digitando-texto");
+  texto.textContent = d.leitor_vivo ? `Lendo a solicitação ${d.numero} no Webformat…`
     : d.nuvem ? `Buscando a solicitação ${d.numero} no Webformat. Pode levar uns 2 minutos…`
-    : `Leitor do Webformat desligado. A solicitação ${d.numero} ficou na fila e o resultado aparece aqui quando ele voltar (mantenha a página aberta).`,
-    "carregando");
+    : `O leitor do Webformat está desligado. A pergunta ficou na fila: deixe a página aberta que a resposta aparece aqui.`;
   let fim = Date.now() + (d.leitor_vivo ? 3 : d.nuvem ? 8 : 30) * 60 * 1000;
   let acordou = !!d.nuvem;
   while (Date.now() < fim && minha === espera) {
-    await new Promise((ok) => setTimeout(ok, 1000));
-    if (minha !== espera) return;
+    await new Promise((ok) => setTimeout(ok, 1500));
     let p;
-    try { p = await pedir({ pedido: d.pedido }); } catch (e) { continue; }  // falha passageira: tenta de novo
+    try { p = await chamar({ pedido: d.pedido }); } catch (e) { continue; }
     if (p.nuvem && !acordou) {
       acordou = true;
       fim = Math.max(fim, Date.now() + 8 * 60 * 1000);
-      status(`Está demorando mais que o normal. Buscando a solicitação ${d.numero} de outro jeito, mais uns 2 minutos…`, "carregando");
+      texto.textContent = `Está demorando mais que o normal. Buscando a solicitação ${d.numero} de outro jeito, mais uns 2 minutos…`;
     }
     if (p.status === "respondido" || p.status === "erro") {
-      status("");
-      $("resposta").replaceChildren(montarFicha(p.resposta, d.numero));
-      $("solicitacao").hidden = false;
+      aviso.remove();
+      adicionar({ de: "bella", texto: p.resposta || "", ficha: d.numero });
       return;
     }
   }
-  if (minha === espera) status("O Webformat não respondeu a tempo. Tente de novo em alguns minutos.", "erro");
+  aviso.remove();
+  if (minha === espera) adicionar({ de: "bella", texto: "O Webformat não respondeu a tempo 😕 Tente de novo em alguns minutos.", erro: true });
 }
 
-// ------------------------------------------------------------ filtros
-
-const FILTROS = { tipo: "f-tipo", origem: "f-origem", gc: "f-gc" };
-
-function filtrosAtivos() {
-  const f = {};
-  for (const [nome, id] of Object.entries(FILTROS)) if ($(id).value) f[nome] = $(id).value;
-  return f;
-}
-
-function marcarFiltros() {
-  for (const id of Object.values(FILTROS)) $(id).classList.toggle("ativo", !!$(id).value);
-  const n = Object.keys(filtrosAtivos()).length;
-  $("limpar-filtros").hidden = !n;
-  $("abrir-filtros").textContent = n ? `Filtrar (${n})` : "Filtrar";
-  $("abrir-filtros").classList.toggle("ativo", n > 0);
-}
-
-$("abrir-filtros").addEventListener("click", () => {
-  const abrir = $("filtros").hidden;
-  $("filtros").hidden = !abrir;
-  $("abrir-filtros").setAttribute("aria-expanded", abrir ? "true" : "false");
-});
-
-let listasCarregadas = false;
-async function carregarListas() {
-  if (listasCarregadas || !codigo) return;
+async function enviar(texto) {
+  texto = String(texto || "").trim();
+  if (!texto || ocupado || !codigo) return;
+  ocupado = true;
+  $("enviar").disabled = true;
+  adicionar({ de: "pessoa", texto });
+  const aviso = digitando();
   try {
-    const d = await pedir({ listas: 1 });
-    $("f-tipo").append(...d.tipos.map((t) => el("option", { value: t, textContent: t })));
-    $("f-gc").append(...d.grupos_compradores.map((g) =>
-      el("option", { value: g.codigo, textContent: `${g.codigo} - ${g.descricao}` })));
-    listasCarregadas = true;
-  } catch (e) { /* sem as listas, os filtros ficam so com "Todos" */ }
-}
-
-let ultima = "";
-$("filtros").addEventListener("change", () => {
-  marcarFiltros();
-  if (ultima) consultar(ultima);
-});
-$("limpar-filtros").addEventListener("click", () => {
-  for (const id of Object.values(FILTROS)) $(id).value = "";
-  marcarFiltros();
-  if (ultima) consultar(ultima);
-});
-
-// ------------------------------------------------------------ fluxo
-
-async function consultar(q) {
-  ultima = q;
-  espera++;
-  $("resultado").hidden = true;
-  $("solicitacao").hidden = true;
-  $("solicitacoes").hidden = true;
-  $("catalogo").hidden = true;
-  $("botao").disabled = true;
-  status("Consultando…", "carregando");
-  try {
-    const d = await pedir({ q, ...filtrosAtivos() });
-    if (d.pedido) await acompanhar(d);
-    else if (d.solicitacoes) { status(""); mostrarSolicitacoes(d.solicitacoes); }
-    else if (d.catalogo) { status(""); mostrarCatalogo(d.catalogo); }
-    else { status(""); mostrar(d); }
+    const d = await chamar({ conversa: 1 }, { sessao, navegador, texto });
+    if (d.pedido) {
+      await acompanhar(d, aviso);
+    } else {
+      aviso.remove();
+      adicionar({ de: "bella", texto: d.resposta || "", mensagem: d.mensagem || null, verMais: !!d.ver_mais });
+    }
   } catch (e) {
-    status("Falha na consulta: " + (e instanceof ErroConsulta ? e.message : "erro inesperado"), "erro");
+    aviso.remove();
+    adicionar({ de: "bella", erro: true,
+      texto: `Não consegui responder agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}). Tente de novo em instantes.` });
   } finally {
-    $("botao").disabled = false;
+    ocupado = false;
+    $("enviar").disabled = false;
+    $("mensagem").focus();
   }
+}
+
+function novaConversa() {
+  espera++;
+  historico = [];
+  salvar();
+  sessao = novoId();
+  guardar(sessionStorage, "consulta-sessao", sessao);
+  redesenhar();
+  $("mensagem").focus();
+}
+
+// ------------------------------------------------------------ telas e eventos
+
+function telas() {
+  document.body.classList.toggle("logado", !!codigo);
+  $("form-codigo").hidden = !!codigo;
+  $("chat").hidden = !codigo;
+  $("sair").hidden = !codigo;
+  if (codigo) { redesenhar(); $("mensagem").focus(); } else $("codigo").focus();
 }
 
 function sair() {
   codigo = "";
   try { localStorage.removeItem("consulta-codigo"); } catch (e) { /* ok */ }
   espera++;
-  $("resultado").hidden = true;
-  $("solicitacao").hidden = true;
-  status("");
   telas();
 }
 
@@ -515,48 +327,33 @@ $("form-codigo").addEventListener("submit", (ev) => {
   codigo = $("codigo").value.trim();
   $("codigo").value = "";
   if (!codigo) return;
-  try { localStorage.setItem("consulta-codigo", codigo); } catch (e) { /* ok */ }
+  guardar(localStorage, "consulta-codigo", codigo);
   telas();
-  status("Código salvo neste navegador.");
 });
 
-$("form-busca").addEventListener("submit", (ev) => {
+$("form-chat").addEventListener("submit", (ev) => {
   ev.preventDefault();
-  const q = $("q").value.trim();
-  if (q.length >= 2) consultar(q);
+  const t = $("mensagem").value;
+  if (!t.trim() || ocupado) return;
+  $("mensagem").value = "";
+  ajustarAltura();
+  enviar(t);
 });
 
-// Os tres jeitos de usar a consulta: cada um troca o exemplo da caixa e os
-// atalhos. A funcao entende qualquer um pelo texto; o modo so orienta.
-const MODOS = {
-  material: { dica: "Descreva o material, ou digite um grupo (024, EPI), um tipo (DIEN) ou um código SAP",
-              exemplos: ["válvula gaveta", "luva de raspa", "EPI", "DIEN", "código 1300033644"] },
-  solicitacao: { dica: "Número da solicitação, ex.: 3951 (ou: GM da 3291, código SAP da 3231)",
-                 exemplos: ["situação da 3951", "GM da 3291", "código SAP da 3231"] },
-  acompanhar: { dica: "Pergunte do seu jeito: urgentes com pendência técnica, paradas com a CH há mais de 5 dias...",
-                exemplos: ["urgentes com pendência técnica", "paradas com a CH há mais de 5 dias", "novas de hoje",
-                           "o que está com a área técnica há mais de 10 dias", "pendências técnicas não cobradas",
-                           "o que posso perguntar"] },
-  numeros: { dica: "Ex.: solicitações abertas por área · taxa de reprovação por tipo · tempo médio até encerrar uma NLAG",
-             exemplos: ["solicitações abertas por área", "quantas solicitações entraram por mês", "taxa de reprovação por tipo",
-                        "tempo médio até encerrar uma NLAG", "qual área demora mais", "quem mais reprova"] },
-};
-
-function escolherModo(nome) {
-  const m = MODOS[nome] || MODOS.material;
-  for (const b of document.querySelectorAll(".modo")) b.setAttribute("aria-pressed", b.dataset.modo === nome ? "true" : "false");
-  $("q").placeholder = m.dica;
-  $("exemplos-modo").replaceChildren(...m.exemplos.map((q) => el("button", { type: "button", textContent: q })));
-  for (const [i, b] of [...$("exemplos-modo").children].entries()) b.dataset.q = m.exemplos[i];
+// Enter envia; Shift+Enter quebra a linha
+$("mensagem").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
+    ev.preventDefault();
+    $("form-chat").requestSubmit();
+  }
+});
+function ajustarAltura() {
+  const t = $("mensagem");
+  t.style.height = "auto";
+  t.style.height = `${Math.min(t.scrollHeight, 160)}px`;
 }
+$("mensagem").addEventListener("input", ajustarAltura);
 
-$("atalhos").addEventListener("click", (ev) => {
-  const modo = ev.target.closest("button[data-modo]")?.dataset.modo;
-  if (modo) { escolherModo(modo); $("q").focus(); return; }
-  const q = ev.target.closest("button[data-q]")?.dataset.q;
-  if (q) { $("q").value = q; consultar(q); }
-});
-escolherModo("material");
-
+$("nova").addEventListener("click", novaConversa);
 $("sair").addEventListener("click", sair);
 telas();
