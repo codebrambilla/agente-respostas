@@ -8,7 +8,8 @@
   consultas: solicitacoes do Webformat, catalogo do SAP, base de conhecimento).
 
   Pagina estatica e sem segredo: os dados vem da funcao `consultar`, que so
-  responde com o codigo de acesso do time (guardado so neste navegador).
+  responde com um codigo de acesso pessoal (a Bella da no chat pessoal do
+  Teams; guardado so neste navegador).
   A politica abaixo so deixa a pagina rodar o proprio script e falar com a
   funcao de consulta: nenhum script, estilo ou envio para outro endereco.
 -->
@@ -18,8 +19,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261014d">
-<script src="tema.js?v=20261014d"></script>
+<link rel="stylesheet" href="consulta.css?v=20261014e">
+<script src="tema.js?v=20261014e"></script>
 </head>
 <body>
 <header class="topo">
@@ -43,10 +44,12 @@
       <p class="sub">Pergunte do seu jeito, como no chat do Teams: solicitações do Webformat, materiais do SAP e dúvidas do cadastro.</p>
 
       <form id="form-codigo" class="busca" autocomplete="off" hidden>
-        <label class="oculto" for="codigo">Código de acesso do time</label>
-        <input id="codigo" type="password" placeholder="Código de acesso do time" maxlength="200" required>
+        <label class="oculto" for="codigo">Seu código de acesso</label>
+        <input id="codigo" type="password" placeholder="Seu código de acesso (BELLA-…)" maxlength="200" required>
         <button type="submit">Entrar</button>
       </form>
+      <p class="erro-login" id="erro-codigo" role="alert" hidden></p>
+      <p class="como-entrar" id="como-entrar">Não tem código? Peça à Bella no chat pessoal do Teams: <em>“qual o meu código de acesso?”</em> Ele é só seu.</p>
     </div>
   </div>
 </header>
@@ -71,8 +74,8 @@
 <footer>
   <span>Master Data · Sabesp · uso interno</span>
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a>
-    <button type="button" class="link" id="sair" hidden>· Trocar o código de acesso</button></span>
+    <button type="button" class="link" id="sair" hidden>· Sair (trocar o código de acesso)</button></span>
 </footer>
-<script src="consulta.js?v=20261014d"></script>
+<script src="consulta.js?v=20261014e"></script>
 </body>
 </html>

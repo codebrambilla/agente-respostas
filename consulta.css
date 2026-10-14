@@ -322,3 +322,22 @@ main#chat { max-width: 860px; padding-top: 14px; }
   .msg .coluna { max-width: calc(100% - 42px); }
   .msg.da-pessoa .balao { max-width: 92%; }
 }
+
+/* ------------------------------------------------------------ entrada, referencias, planilha */
+.como-entrar { margin: 10px 0 0; font-size: 14px; color: #cfe3ee; }
+.como-entrar em { color: #fff; font-style: normal; }
+.erro-login { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: #fff; color: #b3261e; font-size: 14px; font-weight: 600; }
+.balao .dica { font-size: 13px; color: var(--tinta-2); }
+.ref { font: inherit; color: var(--ciano-2); font-weight: 700; background: none; border: 0; padding: 0; cursor: pointer;
+       text-decoration: underline dotted; text-underline-offset: 3px; }
+.ref:hover { text-decoration-style: solid; }
+.balao strong .ref { color: inherit; }
+.ref-codigo { white-space: nowrap; }
+.copiar { font: inherit; font-size: 13px; line-height: 1; margin-left: 3px; padding: 2px 4px; border: 1px solid var(--linha);
+          border-radius: 5px; background: var(--fundo); color: var(--tinta-2); cursor: pointer; vertical-align: 1px; }
+.copiar:hover { color: var(--titulo); border-color: var(--ciano-2); }
+.sugestao.planilha { font-weight: 600; }
+.sugestao:disabled { opacity: .7; cursor: progress; }
+.escrevendo .balao > :last-child::after { content: "▍"; color: var(--ciano-2); animation: pisca 1s steps(2) infinite; }
+@keyframes pisca { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .escrevendo .balao > :last-child::after { animation: none; } }
