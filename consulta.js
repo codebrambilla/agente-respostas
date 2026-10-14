@@ -251,7 +251,12 @@ function montarFicha(md, numero) {
 
 // ------------------------------------------------------------ mensagens na tela
 
-const rolar = () => requestAnimationFrame(() => $("fim").scrollIntoView({ block: "end", behavior: "smooth" }));
+// A conversa rola dentro da propria caixa (a tela fica parada). Enquanto a Bella
+// escreve, so acompanha se a pessoa estiver no fim (se subiu para ler, fica onde esta).
+const rolar = (sempre = true) => requestAnimationFrame(() => {
+  const c = $("conversa");
+  if (sempre || c.scrollHeight - c.scrollTop - c.clientHeight < 140) c.scrollTo({ top: c.scrollHeight, behavior: sempre ? "smooth" : "auto" });
+});
 
 function avatar() {
   return el("img", { className: "avatar", src: "img/favicon.png", alt: "", width: 32, height: 32 });
@@ -420,7 +425,7 @@ async function enviar(texto) {
   let vivo = null, textoVivo = "", quadro = 0;
   const mostrar = () => {
     quadro = 0;
-    if (vivo) { vivo.balao.replaceChildren(...markdown(textoVivo)); rolar(); }
+    if (vivo) { vivo.balao.replaceChildren(...markdown(textoVivo)); rolar(false); }
   };
   const aoEvento = (evento, d) => {
     if (evento === "texto") {

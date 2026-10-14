@@ -341,3 +341,18 @@ main#chat { max-width: 860px; padding-top: 14px; }
 .escrevendo .balao > :last-child::after { content: "▍"; color: var(--ciano-2); animation: pisca 1s steps(2) infinite; }
 @keyframes pisca { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .escrevendo .balao > :last-child::after { animation: none; } }
+
+/* ------------------------------------------------------------ chat fixo na tela: so a conversa rola */
+body.logado { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+body.logado .topo { flex: none; }
+body.logado main#chat { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; padding-bottom: 6px; }
+body.logado .chat-topo { flex: none; }
+body.logado .conversa { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+                        padding: 4px 6px 8px 0; scrollbar-gutter: stable; }
+body.logado .compositor { flex: none; position: static; margin-top: 10px; }
+body.logado .aviso-ia { flex: none; margin-top: 6px; }
+body.logado footer { flex: none; margin: 0 auto; width: 100%; padding: 6px 16px; border-top-width: 2px; font-size: 12px; }
+@media (max-height: 700px) {
+  body.logado .topo { padding-top: 10px; padding-bottom: 10px; }
+  body.logado .sub, body.logado .sobretitulo { display: none; }
+}
