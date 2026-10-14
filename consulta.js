@@ -43,9 +43,11 @@ const salvar = () => guardar(sessionStorage, "consulta-historico", JSON.stringif
 class ErroConsulta extends Error {}
 
 // O relogio vale ate o fim do corpo (no stream, a resposta inteira); depois, abortar nao faz nada.
-async function pedir(params, corpo) {
+// `parar`: o botao "Parar" da pagina (AbortSignal) tambem corta a chamada.
+async function pedir(params, corpo, parar) {
   const controle = new AbortController();
   setTimeout(() => controle.abort(), TEMPO_LIMITE_MS);
+  if (parar) parar.addEventListener("abort", () => controle.abort(), { once: true });
   let r;
   try {
     r = await fetch(`${API}?${new URLSearchParams(params)}`, {
@@ -55,6 +57,7 @@ async function pedir(params, corpo) {
       signal: controle.signal, cache: "no-store", referrerPolicy: "no-referrer",
     });
   } catch (e) {
+    if (parar?.aborted) throw new ErroConsulta("interrompida");
     throw new ErroConsulta(e.name === "AbortError" ? "a resposta demorou demais" : "sem conexão com a consulta");
   }
   if (r.status === 401) { sair(); throw new ErroConsulta("código de acesso inválido"); }
@@ -73,8 +76,8 @@ async function chamar(params, corpo) {
 
 // Conversa em stream: texto aos pedacos (aoEvento) e, no fim, a resposta completa.
 // Sem IA ou com "situacao da 3951" a funcao responde JSON, como antes.
-async function conversarAoVivo(corpo, aoEvento) {
-  const r = await pedir({ conversa: 1, stream: 1 }, corpo);
+async function conversarAoVivo(corpo, aoEvento, parar) {
+  const r = await pedir({ conversa: 1, stream: 1 }, corpo, parar);
   if (!(r.headers.get("content-type") || "").includes("event-stream")) {
     try { return await r.json(); } catch (e) { return {}; }
   }
@@ -103,6 +106,7 @@ async function conversarAoVivo(corpo, aoEvento) {
     }
   } catch (e) {
     if (e instanceof ErroConsulta) throw e;
+    if (parar?.aborted) throw new ErroConsulta("interrompida");
     throw new ErroConsulta(e.name === "AbortError" ? "a resposta demorou demais" : "a conexão caiu no meio da resposta");
   }
   if (!fim) throw new ErroConsulta("a resposta veio incompleta");
@@ -118,18 +122,44 @@ function botaoSolicitacao(n) {
     onclick: () => enviar(`situação da ${n}`) });
 }
 
-function botaoCodigo(c) {
-  const copiar = el("button", { type: "button", className: "copiar", title: "Copiar o código", ariaLabel: `Copiar o código ${c}`, textContent: "⧉" });
-  copiar.onclick = async () => {
+// icones em SVG montado peca a peca (a politica da pagina nao deixa carregar nada de fora)
+const ICONES = {
+  copiar: "M8 3h11a2 2 0 0 1 2 2v11h-2V5H8zM4 7h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zm0 2v11h11V9z",
+  ok: "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z",
+  enviar: "M3 20.5v-6.2l9-2.3-9-2.3V3.5l19 8.5z",
+  parar: "M6 6h12v12H6z",
+};
+function icone(nome) {
+  const NS = "http://www.w3.org/2000/svg";
+  const s = document.createElementNS(NS, "svg");
+  s.setAttribute("viewBox", "0 0 24 24");
+  s.setAttribute("aria-hidden", "true");
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", ICONES[nome]);
+  s.append(p);
+  return s;
+}
+
+// copia e mostra o "copiado" no proprio botao por 1,5 s
+function botaoCopiar(texto, rotulo, classe, comTexto) {
+  const desenhar = (nomeIcone, t) => b.replaceChildren(icone(nomeIcone), ...(comTexto ? [el("span", { textContent: t })] : []));
+  const b = el("button", { type: "button", className: classe, title: rotulo, ariaLabel: rotulo });
+  desenhar("copiar", "Copiar");
+  b.onclick = async () => {
     try {
-      await navigator.clipboard.writeText(c);
-      copiar.textContent = "✓";
-      copiar.title = "Copiado!";
+      await navigator.clipboard.writeText(typeof texto === "function" ? texto() : texto);
+      desenhar("ok", "Copiado");
+      b.classList.add("copiado");
     } catch (e) {
-      copiar.textContent = "✗";
+      b.title = "Não consegui copiar";
     }
-    setTimeout(() => { copiar.textContent = "⧉"; copiar.title = "Copiar o código"; }, 1500);
+    setTimeout(() => { desenhar("copiar", "Copiar"); b.classList.remove("copiado"); b.title = rotulo; }, 1500);
   };
+  return b;
+}
+
+function botaoCodigo(c) {
+  const copiar = botaoCopiar(c, `Copiar o código ${c}`, "copiar");
   return el("span", { className: "ref-codigo" },
     el("button", { type: "button", className: "ref", textContent: c, title: `O que é o ${c}?`, onclick: () => enviar(`o que é o ${c}?`) }),
     copiar);
@@ -156,7 +186,7 @@ function comReferencias(t, ligar) {
 
 // **4779** no começo de um item ("**4779** · VALVULA...") ou logo depois de "solicitação"
 const numeroDeSolicitacao = (m, linha, inicioDeItem) => /^\d{3,6}$/.test(m[1]) && (
-  (inicioDeItem && m.index === 0 && /^(\s*[·—–:(-]|\s*$)/.test(linha.slice(m.index + m[0].length))) ||
+  (inicioDeItem && m.index === 0 && /^(\s*[·—–:(,-]|\s*$)/.test(linha.slice(m.index + m[0].length))) ||
   /solicita\S*\s+(?:n[º°.]?\s*)?$/i.test(linha.slice(0, m.index)));
 
 // **negrito**, *italico* ou _italico_, `codigo` e [texto](https://...)
@@ -178,6 +208,36 @@ function trechos(linha, ligar, inicioDeItem) {
   return partes;
 }
 
+// Situacao da solicitacao vira etiqueta colorida nos itens de lista ("6090, NLAG, encerrada: ...")
+const SITUACOES = /\b(encerrad[ao]s?|finalizad[ao]s?|conclu[ií]d[ao]s?|reprovad[ao]s?|cancelad[ao]s?|pend[eê]ncia(?: t[eé]cnica| fabricante| do solicitante)?|em andamento|em an[aá]lise|com a CH|enviada)\b/gi;
+function corDaSituacao(t) {
+  if (/^(encerr|finaliz|conclu)/i.test(t)) return "verde";
+  if (/^(reprov|cancel)/i.test(t)) return "cinza";
+  if (/^pend/i.test(t)) return "amarelo";
+  return "azul";
+}
+function selosDeSituacao(li) {
+  const nos = [];
+  const andar = document.createTreeWalker(li, NodeFilter.SHOW_TEXT,
+    { acceptNode: (n) => n.parentElement.closest("button, a, code") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  while (andar.nextNode()) nos.push(andar.currentNode);
+  for (const n of nos) {
+    const t = n.nodeValue;
+    SITUACOES.lastIndex = 0;
+    if (!SITUACOES.test(t)) continue;
+    SITUACOES.lastIndex = 0;
+    const partes = [];
+    let fim = 0, m;
+    while ((m = SITUACOES.exec(t))) {
+      if (m.index > fim) partes.push(document.createTextNode(t.slice(fim, m.index)));
+      partes.push(el("span", { className: `etiqueta ${corDaSituacao(m[1])}`, textContent: m[1] }));
+      fim = SITUACOES.lastIndex;
+    }
+    if (fim < t.length) partes.push(document.createTextNode(t.slice(fim)));
+    n.replaceWith(...partes);
+  }
+}
+
 function markdown(md, ligar = false) {
   const blocos = [];
   let lista = null, par = null;
@@ -188,7 +248,9 @@ function markdown(md, ligar = false) {
     const item = linha.match(/^\s*(?:[-•*]|\d+[.)])\s+(.*)$/);
     if (item) {
       if (!lista) { lista = el(/^\s*\d/.test(linha) ? "ol" : "ul"); blocos.push(lista); par = null; }
-      lista.append(el("li", {}, ...trechos(item[1], ligar, true)));
+      const li = el("li", {}, ...trechos(item[1], ligar, true));
+      if (ligar) selosDeSituacao(li);
+      lista.append(li);
       continue;
     }
     lista = null;
@@ -262,22 +324,34 @@ function avatar() {
   return el("img", { className: "avatar", src: "img/favicon.png", alt: "", width: 32, height: 32 });
 }
 
+const horaDe = (ms) => ms ? new Date(ms).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "") : "";
+
+// texto puro da resposta (para colar no Teams ou no e-mail)
+const textoPuro = (md) => String(md || "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\[([^\]]+)\]\((https:[^)\s]+)\)/g, "$1 ($2)")
+  .replace(/(^|[\s(])[_*](?![\s_*])(.+?)(?<!\s)[_*](?=[\s).,!?]|$)/gm, "$1$2").replace(/`([^`]+)`/g, "$1");
+
+// Linha discreta embaixo da resposta: hora, copiar e 👍👎 (aparece ao passar o mouse; fixa na ultima)
 function botoesAvaliar(m) {
-  if (!m.mensagem) return null;
-  const caixa = el("div", { className: "avaliar" });
+  if (m.erro) return null;
+  const caixa = el("div", { className: "avaliar" },
+    m.em ? el("span", { className: "hora", textContent: horaDe(m.em) }) : null,
+    botaoCopiar(() => textoPuro(m.texto), "Copiar a resposta", "acao", true));
+  if (!m.mensagem) return caixa;
   if (m.avaliada) {
     caixa.append(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
     return caixa;
   }
   const votar = async (reacao) => {
-    for (const b of caixa.querySelectorAll("button")) b.disabled = true;
+    const votos = [...caixa.querySelectorAll(".voto")];
+    for (const b of votos) b.disabled = true;
     try {
       await chamar({ avaliacao: 1 }, { sessao, mensagem: m.mensagem, reacao });
       m.avaliada = reacao;
       salvar();
-      caixa.replaceChildren(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
+      for (const b of votos) b.remove();
+      caixa.append(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
     } catch (e) {
-      for (const b of caixa.querySelectorAll("button")) b.disabled = false;
+      for (const b of votos) b.disabled = false;
     }
   };
   caixa.append(
@@ -313,9 +387,38 @@ function botaoPlanilha(x) {
   return b;
 }
 
+const dataCurta = (iso) => { const d = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return d ? `${d[3]}/${d[2]}/${d[1]}` : String(iso || ""); };
+const maiuscula = (t) => t ? t[0].toUpperCase() + t.slice(1) : t;
+
+function seloBloqueio(b) {
+  if (!b) return el("span", { className: "etiqueta verde", textContent: "Liberado" });
+  return el("span", { className: `etiqueta ${/total/i.test(b) ? "vermelho" : "amarelo"}`, textContent: maiuscula(b) });
+}
+
+// Codigo do SAP que a Bella consultou: texto, tipo, grupo, bloqueio, origem e o que usar no lugar
+function cartaoSap(c) {
+  const origem = c.solicitacoes && c.solicitacoes.length
+    ? [document.createTextNode(c.solicitacoes.length > 1 ? "Webformat, solicitações " : "Webformat, solicitação "),
+      ...c.solicitacoes.flatMap((n, i) => [i ? document.createTextNode(", ") : null, botaoSolicitacao(String(n))].filter(Boolean))]
+    : c.origem ? [document.createTextNode(maiuscula(c.origem))] : null;
+  const campos = [
+    ["Tipo", c.tipo ? [document.createTextNode(c.tipo)] : null],
+    ["Grupo de mercadorias", c.gm ? [document.createTextNode(c.gm_nome ? `${c.gm} · ${c.gm_nome}` : c.gm)] : null],
+    ["Criado em", c.criado_em ? [document.createTextNode(dataCurta(c.criado_em))] : null],
+    ["Origem", origem],
+  ].filter(([, v]) => v);
+  const u = c.usar_no_lugar;
+  return el("div", { className: "cartao-sap" + (c.bloqueio ? " bloqueado" : "") },
+    el("div", { className: "cs-topo" }, botaoCodigo(c.codigo), seloBloqueio(c.bloqueio)),
+    c.texto ? el("p", { className: "cs-texto", textContent: c.texto }) : null,
+    el("dl", { className: "cs-campos" }, ...campos.map(([r, v]) => el("div", {}, el("dt", { textContent: r }), el("dd", {}, ...v)))),
+    u ? el("p", { className: "cs-usar" }, el("strong", { textContent: "Use no lugar: " }), botaoCodigo(u.codigo),
+      u.texto ? document.createTextNode(` ${u.texto} `) : null, u.bloqueio ? seloBloqueio(u.bloqueio) : null) : null);
+}
+
 function desenhar(m) {
   if (m.de === "pessoa") {
-    return el("div", { className: "msg da-pessoa" }, el("div", { className: "balao" }, ...markdown(m.texto)));
+    return el("div", { className: "msg da-pessoa", title: horaDe(m.em) }, el("div", { className: "balao" }, ...markdown(m.texto)));
   }
   const corpo = m.ficha ? [montarFicha(m.texto, m.ficha)] : markdown(m.texto, !m.erro);
   const extras = [];
@@ -324,11 +427,14 @@ function desenhar(m) {
       m.verMais ? el("button", { type: "button", className: "sugestao", textContent: "Ver mais", onclick: () => enviar("ver mais") }) : null,
       m.exportar ? botaoPlanilha(m.exportar) : null));
   }
+  const cartoes = Array.isArray(m.cartoes) && m.cartoes.length
+    ? el("div", { className: "cartoes-sap" }, ...m.cartoes.slice(0, 3).map(cartaoSap)) : null;
   return el("div", { className: "msg da-bella" + (m.erro ? " erro" : "") }, avatar(),
-    el("div", { className: "coluna" }, el("div", { className: "balao" }, ...corpo), ...extras, botoesAvaliar(m)));
+    el("div", { className: "coluna" }, el("div", { className: "balao" }, ...corpo), cartoes, ...extras, botoesAvaliar(m)));
 }
 
 function adicionar(m) {
+  m.em = m.em || Date.now();
   historico.push(m);
   $("ideias")?.remove();
   salvar();
@@ -373,6 +479,23 @@ function redesenhar() {
 
 let ocupado = false;
 let espera = 0;
+let parada = null;  // AbortController da resposta em andamento (botao "Parar")
+
+// O botao do compositor: enviar (apagado com a caixa vazia) ou, enquanto a Bella responde, parar.
+function atualizarBotao() {
+  const b = $("enviar");
+  b.classList.toggle("parar", ocupado);
+  b.ariaLabel = ocupado ? "Parar a resposta" : "Enviar";
+  b.title = ocupado ? "Parar a resposta" : "Enviar (Enter)";
+  b.replaceChildren(icone(ocupado ? "parar" : "enviar"));
+  b.disabled = !ocupado && !$("mensagem").value.trim();
+}
+
+function pararResposta() {
+  if (!ocupado || !parada) return;
+  espera++;  // tambem para de esperar o Webformat
+  parada.abort();
+}
 
 // "situação da 3951": o leitor do Webformat responde em segundos (ou minutos, se precisar acordar)
 async function acompanhar(d, aviso) {
@@ -416,7 +539,8 @@ async function enviar(texto) {
   texto = String(texto || "").trim();
   if (!texto || ocupado || !codigo) return;
   ocupado = true;
-  $("enviar").disabled = true;
+  parada = new AbortController();
+  atualizarBotao();
   adicionar({ de: "pessoa", texto });
   const aviso = digitando();
   // a resposta aparecendo enquanto a Bella escreve
@@ -450,7 +574,7 @@ async function enviar(texto) {
     vivo = null;
   };
   try {
-    const d = await conversarAoVivo({ sessao, navegador, texto }, aoEvento);
+    const d = await conversarAoVivo({ sessao, navegador, texto }, aoEvento, parada.signal);
     limpar();
     if (d.pedido) {
       aviso.hidden = false;
@@ -458,16 +582,23 @@ async function enviar(texto) {
     } else {
       aviso.remove();
       adicionar({ de: "bella", texto: d.resposta || "", mensagem: d.mensagem || null, verMais: !!d.ver_mais,
-        exportar: d.exportar && typeof d.exportar === "object" ? d.exportar : null });
+        exportar: d.exportar && typeof d.exportar === "object" ? d.exportar : null,
+        cartoes: Array.isArray(d.cartoes) ? d.cartoes : null });
     }
   } catch (e) {
+    const parcial = textoVivo;
     limpar();
     aviso.remove();
-    adicionar({ de: "bella", erro: true,
-      texto: `Não consegui responder agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}). Tente de novo em instantes.` });
+    if (parada.signal.aborted) {
+      adicionar({ de: "bella", texto: (parcial ? `${parcial}\n\n` : "") + "_Resposta interrompida._" });
+    } else {
+      adicionar({ de: "bella", erro: true,
+        texto: `Não consegui responder agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}). Tente de novo em instantes.` });
+    }
   } finally {
     ocupado = false;
-    $("enviar").disabled = false;
+    parada = null;
+    atualizarBotao();
     $("mensagem").focus();
   }
 }
@@ -490,7 +621,6 @@ function telas() {
   $("como-entrar").hidden = !!codigo;
   if (codigo) $("erro-codigo").hidden = true;
   $("chat").hidden = !codigo;
-  $("sair").hidden = !codigo;
   if (codigo) { redesenhar(); $("mensagem").focus(); } else $("codigo").focus();
 }
 
@@ -536,8 +666,9 @@ $("form-codigo").addEventListener("submit", async (ev) => {
 
 $("form-chat").addEventListener("submit", (ev) => {
   ev.preventDefault();
+  if (ocupado) { pararResposta(); return; }
   const t = $("mensagem").value;
-  if (!t.trim() || ocupado) return;
+  if (!t.trim()) return;
   $("mensagem").value = "";
   ajustarAltura();
   enviar(t);
@@ -547,7 +678,7 @@ $("form-chat").addEventListener("submit", (ev) => {
 $("mensagem").addEventListener("keydown", (ev) => {
   if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
     ev.preventDefault();
-    $("form-chat").requestSubmit();
+    if (!ocupado) $("form-chat").requestSubmit();  // Enter nunca para a resposta: so o botao
   }
 });
 function ajustarAltura() {
@@ -555,10 +686,18 @@ function ajustarAltura() {
   t.style.height = "auto";
   t.style.height = `${Math.min(t.scrollHeight, 160)}px`;
 }
-$("mensagem").addEventListener("input", ajustarAltura);
+$("mensagem").addEventListener("input", () => { ajustarAltura(); atualizarBotao(); });
+
+// subiu para reler: botao "ir para o fim"
+$("conversa").addEventListener("scroll", () => {
+  const c = $("conversa");
+  $("ir-fim").hidden = c.scrollHeight - c.scrollTop - c.clientHeight < 240;
+}, { passive: true });
+$("ir-fim").addEventListener("click", () => rolar(true));
 
 $("nova").addEventListener("click", novaConversa);
 $("sair").addEventListener("click", sair);
 telas();
+atualizarBotao();
 // ja tinha entrado: confere o codigo e o nome (o codigo do time vale ate virar so pessoal)
 if (codigo) quemSou().then(() => { if (codigo && !ocupado) redesenhar(); }, () => {});

@@ -19,8 +19,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261014l">
-<script src="tema.js?v=20261014l"></script>
+<link rel="stylesheet" href="consulta.css?v=20261014n">
+<script src="tema.js?v=20261014n"></script>
 </head>
 <body>
 <header class="topo">
@@ -51,30 +51,30 @@
       <p class="erro-login" id="erro-codigo" role="alert" hidden></p>
       <p class="como-entrar" id="como-entrar">Não tem código? Peça à Bella no chat pessoal do Teams: <em>“qual o meu código de acesso?”</em> Ele é só seu.</p>
     </div>
+    <button type="button" class="nova-conversa" id="nova" title="Começar uma conversa nova">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+      <span>Nova conversa</span>
+    </button>
   </div>
 </header>
 
 <main id="chat" hidden>
-  <div class="chat-topo">
-    <span class="chat-titulo">Conversa com a Bella</span>
-    <button type="button" class="link" id="nova">Nova conversa</button>
-  </div>
   <div class="conversa" id="conversa" role="log" aria-live="polite" aria-label="Conversa com a Bella"></div>
+  <button type="button" class="ir-fim" id="ir-fim" hidden aria-label="Ir para a última mensagem" title="Ir para a última mensagem">↓</button>
   <form id="form-chat" class="compositor" autocomplete="off">
     <label class="oculto" for="mensagem">Mensagem para a Bella</label>
     <textarea id="mensagem" rows="1" maxlength="1000" placeholder="Pergunte à Bella…" title="Enter envia; Shift+Enter quebra a linha"></textarea>
-    <button type="submit" id="enviar" aria-label="Enviar">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5v-6.2l9-2.3-9-2.3V3.5l19 8.5z"/></svg>
-    </button>
+    <button type="submit" id="enviar" aria-label="Enviar"></button>
   </form>
-  <p class="aviso-ia">A Bella é uma IA e pode errar. Confira no Webformat ou no SAP antes de decidir.</p>
+  <p class="aviso-ia">A Bella é uma IA e pode errar. Confira no Webformat ou no SAP antes de decidir.
+    <span class="links-chat">· <a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a> ·
+      <button type="button" class="link" id="sair">Sair</button></span></p>
 </main>
 
 <footer>
   <span>Master Data · Sabesp · uso interno</span>
-  <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a>
-    <button type="button" class="link" id="sair" hidden>· Sair (trocar o código de acesso)</button></span>
+  <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a></span>
 </footer>
-<script src="consulta.js?v=20261014l"></script>
+<script src="consulta.js?v=20261014n"></script>
 </body>
 </html>
