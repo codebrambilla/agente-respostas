@@ -356,3 +356,5 @@ body.logado footer { flex: none; margin: 0 auto; width: 100%; padding: 6px 16px;
   body.logado .topo { padding-top: 10px; padding-bottom: 10px; }
   body.logado .sub, body.logado .sobretitulo { display: none; }
 }
+/* conversa curta fica junto da caixa de mensagem (como no Teams), sem buraco no meio */
+body.logado .conversa > :first-child { margin-top: auto; }
