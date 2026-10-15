@@ -19,8 +19,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261015e">
-<script src="tema.js?v=20261015e"></script>
+<link rel="stylesheet" href="consulta.css?v=20261015f">
+<script src="tema.js?v=20261015f"></script>
 </head>
 <body>
 <header class="topo">
@@ -43,20 +43,28 @@
       <h1>Consulta da Bella</h1>
       <p class="sub">Pergunte do seu jeito, como no chat do Teams: solicitações do Webformat, materiais do SAP e dúvidas do cadastro.</p>
 
-      <div class="entrada-ms" id="entrada-ms" hidden>
-        <button type="button" class="botao-ms" id="entrar-ms">
-          <svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>
-          <span class="botao-ms-texto">Entrar com a conta Microsoft<small>Usuários da Meetup</small></span>
-        </button>
-        <button type="button" class="link-codigo" id="usar-codigo" hidden>Usuários da Sabesp: entrar com a chave de acesso</button>
+      <div class="cartao-entrada" id="cartao-entrada">
+        <div class="aviso-entrada" id="erro-codigo" role="alert" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-2h2v2Zm0-4h-2V7h2v6Z"/></svg>
+          <div><strong id="erro-titulo"></strong><span id="erro-texto"></span></div>
+        </div>
+        <div class="entrada-ms" id="entrada-ms" hidden>
+          <p class="entrada-rotulo">Usuários da Meetup</p>
+          <button type="button" class="botao-ms" id="entrar-ms">
+            <svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>
+            <span>Entrar com a conta Microsoft</span>
+          </button>
+          <div class="separador" id="separador" hidden><span>ou</span></div>
+          <button type="button" class="link-codigo" id="usar-codigo" hidden>Usuários da Sabesp: <strong>entrar com a chave de acesso</strong></button>
+        </div>
+        <p class="entrada-rotulo" id="rotulo-chave" hidden>Usuários da Sabesp</p>
+        <form id="form-codigo" class="busca" autocomplete="off" hidden>
+          <label class="oculto" for="codigo">Sua chave de acesso</label>
+          <input id="codigo" type="password" placeholder="Sua chave (BELLA-…)" maxlength="200" required>
+          <button type="submit">Entrar</button>
+        </form>
+        <p class="como-entrar" id="como-entrar">A chave é pessoal e quem entrega é o <em>Luiz Henrique Brambilla Teixeira</em>, do time de Master Data. Não passe para ninguém.</p>
       </div>
-      <form id="form-codigo" class="busca" autocomplete="off" hidden>
-        <label class="oculto" for="codigo">Sua chave de acesso</label>
-        <input id="codigo" type="password" placeholder="Sua chave de acesso (BELLA-…)" maxlength="200" required>
-        <button type="submit">Entrar</button>
-      </form>
-      <p class="erro-login" id="erro-codigo" role="alert" hidden></p>
-      <p class="como-entrar" id="como-entrar">A chave é pessoal: usuários da Sabesp recebem a sua do <em>Luiz Henrique Brambilla Teixeira</em>, do time de Master Data. Não passe para ninguém.</p>
     </div>
     <button type="button" class="nova-conversa" id="nova" title="Começar uma conversa nova">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
@@ -82,6 +90,6 @@
   <span>Master Data · Sabesp · uso interno</span>
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a></span>
 </footer>
-<script src="consulta.js?v=20261015e"></script>
+<script src="consulta.js?v=20261015f"></script>
 </body>
 </html>

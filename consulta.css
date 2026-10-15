@@ -326,7 +326,6 @@ main#chat { max-width: 860px; padding-top: 14px; }
 /* ------------------------------------------------------------ entrada, referencias, planilha */
 .como-entrar { margin: 10px 0 0; font-size: 14px; color: #cfe3ee; }
 .como-entrar em { color: #fff; font-style: normal; }
-.erro-login { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: #fff; color: #b3261e; font-size: 14px; font-weight: 600; }
 .balao .dica { font-size: 13px; color: var(--tinta-2); }
 .ref { font: inherit; color: var(--ciano-2); font-weight: 700; background: none; border: 0; padding: 0; cursor: pointer;
        text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -507,18 +506,37 @@ body.logado .tema { background: rgba(255, 255, 255, .1); border: 1px solid rgba(
 body.logado .tema:hover { background: rgba(255, 255, 255, .2); }
 body.logado .tema[aria-pressed="true"] { color: #f8c103; }
 
-/* Entrar com a conta Microsoft: o botão tem a mesma largura e altura do campo do código;
-   o código fica atrás de um link enquanto as duas formas valem */
+/* Entrada: um cartão com a conta Microsoft (Meetup) e, atrás de um link, a chave (Sabesp) */
+.cartao-entrada { max-width: 440px; padding: 20px; border-radius: 18px; background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 18px 40px rgba(0, 0, 0, .18); }
+.entrada-rotulo { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9fd8ee; }
 .entrada-ms { margin: 0; }
-.botao-ms { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 56px;
-  border: 0; border-radius: 999px; background: #fff; color: #0d2233; cursor: pointer;
-  font: 700 17px/1.2 Tahoma, Verdana, "Segoe UI", system-ui, sans-serif; padding: 12px 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .25); transition: background .15s, transform .15s; }
-.botao-ms:hover { background: #e3f8ff; transform: translateY(-1px); }
+.botao-ms { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 48px;
+  border: 1px solid #fff; border-radius: 10px; background: #fff; color: #1b1b1b; cursor: pointer;
+  font: 700 15px/1.2 "Segoe UI", Tahoma, Verdana, system-ui, sans-serif; padding: 10px 18px;
+  transition: background .15s, transform .15s; }
+.botao-ms:hover { background: #eef9ff; transform: translateY(-1px); }
 .botao-ms svg { width: 20px; height: 20px; flex: none; }
-.botao-ms-texto { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
-.botao-ms-texto small { font-size: 12px; font-weight: 400; color: #4b6072; margin-top: 2px; }
-.link-codigo { display: inline-block; margin: 14px 0 0; padding: 0; border: 0; background: none; cursor: pointer;
-  color: #cfe3ee; font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
-.link-codigo:hover { color: #fff; }
-.entrada-ms:not([hidden]) ~ #form-codigo { margin-top: 14px; }
+.separador { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: #9fd8ee; font-size: 12px; }
+.separador::before, .separador::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, .18); }
+.link-codigo { display: block; width: 100%; margin: 0; padding: 4px 0; border: 0; background: none; cursor: pointer;
+  color: #cfe3ee; font: inherit; font-size: 14px; text-align: center; }
+.link-codigo strong { color: #fff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ciano); }
+.link-codigo:hover strong { color: var(--ciano); }
+.entrada-ms:not([hidden]) ~ #rotulo-chave { margin-top: 18px; }
+.cartao-entrada .busca { border-radius: 10px; box-shadow: none; padding: 4px; }
+.cartao-entrada .busca button { border-radius: 8px; }
+.cartao-entrada .como-entrar { font-size: 13px; color: #b7d3e2; }
+/* aviso da entrada: amarelo quando é espera (liberação, sessão), vermelho quando é erro */
+.aviso-entrada { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 16px; padding: 12px 14px; border-radius: 10px;
+  background: rgba(255, 138, 128, .14); border: 1px solid rgba(255, 138, 128, .45); color: #fff; font-size: 14px; line-height: 1.4; }
+.aviso-entrada svg { width: 20px; height: 20px; flex: none; fill: #ff8a80; margin-top: 1px; }
+.aviso-entrada strong { display: block; margin-bottom: 2px; font-size: 15px; }
+.aviso-entrada span { color: #d9e9f1; }
+.aviso-entrada[data-tom="espera"] { background: rgba(248, 193, 3, .12); border-color: rgba(248, 193, 3, .5); }
+.aviso-entrada[data-tom="espera"] svg { fill: var(--amarelo); }
+@media (max-width: 680px) {
+  .cartao-entrada { max-width: none; padding: 16px; }
+  .cartao-entrada .busca { flex-direction: row; }
+  .cartao-entrada .busca button { width: auto; }
+}

@@ -634,6 +634,9 @@ function telas() {
   const campo = formas.codigo && (!formas.microsoft || comCodigo);
   $("entrada-ms").hidden = !!codigo || !formas.microsoft;
   $("usar-codigo").hidden = !formas.codigo || comCodigo;
+  $("cartao-entrada").hidden = !!codigo;
+  $("separador").hidden = $("usar-codigo").hidden;
+  $("rotulo-chave").hidden = !!codigo || !campo;
   $("form-codigo").hidden = !!codigo || !campo;
   $("como-entrar").hidden = !!codigo || !campo;
   if (codigo) $("erro-codigo").hidden = true;
@@ -641,18 +644,26 @@ function telas() {
   if (codigo) { redesenhar(); $("mensagem").focus(); } else if (campo) $("codigo").focus();
 }
 
+// [título, texto, tom]: "espera" (amarelo) quando não é erro de quem tentou entrar
 const AVISOS_DE_CODIGO = {
-  invalido: "Chave não reconhecida. Usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira, do time de Master Data. Quem é da Meetup entra com a conta Microsoft.",
-  expirado: "Sua chave expirou por ficar 60 dias sem uso. Peça uma nova ao Luiz Henrique Brambilla Teixeira, do time de Master Data.",
-  sessao: "Sua entrada terminou. Entre de novo com a conta Microsoft.",
-  "sessao-expirada": "Sua entrada expirou por ficar 30 dias sem uso. Entre de novo com a conta Microsoft.",
-  "so-microsoft": "Quem é da Meetup entra com a conta Microsoft: use o botão acima. A chave de acesso é só para usuários da Sabesp.",
-  negada: "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.",
-  bloqueada: "Seu acesso à Bella ainda não foi liberado (ou foi bloqueado). Avise o Luiz Henrique Brambilla Teixeira para liberar.",
-  cancelada: "Entrada cancelada. Quando quiser, é só clicar em “Entrar com a conta Microsoft”.",
-  aprovacao: "A Microsoft pediu a aprovação do administrador (T.I da Meetup) para liberar o login. Avise o Luiz.",
-  erro: "Não consegui entrar com a conta Microsoft agora. Tente de novo em alguns minutos.",
+  invalido: ["Chave não reconhecida", "Confira a chave que o Luiz Henrique Brambilla Teixeira te passou. Quem é da Meetup entra com a conta Microsoft.", "erro"],
+  expirado: ["Chave expirada", "Ela ficou 60 dias sem uso. Peça uma nova ao Luiz Henrique Brambilla Teixeira, do time de Master Data.", "espera"],
+  sessao: ["Sua entrada terminou", "É só entrar de novo com a conta Microsoft.", "espera"],
+  "sessao-expirada": ["Sua entrada expirou", "Ela ficou 30 dias sem uso. É só entrar de novo com a conta Microsoft.", "espera"],
+  "so-microsoft": ["Use a conta Microsoft", "Quem é da Meetup entra pelo botão da Microsoft. A chave de acesso é só para usuários da Sabesp.", "espera"],
+  negada: ["Conta não liberada", "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.", "erro"],
+  bloqueada: ["Acesso aguardando liberação", "Seu login foi registrado. Avise o Luiz Henrique Brambilla Teixeira para liberar o seu acesso e depois entre de novo.", "espera"],
+  cancelada: ["Entrada cancelada", "Quando quiser, é só clicar em “Entrar com a conta Microsoft”.", "espera"],
+  aprovacao: ["Falta uma aprovação", "A Microsoft pediu a aprovação do administrador (T.I da Meetup) para liberar o login. Avise o Luiz.", "espera"],
+  erro: ["Não deu para entrar agora", "A conta Microsoft não respondeu. Tente de novo em alguns minutos.", "erro"],
 };
+
+function mostrarAviso(titulo, texto, tom = "erro") {
+  $("erro-titulo").textContent = titulo;
+  $("erro-texto").textContent = texto;
+  $("erro-codigo").dataset.tom = tom;
+  $("erro-codigo").hidden = false;
+}
 
 // erro do 401 -> qual aviso mostrar
 const tipoDoBarrado = (erro) => ({
@@ -661,8 +672,7 @@ const tipoDoBarrado = (erro) => ({
 })[erro] || "invalido";
 
 function avisarCodigo(tipo) {
-  $("erro-codigo").textContent = AVISOS_DE_CODIGO[tipo];
-  $("erro-codigo").hidden = false;
+  mostrarAviso(...AVISOS_DE_CODIGO[tipo]);
   // erro da chave: deixa o campo da chave aberto
   if ((tipo === "invalido" || tipo === "expirado") && !comCodigo) { comCodigo = true; telas(); }
 }
@@ -743,8 +753,7 @@ $("form-codigo").addEventListener("submit", async (ev) => {
     else if (e instanceof ErroConsulta && e.message === "código de acesso inválido") avisarCodigo("invalido");
     else if (e instanceof ErroConsulta && e.message === "entre com a conta Microsoft") avisarCodigo("so-microsoft");
     else {
-      $("erro-codigo").textContent = `Não consegui entrar agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}).`;
-      $("erro-codigo").hidden = false;
+      mostrarAviso("Não deu para entrar agora", e instanceof ErroConsulta ? e.message : "Erro inesperado. Tente de novo.");
     }
     telas();
   } finally {
