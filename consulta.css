@@ -584,3 +584,5 @@ body:not(.logado) .tema:hover { border-color: var(--e-destaque); }
 .aviso-entrada span { color: var(--e-tinta-2); }
 .aviso-entrada[data-tom="espera"] { background: var(--e-espera); border-color: var(--e-espera-borda); }
 .aviso-entrada[data-tom="espera"] svg { fill: var(--e-espera-icone); }
+/* subtítulo da entrada na largura do cartão, em linhas equilibradas */
+body:not(.logado) .sub { max-width: 440px; text-wrap: balance; }
