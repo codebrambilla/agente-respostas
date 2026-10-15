@@ -31,6 +31,7 @@ let nome = ler(localStorage, "consulta-nome");          // dono do codigo pessoa
 const ehSessao = (c) => /^S[0-9a-f]{64}$/.test(c);
 // formas de entrar que a pagina mostra (o servidor diz; ?microsoft=1 mostra o botao para testar)
 let formas = { microsoft: /[?&]microsoft=1/.test(location.search), codigo: true };
+let comCodigo = false;   // com o botao Microsoft, o campo do codigo so aparece se a pessoa pedir
 // o navegador (para "as minhas") e a conversa desta aba
 let navegador = ler(localStorage, "consulta-navegador");
 if (!navegador) { navegador = novoId(); guardar(localStorage, "consulta-navegador", navegador); }
@@ -630,13 +631,14 @@ function novaConversa() {
 
 function telas() {
   document.body.classList.toggle("logado", !!codigo);
+  const campo = formas.codigo && (!formas.microsoft || comCodigo);
   $("entrada-ms").hidden = !!codigo || !formas.microsoft;
-  $("ou-codigo").hidden = !formas.microsoft || !formas.codigo;
-  $("form-codigo").hidden = !!codigo || !formas.codigo;
-  $("como-entrar").hidden = !!codigo || !formas.codigo;
+  $("usar-codigo").hidden = !formas.codigo || comCodigo;
+  $("form-codigo").hidden = !!codigo || !campo;
+  $("como-entrar").hidden = !!codigo || !campo;
   if (codigo) $("erro-codigo").hidden = true;
   $("chat").hidden = !codigo;
-  if (codigo) { redesenhar(); $("mensagem").focus(); } else $("codigo").focus();
+  if (codigo) { redesenhar(); $("mensagem").focus(); } else if (campo) $("codigo").focus();
 }
 
 const AVISOS_DE_CODIGO = {
@@ -781,6 +783,7 @@ $("ir-fim").addEventListener("click", () => rolar(true));
 $("nova").addEventListener("click", novaConversa);
 $("sair").addEventListener("click", sairDeVez);
 $("entrar-ms").addEventListener("click", entrarComMicrosoft);
+$("usar-codigo").addEventListener("click", () => { comCodigo = true; telas(); });
 voltaDaMicrosoft();
 telas();
 carregarFormas();

@@ -507,11 +507,16 @@ body.logado .tema { background: rgba(255, 255, 255, .1); border: 1px solid rgba(
 body.logado .tema:hover { background: rgba(255, 255, 255, .2); }
 body.logado .tema[aria-pressed="true"] { color: #f8c103; }
 
-/* Entrar com a conta Microsoft (login acima do código) */
-.entrada-ms { margin: 0 0 12px; }
-.botao-ms { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; max-width: 460px;
-  border: 1px solid #8c8c8c; border-radius: 999px; background: #fff; color: #1b1b1b; cursor: pointer;
-  font: 600 16px/1 "Segoe UI", Tahoma, system-ui, sans-serif; padding: 14px 22px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
-.botao-ms:hover { background: #f3f6f8; }
+/* Entrar com a conta Microsoft: o botão tem a mesma largura e altura do campo do código;
+   o código fica atrás de um link enquanto as duas formas valem */
+.entrada-ms { margin: 0; }
+.botao-ms { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 56px;
+  border: 0; border-radius: 999px; background: #fff; color: #0d2233; cursor: pointer;
+  font: 700 17px/1.2 Tahoma, Verdana, "Segoe UI", system-ui, sans-serif; padding: 12px 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .25); transition: background .15s, transform .15s; }
+.botao-ms:hover { background: #e3f8ff; transform: translateY(-1px); }
 .botao-ms svg { width: 20px; height: 20px; flex: none; }
-.entrada-ms .ou { margin: 12px 0 0; font-size: 13px; color: #cfe3ee; }
+.link-codigo { display: inline-block; margin: 14px 0 0; padding: 0; border: 0; background: none; cursor: pointer;
+  color: #cfe3ee; font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.link-codigo:hover { color: #fff; }
+.entrada-ms:not([hidden]) ~ #form-codigo { margin-top: 14px; }
