@@ -30,6 +30,8 @@ let codigo = ler(localStorage, "consulta-codigo");
 let nome = ler(localStorage, "consulta-nome");          // dono do codigo pessoal ("" = codigo do time)
 // so avisa do codigo do time depois que o servidor confirma (?quem): sem piscar na entrada
 let codigoDoTime = ler(localStorage, "consulta-time") === "1";
+// logo depois do login Microsoft o nome ainda nao chegou: a Bella "digita" ate o ?quem responder
+let esperandoNome = false;
 const ehSessao = (c) => /^S[0-9a-f]{64}$/.test(c);
 // formas de entrar que a pagina mostra (o servidor diz; ?microsoft=1 mostra o botao para testar)
 let formas = { microsoft: /[?&]microsoft=1/.test(location.search), codigo: true };
@@ -475,6 +477,10 @@ const EXEMPLOS = [
 ];
 
 function boasVindas() {
+  if (esperandoNome) {
+    return el("div", { className: "msg da-bella escrevendo" }, avatar(),
+      el("div", { className: "coluna" }, el("div", { className: "balao" }, el("p", {}, ""))));
+  }
   return el("div", { className: "msg da-bella" }, avatar(),
     el("div", { className: "coluna" },
       el("div", { className: "balao" },
@@ -700,6 +706,7 @@ function voltaDaMicrosoft() {
   if (s && ehSessao(s) && esperado && h.get("estado") === esperado) {
     codigo = s;
     guardar(localStorage, "consulta-codigo", s);
+    esperandoNome = true;
     return;
   }
   const tipo = s ? "erro" : h.get("entrada");
@@ -808,4 +815,9 @@ telas();
 carregarFormas();
 atualizarBotao();
 // ja tinha entrado: confere o codigo e o nome (o codigo do time vale ate virar so pessoal)
-if (codigo) quemSou().then(() => { if (codigo && !ocupado) redesenhar(); }, () => {});
+if (codigo) {
+  quemSou().catch(() => {}).finally(() => {
+    esperandoNome = false;
+    if (codigo && !ocupado) redesenhar();
+  });
+}
