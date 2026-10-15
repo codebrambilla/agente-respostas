@@ -540,3 +540,47 @@ body.logado .tema[aria-pressed="true"] { color: #f8c103; }
   .cartao-entrada .busca { flex-direction: row; }
   .cartao-entrada .busca button { width: auto; }
 }
+
+/* Tela de entrada no modo claro: fundo claro, cartão branco e texto marinho.
+   No modo escuro continua o azul-marinho da Sabesp. */
+:root {
+  --e-fundo: linear-gradient(160deg, #f4fafd 0%, #e3f2f9 100%); --e-tinta: var(--marinho); --e-tinta-2: #3d5a6c;
+  --e-destaque: #0a7fae; --e-cartao: #fff; --e-borda: #d3e3ec; --e-sombra: 0 18px 40px rgba(0, 56, 84, .12);
+  --e-linha: #d7e2ea; --e-botao-borda: #8c8c8c; --e-campo-borda: #b9ccd8;
+  --e-espera: #fff6d6; --e-espera-borda: #ecd27a; --e-espera-icone: #c99a00;
+  --e-erro: #fdecea; --e-erro-borda: #f1b4ad; --e-erro-icone: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --e-fundo: var(--marinho); --e-tinta: #fff; --e-tinta-2: #cfe3ee; --e-destaque: var(--ciano);
+    --e-cartao: rgba(255, 255, 255, .06); --e-borda: rgba(255, 255, 255, .14); --e-sombra: 0 18px 40px rgba(0, 0, 0, .18);
+    --e-linha: rgba(255, 255, 255, .18); --e-botao-borda: #fff; --e-campo-borda: #fff;
+    --e-espera: rgba(248, 193, 3, .12); --e-espera-borda: rgba(248, 193, 3, .5); --e-espera-icone: var(--amarelo);
+    --e-erro: rgba(255, 138, 128, .14); --e-erro-borda: rgba(255, 138, 128, .45); --e-erro-icone: #ff8a80;
+  }
+}
+:root[data-tema="escuro"] {
+  --e-fundo: var(--marinho); --e-tinta: #fff; --e-tinta-2: #cfe3ee; --e-destaque: var(--ciano);
+  --e-cartao: rgba(255, 255, 255, .06); --e-borda: rgba(255, 255, 255, .14); --e-sombra: 0 18px 40px rgba(0, 0, 0, .18);
+  --e-linha: rgba(255, 255, 255, .18); --e-botao-borda: #fff; --e-campo-borda: #fff;
+  --e-espera: rgba(248, 193, 3, .12); --e-espera-borda: rgba(248, 193, 3, .5); --e-espera-icone: var(--amarelo);
+  --e-erro: rgba(255, 138, 128, .14); --e-erro-borda: rgba(255, 138, 128, .45); --e-erro-icone: #ff8a80;
+}
+body:not(.logado) .topo { background: var(--e-fundo); color: var(--e-tinta); }
+body:not(.logado) .sobretitulo { color: var(--e-destaque); }
+body:not(.logado) .sub { color: var(--e-tinta-2); }
+body:not(.logado) .tema { background: var(--e-cartao); color: var(--e-tinta); border-color: var(--e-borda); }
+body:not(.logado) .tema:hover { border-color: var(--e-destaque); }
+.cartao-entrada { background: var(--e-cartao); border-color: var(--e-borda); box-shadow: var(--e-sombra); }
+.entrada-rotulo, .separador { color: var(--e-destaque); }
+.separador::before, .separador::after { background: var(--e-linha); }
+.botao-ms { border-color: var(--e-botao-borda); }
+.link-codigo, .cartao-entrada .como-entrar { color: var(--e-tinta-2); }
+.link-codigo strong, .como-entrar em { color: var(--e-tinta); }
+.link-codigo:hover strong { color: var(--e-destaque); }
+.cartao-entrada .busca { border: 1px solid var(--e-campo-borda); }
+.aviso-entrada { background: var(--e-erro); border-color: var(--e-erro-borda); color: var(--e-tinta); }
+.aviso-entrada svg { fill: var(--e-erro-icone); }
+.aviso-entrada span { color: var(--e-tinta-2); }
+.aviso-entrada[data-tom="espera"] { background: var(--e-espera); border-color: var(--e-espera-borda); }
+.aviso-entrada[data-tom="espera"] svg { fill: var(--e-espera-icone); }
