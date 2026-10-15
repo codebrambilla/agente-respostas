@@ -648,6 +648,7 @@ const AVISOS_DE_CODIGO = {
   "sessao-expirada": "Sua entrada expirou por ficar 30 dias sem uso. Entre de novo com a conta Microsoft.",
   "so-microsoft": "Quem é da Meetup entra com a conta Microsoft: use o botão acima. A chave de acesso é só para usuários da Sabesp.",
   negada: "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.",
+  bloqueada: "Seu acesso à Bella ainda não foi liberado (ou foi bloqueado). Avise o Luiz Henrique Brambilla Teixeira para liberar.",
   cancelada: "Entrada cancelada. Quando quiser, é só clicar em “Entrar com a conta Microsoft”.",
   aprovacao: "A Microsoft pediu a aprovação do administrador (T.I da Meetup) para liberar o login. Avise o Luiz.",
   erro: "Não consegui entrar com a conta Microsoft agora. Tente de novo em alguns minutos.",
