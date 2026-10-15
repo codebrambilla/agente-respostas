@@ -3,35 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>Privacidade da Bella</title>
-<link rel="stylesheet" href="_estilo.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="stylesheet" href="_estilo.css?v=20261014">
+<script src="tema.js?v=20261014n"></script>
 </head>
 <body>
+<header class="topo">
+  <div class="topo-conteudo">
+    <img src="img/bella.png" alt="" width="58" height="63">
+    <div>
+      <p class="sobretitulo">Master Data · Sabesp</p>
+      <h1>Política de privacidade</h1>
+      <p class="sub">Bella, agente de IA do Master Data · atualizada em 14/10/2026</p>
+    </div>
+  </div>
+</header>
+
 <main>
-  <h1>Política de privacidade</h1>
-  <p class="sub">Bella, agente de IA do Master Data · atualizada em 09/10/2026</p>
-  <h2>Quais dados a Bella usa</h2>
+<div class="cartao">
+  <div class="resumo">
+    <p>Em resumo</p>
+    <ul>
+      <li>A Bella só <strong>consulta</strong>: não aprova, reprova nem altera nada no Webformat ou no SAP.</li>
+      <li>Ela usa os dados do Webformat e do SAP e o mínimo sobre quem conversa com ela (nome, e-mail e mensagens).</li>
+      <li>Os dados ficam num banco de dados em São Paulo; para escrever as respostas, trechos da conversa passam pela IA da Anthropic.</li>
+      <li>Nada é vendido nem usado para outro fim. Para ver, corrigir ou apagar seus dados, fale com o contato no fim da página.</li>
+    </ul>
+  </div>
+
+  <ol class="indice">
+    <li><a href="#dados">Quais dados a Bella usa</a></li>
+    <li><a href="#navegador">O que fica no seu navegador</a></li>
+    <li><a href="#onde">Onde os dados ficam e por onde passam</a></li>
+    <li><a href="#tempo">Por quanto tempo</a></li>
+    <li><a href="#nao">O que a Bella não faz</a></li>
+    <li><a href="#direitos">Seus direitos e contato</a></li>
+  </ol>
+
+  <h2 id="dados"><span class="n">1.</span>Quais dados a Bella usa</h2>
+  <p><strong>Para responder às consultas</strong> (dados da Sabesp, uso interno):</p>
   <ul>
-    <li><strong>Dados das solicitações de cadastro</strong> no Webformat: número, tipo de material, descrições, NCM, fabricante, referência, aplicação e os grupos de mercadorias e de compradores.</li>
-    <li><strong>Respostas do time</strong> às perguntas dela: a opção escolhida, o texto escrito e, se a pessoa informar, o nome de quem respondeu.</li>
-    <li><strong>Mensagens enviadas diretamente à Bella</strong> no Teams, quando ela é chamada.</li>
+    <li><strong>Solicitações do Webformat</strong>: número, situação, tipo de material, descrições, grupos, código definitivo, datas, trâmites e motivos, incluindo o <strong>nome do solicitante</strong> e de quem tramitou. O leitor do Webformat só lê, nunca altera.</li>
+    <li><strong>Catálogo de materiais do SAP</strong>: código, texto breve, tipo, grupo de mercadorias, bloqueio, datas e o usuário do SAP que criou o código.</li>
+    <li><strong>Base de conhecimento do time</strong> e a lista de normas técnicas (NTS).</li>
   </ul>
-  <h2>O que ela não usa</h2>
+  <p><strong>De quem conversa com ela</strong> (no Teams ou na página de consulta):</p>
   <ul>
-    <li>Não lê e-mails, arquivos nem conversas que não sejam dirigidas a ela.</li>
-    <li>Não guarda nome, e-mail ou matrícula dos solicitantes do Webformat.</li>
-    <li>Não envia dados pessoais ao serviço de IA: só o texto técnico do material.</li>
+    <li><strong>Nome e e-mail da conta Microsoft</strong> e o identificador da conta, para confirmar que a pessoa é do time e chamá-la pelo nome.</li>
+    <li><strong>As mensagens</strong> trocadas com a Bella.</li>
+    <li><strong>O seu nome no Webformat</strong>, quando você confirma para ela ("como estão as minhas?").</li>
+    <li><strong>Preferências de avisos</strong> (bom dia, resumo da semana, "me avisa quando mudar").</li>
+    <li><strong>Avaliações</strong> (👍👎 e comentário), com a pergunta e a resposta avaliadas, e as perguntas que ela não soube responder.</li>
+    <li><strong>Código de acesso pessoal</strong> da página: o banco guarda só uma impressão digital do código (hash), nunca o código em si, e a data do último uso.</li>
   </ul>
-  <h2>Onde os dados ficam</h2>
+
+  <h2 id="navegador"><span class="n">2.</span>O que fica no seu navegador</h2>
   <ul>
-    <li>Banco de dados no Supabase, na região de São Paulo (Brasil), com acesso restrito à chave do sistema.</li>
-    <li>A análise do texto dos materiais usa a API do Claude (Anthropic), que não usa os dados enviados pela API para treinar modelos.</li>
+    <li>A página de consulta <strong>não usa cookies nem ferramentas de estatística</strong>.</li>
+    <li>Ficam guardados só no seu navegador: o código de acesso, o seu primeiro nome, a escolha de modo claro/escuro e um identificador aleatório do navegador.</li>
+    <li>A conversa fica só na aba aberta e some quando a aba é fechada.</li>
+    <li>Em computador compartilhado, use <strong>Sair</strong> no fim da página: o código e o nome são apagados do navegador.</li>
   </ul>
-  <h2>Para que servem</h2>
-  <p>Somente para a triagem de cadastros e para a consulta de grupos pelo time de Master Data. Os dados não são vendidos nem compartilhados com terceiros.</p>
-  <h2>Contato</h2>
-  <p>Dúvidas ou pedidos de exclusão: Luiz Henrique Brambilla Teixeira, time de Master Data · <a href="https://www.linkedin.com/in/lhbrambilla/">LinkedIn</a> · <a href="https://wa.me/5511980785908">WhatsApp (11) 98078-5908</a>.</p>
+
+  <h2 id="onde"><span class="n">3.</span>Onde os dados ficam e por onde passam</h2>
+  <ul>
+    <li><strong>Banco de dados</strong>: Supabase, na região de São Paulo (Brasil), com acesso restrito ao sistema da Bella.</li>
+    <li><strong>Inteligência artificial</strong>: para escrever cada resposta, a Bella envia à API do Claude (Anthropic) a conversa recente e o resultado das consultas, que podem conter nomes de solicitantes e de pessoas do time. Esse processamento acontece fora do Brasil. Pelos termos comerciais da Anthropic, os dados enviados pela API não são usados para treinar modelos.</li>
+    <li><strong>Microsoft Teams</strong>: as conversas com a Bella no Teams seguem as regras da conta Microsoft da Sabesp.</li>
+    <li><strong>Página de consulta</strong>: é uma página estática no GitHub Pages. Os dados não ficam nela; ela só conversa com o banco de dados da Bella, com o seu código de acesso.</li>
+    <li><strong>Planilhas</strong> baixadas na página ficam no seu computador e seguem as regras de sigilo da Sabesp.</li>
+  </ul>
+
+  <h2 id="tempo"><span class="n">4.</span>Por quanto tempo</h2>
+  <ul>
+    <li><strong>Conversas</strong>: a Bella lembra a conversa por até 3 horas parada, e as mensagens são apagadas do banco depois de 1 dia.</li>
+    <li><strong>Avaliações e perguntas sem resposta</strong>: ficam guardadas para melhorar a Bella, até serem revisadas pelo time ou até você pedir exclusão.</li>
+    <li><strong>Código de acesso</strong>: vale até você pedir outro ou o acesso ser cortado; quem sai do time perde o acesso na hora.</li>
+    <li><strong>Dados do Webformat e do SAP</strong>: são uma cópia atualizada periodicamente, enquanto a ferramenta estiver em uso.</li>
+  </ul>
+
+  <h2 id="nao"><span class="n">5.</span>O que a Bella não faz</h2>
+  <ul>
+    <li>Não lê e-mails, arquivos nem conversas que não sejam com ela.</li>
+    <li>Não aprova, reprova, edita nem cria nada no Webformat ou no SAP.</li>
+    <li>Não vende, não compartilha com terceiros e não usa os dados para outro fim além de apoiar o time de Master Data.</li>
+    <li>Não manda mensagem a ninguém sem que a pessoa tenha pedido (avisos só para quem ligou).</li>
+  </ul>
+
+  <h2 id="direitos"><span class="n">6.</span>Seus direitos e contato</h2>
+  <p>Pela LGPD, você pode pedir para saber quais dados seus a Bella guarda, corrigi-los ou apagá-los, e desligar os avisos a qualquer momento (no chat pessoal: "parar o bom dia", "parar o resumo da semana" ou "pode parar de acompanhar a 3951").</p>
+  <p>Contato: Luiz Henrique Brambilla Teixeira, time de Master Data · <a href="https://www.linkedin.com/in/lhbrambilla/">LinkedIn</a> · <a href="https://wa.me/5511980785908">WhatsApp (11) 98078-5908</a>.</p>
+</div>
 </main>
-<footer><a href="index.html">Bella</a> · <a href="termos.html">Termos de uso</a></footer>
+<footer><a href="consulta.html">Consulta da Bella</a> · <a href="termos.html">Termos de uso</a> · <a href="index.html">Sobre a Bella</a></footer>
 </body>
 </html>

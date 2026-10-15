@@ -3,33 +3,55 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>Bella</title>
-<link rel="stylesheet" href="_estilo.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="stylesheet" href="_estilo.css?v=20261014">
+<script src="tema.js?v=20261014n"></script>
 </head>
 <body>
+<header class="topo">
+  <div class="topo-conteudo">
+    <img src="img/bella.png" alt="" width="58" height="63">
+    <div>
+      <p class="sobretitulo">Master Data · Sabesp</p>
+      <h1>Bella</h1>
+      <p class="sub">Agente de IA do time de Master Data</p>
+    </div>
+  </div>
+</header>
+
 <main>
-  <h1>Bella</h1>
-  <p class="sub">Agente de IA do time de Master Data da Sabesp</p>
-  <p>A Bella ajuda o time de Master Data na triagem das solicitações de cadastro de materiais e serviços feitas no Webformat. Ela confere o tipo de material, o grupo de mercadorias e o grupo de compradores, e indica se a solicitação pode seguir, se deve voltar ao solicitante ou se precisa da opinião do time.</p>
+<div class="cartao">
+  <div class="resumo">
+    <p>A Bella responde às perguntas do time, do seu jeito, no Teams ou na <a href="consulta.html">página de consulta</a>.</p>
+  </div>
+
+  <h2>O que dá para perguntar</h2>
+  <ul>
+    <li><strong>Solicitações do Webformat</strong>: situação, o que a CH pediu, quantas estão paradas, urgentes, pendências, "como estão as minhas?".</li>
+    <li><strong>Catálogo do SAP</strong>: "já existe válvula gaveta DN 100?", "o que é o 1300031697?", se está bloqueado e qual usar no lugar.</li>
+    <li><strong>Dúvidas do cadastro</strong>: tipos de material, grupos, normas técnicas (NTS) e a base de conhecimento do time.</li>
+    <li><strong>Avisos no Teams</strong>: "me avisa quando a 3951 mudar", bom dia com a fila e resumo da semana.</li>
+  </ul>
+
   <h2>Como ela trabalha</h2>
   <ul>
-    <li>Lê a fila de aprovação do Webformat, somente para leitura.</li>
-    <li>Compara cada pedido com as regras do time e com decisões anteriores para materiais parecidos.</li>
-    <li>Quando tem dúvida, pergunta ao time no Teams. Cada resposta vira aprendizado.</li>
-    <li>Não atua em solicitações com código definitivo nem nas emergenciais.</li>
+    <li>Só <strong>consulta</strong>: lê o Webformat e o SAP, sem aprovar, reprovar ou alterar nada.</li>
+    <li>É uma IA e pode errar: confira no Webformat ou no SAP antes de decidir.</li>
   </ul>
+
   <h2>Saiba mais</h2>
   <ul>
+    <li><a href="consulta.html">Página de consulta</a> (com o seu código de acesso pessoal)</li>
     <li><a href="privacidade.html">Política de privacidade</a></li>
     <li><a href="termos.html">Termos de uso</a></li>
   </ul>
+
   <h2>Contato</h2>
-  <ul>
-    <li>Luiz Henrique Brambilla Teixeira</li>
-    <li><a href="https://www.linkedin.com/in/lhbrambilla/">LinkedIn</a></li>
-    <li><a href="https://wa.me/5511980785908">WhatsApp (11) 98078-5908</a></li>
-  </ul>
+  <p>Luiz Henrique Brambilla Teixeira · <a href="https://www.linkedin.com/in/lhbrambilla/">LinkedIn</a> · <a href="https://wa.me/5511980785908">WhatsApp (11) 98078-5908</a></p>
+</div>
 </main>
-<footer>Desenvolvida por Luiz Henrique Brambilla Teixeira · <a href="https://www.linkedin.com/in/lhbrambilla/">LinkedIn</a> · <a href="https://wa.me/5511980785908">WhatsApp (11) 98078-5908</a></footer>
+<footer>Master Data · Sabesp · uso interno</footer>
 </body>
 </html>

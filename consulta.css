@@ -488,3 +488,21 @@ body.logado main#chat { position: relative; padding-top: 10px; }
 .ref-codigo .copiar { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 3px;
   background: var(--papel); border: 1px solid var(--linha); box-shadow: var(--sombra); z-index: 2; }
 @media (hover: none) { .ref-codigo .copiar { position: static; transform: none; border: 0; box-shadow: none; background: transparent; } }
+
+/* ------------------------------------------------------------ modo escuro: cores que se distinguem */
+/* suas mensagens em azul vivo (as da Bella ficam no cartao escuro), nos dois temas */
+:root { --bolha-pessoa: var(--marinho); --bolha-pessoa-borda: var(--marinho); }
+:root[data-tema="escuro"] { --bolha-pessoa: #1474a0; --bolha-pessoa-borda: #2a9bd0;
+  --papel: #10314a; --linha: #275673; --fundo: #06131c; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) { --bolha-pessoa: #1474a0; --bolha-pessoa-borda: #2a9bd0;
+    --papel: #10314a; --linha: #275673; --fundo: #06131c; }
+}
+.msg.da-pessoa .balao { background: var(--bolha-pessoa); border-color: var(--bolha-pessoa-borda); }
+.msg.da-pessoa .balao .ref { color: #fff; }
+
+/* cabecalho do chat: sem a bolha decorativa (o botao do tema ficava azul sobre azul) */
+body.logado .forma-bolha { display: none; }
+body.logado .tema { background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .45); color: #fff; }
+body.logado .tema:hover { background: rgba(255, 255, 255, .2); }
+body.logado .tema[aria-pressed="true"] { color: #f8c103; }
