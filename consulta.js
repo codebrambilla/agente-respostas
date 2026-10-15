@@ -4,7 +4,7 @@
 //  - todo texto que vem da funcao entra como texto (textContent), nunca como
 //    HTML: o markdown da Bella (negrito, listas, links) e montado aqui, peca a peca;
 //  - link so abre se for https;
-//  - o codigo de acesso (pessoal: a Bella da no chat pessoal do Teams) fica so
+//  - a entrada (Meetup: conta Microsoft; Sabesp: chave de acesso criada no banco) fica so
 //    neste navegador (localStorage); a conversa, so nesta aba (sessionStorage);
 //  - a resposta aparece enquanto a Bella escreve (stream); numeros de solicitacao
 //    e codigos do SAP viram botao; listas podem ser baixadas em planilha (CSV).
@@ -478,8 +478,8 @@ function boasVindas() {
       el("div", { className: "balao" },
         el("p", {}, nome ? `Oi, ${nome}! ` : "Oi! ", "Sou a ", el("strong", { textContent: "Bella" }),
           " 😊 Pergunte do seu jeito sobre solicitações do Webformat, materiais do SAP ou dúvidas do cadastro."),
-        nome ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. Peça o seu código pessoal no chat pessoal comigo no Teams: ",
-          el("em", { textContent: "“qual o meu código de acesso?”" }))),
+        nome ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. " +
+          "Quem é da Meetup entra com a conta Microsoft; usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira.")),
       historico.length ? null : el("div", { className: "ideias", id: "ideias" }, ...EXEMPLOS.map((q) =>
         el("button", { type: "button", className: "ideia", textContent: q, onclick: () => enviar(q) })))));
 }
@@ -642,11 +642,11 @@ function telas() {
 }
 
 const AVISOS_DE_CODIGO = {
-  invalido: "Código não reconhecido. Peça o seu à Bella no chat pessoal do Teams: “qual o meu código de acesso?”",
-  expirado: "Seu código expirou por ficar 60 dias sem uso. Peça um novo à Bella no chat pessoal do Teams: “qual o meu código de acesso?”",
+  invalido: "Chave não reconhecida. Usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira, do time de Master Data. Quem é da Meetup entra com a conta Microsoft.",
+  expirado: "Sua chave expirou por ficar 60 dias sem uso. Peça uma nova ao Luiz Henrique Brambilla Teixeira, do time de Master Data.",
   sessao: "Sua entrada terminou. Entre de novo com a conta Microsoft.",
   "sessao-expirada": "Sua entrada expirou por ficar 30 dias sem uso. Entre de novo com a conta Microsoft.",
-  "so-microsoft": "Agora a entrada é com a conta Microsoft: use o botão acima.",
+  "so-microsoft": "Quem é da Meetup entra com a conta Microsoft: use o botão acima. A chave de acesso é só para usuários da Sabesp.",
   negada: "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.",
   cancelada: "Entrada cancelada. Quando quiser, é só clicar em “Entrar com a conta Microsoft”.",
   aprovacao: "A Microsoft pediu a aprovação do administrador (T.I da Meetup) para liberar o login. Avise o Luiz.",
@@ -662,6 +662,8 @@ const tipoDoBarrado = (erro) => ({
 function avisarCodigo(tipo) {
   $("erro-codigo").textContent = AVISOS_DE_CODIGO[tipo];
   $("erro-codigo").hidden = false;
+  // erro da chave: deixa o campo da chave aberto
+  if ((tipo === "invalido" || tipo === "expirado") && !comCodigo) { comCodigo = true; telas(); }
 }
 
 // botao Sair: encerra tambem a sessao no servidor (o codigo de acesso continua valendo)

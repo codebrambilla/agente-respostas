@@ -516,6 +516,8 @@ body.logado .tema[aria-pressed="true"] { color: #f8c103; }
   box-shadow: 0 10px 30px rgba(0, 0, 0, .25); transition: background .15s, transform .15s; }
 .botao-ms:hover { background: #e3f8ff; transform: translateY(-1px); }
 .botao-ms svg { width: 20px; height: 20px; flex: none; }
+.botao-ms-texto { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.botao-ms-texto small { font-size: 12px; font-weight: 400; color: #4b6072; margin-top: 2px; }
 .link-codigo { display: inline-block; margin: 14px 0 0; padding: 0; border: 0; background: none; cursor: pointer;
   color: #cfe3ee; font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 .link-codigo:hover { color: #fff; }

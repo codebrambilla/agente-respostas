@@ -8,8 +8,8 @@
   consultas: solicitacoes do Webformat, catalogo do SAP, base de conhecimento).
 
   Pagina estatica e sem segredo: os dados vem da funcao `consultar`, que so
-  responde com um codigo de acesso pessoal (a Bella da no chat pessoal do
-  Teams; guardado so neste navegador).
+  responde a quem entrou: Meetup pela conta Microsoft, Sabesp por uma chave de
+  acesso pessoal (criada so no banco de dados; guardada so neste navegador).
   A politica abaixo so deixa a pagina rodar o proprio script e falar com a
   funcao de consulta: nenhum script, estilo ou envio para outro endereco.
 -->
@@ -19,8 +19,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261015c">
-<script src="tema.js?v=20261015c"></script>
+<link rel="stylesheet" href="consulta.css?v=20261015d">
+<script src="tema.js?v=20261015d"></script>
 </head>
 <body>
 <header class="topo">
@@ -46,17 +46,17 @@
       <div class="entrada-ms" id="entrada-ms" hidden>
         <button type="button" class="botao-ms" id="entrar-ms">
           <svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>
-          Entrar com a conta Microsoft
+          <span class="botao-ms-texto">Entrar com a conta Microsoft<small>Usuários da Meetup</small></span>
         </button>
-        <button type="button" class="link-codigo" id="usar-codigo" hidden>Tenho um código de acesso</button>
+        <button type="button" class="link-codigo" id="usar-codigo" hidden>Usuários da Sabesp: entrar com a chave de acesso</button>
       </div>
       <form id="form-codigo" class="busca" autocomplete="off" hidden>
-        <label class="oculto" for="codigo">Seu código de acesso</label>
-        <input id="codigo" type="password" placeholder="Seu código de acesso (BELLA-…)" maxlength="200" required>
+        <label class="oculto" for="codigo">Sua chave de acesso</label>
+        <input id="codigo" type="password" placeholder="Sua chave de acesso (BELLA-…)" maxlength="200" required>
         <button type="submit">Entrar</button>
       </form>
       <p class="erro-login" id="erro-codigo" role="alert" hidden></p>
-      <p class="como-entrar" id="como-entrar">Não tem código? Peça à Bella no chat pessoal do Teams: <em>“qual o meu código de acesso?”</em> Ele é só seu.</p>
+      <p class="como-entrar" id="como-entrar">A chave é pessoal: usuários da Sabesp recebem a sua do <em>Luiz Henrique Brambilla Teixeira</em>, do time de Master Data. Não passe para ninguém.</p>
     </div>
     <button type="button" class="nova-conversa" id="nova" title="Começar uma conversa nova">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
@@ -82,6 +82,6 @@
   <span>Master Data · Sabesp · uso interno</span>
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a></span>
 </footer>
-<script src="consulta.js?v=20261015c"></script>
+<script src="consulta.js?v=20261015d"></script>
 </body>
 </html>
