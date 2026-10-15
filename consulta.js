@@ -699,7 +699,9 @@ function sairDeVez() {
 function voltaDaMicrosoft() {
   if (!/(^#|&)(sessao|entrada)=/.test(location.hash)) return;
   const h = new URLSearchParams(location.hash.slice(1));
-  history.replaceState(null, "", location.pathname + location.search);
+  const busca = new URLSearchParams(location.search);
+  busca.delete("v");   // ?v= da volta do login (so para nao pegar a pagina guardada)
+  history.replaceState(null, "", location.pathname + (busca.size ? `?${busca}` : ""));
   const esperado = ler(sessionStorage, "consulta-estado");
   try { sessionStorage.removeItem("consulta-estado"); } catch (e) { /* ok */ }
   const s = h.get("sessao") || "";
