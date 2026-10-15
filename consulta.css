@@ -586,3 +586,11 @@ body:not(.logado) .tema:hover { border-color: var(--e-destaque); }
 .aviso-entrada[data-tom="espera"] svg { fill: var(--e-espera-icone); }
 /* subtítulo da entrada na largura do cartão, em linhas equilibradas */
 body:not(.logado) .sub { max-width: 440px; text-wrap: balance; }
+/* entrada no computador: tudo numa coluna só, centralizada (Bella, título, subtítulo e cartão) */
+@media (min-width: 681px) {
+  body:not(.logado) .topo-conteudo { flex-direction: column; gap: 10px; text-align: center; }
+  body:not(.logado) .bella { width: 130px; }
+  body:not(.logado) .topo-texto { flex: none; width: 100%; max-width: 440px; }
+  body:not(.logado) .sub { margin: 0 auto 22px; }
+  body:not(.logado) .cartao-entrada { text-align: left; }
+}
