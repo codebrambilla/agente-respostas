@@ -594,3 +594,11 @@ body:not(.logado) .sub { max-width: 440px; text-wrap: balance; }
   body:not(.logado) .sub { margin: 0 auto 22px; }
   body:not(.logado) .cartao-entrada { text-align: left; }
 }
+/* chave de acesso: campo e botão separados, na altura e no canto do botão da Microsoft */
+.cartao-entrada .busca { gap: 8px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.cartao-entrada .busca input { height: 48px; padding: 0 14px; border: 1px solid var(--e-campo-borda); border-radius: 10px;
+  background: #fff; color: #0d2233; font-size: 15px; }
+.cartao-entrada .busca input:focus { border-color: var(--ciano-2); box-shadow: 0 0 0 3px rgba(66, 191, 239, .25); }
+.cartao-entrada .busca button { height: 48px; padding: 0 22px; border-radius: 10px; font-size: 15px; }
+.cartao-entrada .como-entrar { margin-top: 10px; font-size: 13px; line-height: 1.5; }
+.nome-luiz { font-weight: 700; color: var(--e-tinta); white-space: nowrap; }
