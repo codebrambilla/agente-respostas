@@ -659,6 +659,7 @@ const AVISOS_DE_CODIGO = {
   sessao: ["Sua entrada terminou", "É só entrar de novo com a conta Microsoft.", "espera"],
   "sessao-expirada": ["Sua entrada expirou", "Ela ficou 30 dias sem uso. É só entrar de novo com a conta Microsoft.", "espera"],
   "so-microsoft": ["Use a conta Microsoft", "Quem é da Meetup entra pelo botão da Microsoft. A chave de acesso é só para usuários da Sabesp.", "espera"],
+  "time-desativado": ["O código do time não vale mais", "Quem é da Meetup entra com a conta Microsoft. Usuários da Sabesp: peça a sua chave pessoal ao Luiz Henrique Brambilla Teixeira.", "espera"],
   negada: ["Conta não liberada", "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.", "erro"],
   bloqueada: ["Acesso aguardando liberação", "Seu login foi registrado. Avise o Luiz Henrique Brambilla Teixeira para liberar o seu acesso e depois entre de novo.", "espera"],
   cancelada: ["Entrada cancelada", "Quando quiser, é só clicar em “Entrar com a conta Microsoft”.", "espera"],
@@ -676,7 +677,7 @@ function mostrarAviso(titulo, texto, tom = "erro") {
 // erro do 401 -> qual aviso mostrar
 const tipoDoBarrado = (erro) => ({
   "código de acesso expirado": "expirado", "sessão expirada": "sessao-expirada", "sessão encerrada": "sessao",
-  "entre com a conta Microsoft": "so-microsoft",
+  "entre com a conta Microsoft": "so-microsoft", "código do time desativado": "time-desativado",
 })[erro] || "invalido";
 
 function avisarCodigo(tipo) {
@@ -768,6 +769,7 @@ $("form-codigo").addEventListener("submit", async (ev) => {
     if (e instanceof ErroConsulta && e.message === "código de acesso expirado") avisarCodigo("expirado");
     else if (e instanceof ErroConsulta && e.message === "código de acesso inválido") avisarCodigo("invalido");
     else if (e instanceof ErroConsulta && e.message === "entre com a conta Microsoft") avisarCodigo("so-microsoft");
+    else if (e instanceof ErroConsulta && e.message === "código do time desativado") avisarCodigo("time-desativado");
     else {
       mostrarAviso("Não deu para entrar agora", e instanceof ErroConsulta ? e.message : "Erro inesperado. Tente de novo.");
     }
