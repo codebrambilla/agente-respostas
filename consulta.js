@@ -28,6 +28,8 @@ const novoId = () => (crypto.randomUUID ? crypto.randomUUID()
 // codigo de acesso ou sessao do login Microsoft ("S" + 64 hex): os dois vao no x-codigo
 let codigo = ler(localStorage, "consulta-codigo");
 let nome = ler(localStorage, "consulta-nome");          // dono do codigo pessoal ("" = codigo do time)
+// so avisa do codigo do time depois que o servidor confirma (?quem): sem piscar na entrada
+let codigoDoTime = ler(localStorage, "consulta-time") === "1";
 const ehSessao = (c) => /^S[0-9a-f]{64}$/.test(c);
 // formas de entrar que a pagina mostra (o servidor diz; ?microsoft=1 mostra o botao para testar)
 let formas = { microsoft: /[?&]microsoft=1/.test(location.search), codigo: true };
@@ -478,7 +480,7 @@ function boasVindas() {
       el("div", { className: "balao" },
         el("p", {}, nome ? `Oi, ${nome}! ` : "Oi! ", "Sou a ", el("strong", { textContent: "Bella" }),
           " 😊 Pergunte do seu jeito sobre solicitações do Webformat, materiais do SAP ou dúvidas do cadastro."),
-        nome ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. " +
+        !codigoDoTime || ehSessao(codigo) ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. " +
           "Quem é da Meetup entra com a conta Microsoft; usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira.")),
       historico.length ? null : el("div", { className: "ideias", id: "ideias" }, ...EXEMPLOS.map((q) =>
         el("button", { type: "button", className: "ideia", textContent: q, onclick: () => enviar(q) })))));
@@ -722,7 +724,10 @@ async function carregarFormas() {
 function sair() {
   codigo = "";
   nome = "";
-  try { localStorage.removeItem("consulta-codigo"); localStorage.removeItem("consulta-nome"); } catch (e) { /* ok */ }
+  codigoDoTime = false;
+  try {
+    for (const k of ["consulta-codigo", "consulta-nome", "consulta-time"]) localStorage.removeItem(k);
+  } catch (e) { /* ok */ }
   espera++;
   telas();
 }
@@ -731,7 +736,9 @@ function sair() {
 async function quemSou() {
   const d = await chamar({ quem: 1 });
   nome = typeof d.nome === "string" ? d.nome : "";
+  codigoDoTime = !d.pessoal && !d.microsoft;
   guardar(localStorage, "consulta-nome", nome);
+  guardar(localStorage, "consulta-time", codigoDoTime ? "1" : "");
 }
 
 $("form-codigo").addEventListener("submit", async (ev) => {
