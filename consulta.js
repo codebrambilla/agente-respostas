@@ -25,8 +25,12 @@ const novoId = () => (crypto.randomUUID ? crypto.randomUUID()
   : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
     (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 
+// codigo de acesso ou sessao do login Microsoft ("S" + 64 hex): os dois vao no x-codigo
 let codigo = ler(localStorage, "consulta-codigo");
 let nome = ler(localStorage, "consulta-nome");          // dono do codigo pessoal ("" = codigo do time)
+const ehSessao = (c) => /^S[0-9a-f]{64}$/.test(c);
+// formas de entrar que a pagina mostra (o servidor diz; ?microsoft=1 mostra o botao para testar)
+let formas = { microsoft: /[?&]microsoft=1/.test(location.search), codigo: true };
 // o navegador (para "as minhas") e a conversa desta aba
 let navegador = ler(localStorage, "consulta-navegador");
 if (!navegador) { navegador = novoId(); guardar(localStorage, "consulta-navegador", navegador); }
@@ -63,12 +67,12 @@ async function pedir(params, corpo, parar) {
   if (r.status === 401) {
     let d = {};
     try { d = await r.json(); } catch (e) { /* resposta sem corpo */ }
-    const expirado = d.erro === "código de acesso expirado";
+    const motivo = typeof d.erro === "string" ? d.erro : "código de acesso inválido";
     const estava = !!codigo;
     sair();
     // quem estava dentro e foi barrado vê o motivo na tela de entrada
-    if (estava) avisarCodigo(expirado ? "expirado" : "invalido");
-    throw new ErroConsulta(expirado ? "código de acesso expirado" : "código de acesso inválido");
+    if (estava) avisarCodigo(tipoDoBarrado(motivo));
+    throw new ErroConsulta(motivo);
   }
   if (!r.ok) {
     let d = {};
@@ -626,8 +630,10 @@ function novaConversa() {
 
 function telas() {
   document.body.classList.toggle("logado", !!codigo);
-  $("form-codigo").hidden = !!codigo;
-  $("como-entrar").hidden = !!codigo;
+  $("entrada-ms").hidden = !!codigo || !formas.microsoft;
+  $("ou-codigo").hidden = !formas.microsoft || !formas.codigo;
+  $("form-codigo").hidden = !!codigo || !formas.codigo;
+  $("como-entrar").hidden = !!codigo || !formas.codigo;
   if (codigo) $("erro-codigo").hidden = true;
   $("chat").hidden = !codigo;
   if (codigo) { redesenhar(); $("mensagem").focus(); } else $("codigo").focus();
@@ -636,11 +642,66 @@ function telas() {
 const AVISOS_DE_CODIGO = {
   invalido: "Código não reconhecido. Peça o seu à Bella no chat pessoal do Teams: “qual o meu código de acesso?”",
   expirado: "Seu código expirou por ficar 60 dias sem uso. Peça um novo à Bella no chat pessoal do Teams: “qual o meu código de acesso?”",
+  sessao: "Sua entrada terminou. Entre de novo com a conta Microsoft.",
+  "sessao-expirada": "Sua entrada expirou por ficar 30 dias sem uso. Entre de novo com a conta Microsoft.",
+  "so-microsoft": "Agora a entrada é com a conta Microsoft: use o botão acima.",
+  negada: "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.",
+  cancelada: "Entrada cancelada. Quando quiser, é só clicar em “Entrar com a conta Microsoft”.",
+  aprovacao: "A Microsoft pediu a aprovação do administrador (T.I da Meetup) para liberar o login. Avise o Luiz.",
+  erro: "Não consegui entrar com a conta Microsoft agora. Tente de novo em alguns minutos.",
 };
+
+// erro do 401 -> qual aviso mostrar
+const tipoDoBarrado = (erro) => ({
+  "código de acesso expirado": "expirado", "sessão expirada": "sessao-expirada", "sessão encerrada": "sessao",
+  "entre com a conta Microsoft": "so-microsoft",
+})[erro] || "invalido";
 
 function avisarCodigo(tipo) {
   $("erro-codigo").textContent = AVISOS_DE_CODIGO[tipo];
   $("erro-codigo").hidden = false;
+}
+
+// botao Sair: encerra tambem a sessao no servidor (o codigo de acesso continua valendo)
+function sairDeVez() {
+  if (ehSessao(codigo)) {
+    fetch(`${API}?sair=1`, { method: "POST", headers: { "x-codigo": codigo }, keepalive: true, referrerPolicy: "no-referrer" })
+      .catch(() => {});
+  }
+  sair();
+}
+
+// Volta do login Microsoft: #sessao=...&estado=... (ou #entrada=negada|cancelada|aprovacao|erro).
+// So aceita a sessao se o estado for o que esta aba criou ao clicar no botao.
+function voltaDaMicrosoft() {
+  if (!/(^#|&)(sessao|entrada)=/.test(location.hash)) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, "", location.pathname + location.search);
+  const esperado = ler(sessionStorage, "consulta-estado");
+  try { sessionStorage.removeItem("consulta-estado"); } catch (e) { /* ok */ }
+  const s = h.get("sessao") || "";
+  if (s && ehSessao(s) && esperado && h.get("estado") === esperado) {
+    codigo = s;
+    guardar(localStorage, "consulta-codigo", s);
+    return;
+  }
+  const tipo = s ? "erro" : h.get("entrada");
+  avisarCodigo(AVISOS_DE_CODIGO[tipo] && tipo !== "invalido" ? tipo : "erro");
+}
+
+function entrarComMicrosoft() {
+  const estado = [...crypto.getRandomValues(new Uint8Array(16))].map((x) => x.toString(16).padStart(2, "0")).join("");
+  guardar(sessionStorage, "consulta-estado", estado);
+  location.href = `${API}?entrar=1&estado=${estado}`;
+}
+
+async function carregarFormas() {
+  try {
+    const r = await fetch(`${API}?entrada=1`, { cache: "no-store", referrerPolicy: "no-referrer" });
+    const d = await r.json();
+    formas = { microsoft: formas.microsoft || !!d.microsoft, codigo: d.codigo !== false };
+  } catch (e) { /* fica como estava */ }
+  telas();
 }
 
 function sair() {
@@ -675,6 +736,7 @@ $("form-codigo").addEventListener("submit", async (ev) => {
     codigo = "";
     if (e instanceof ErroConsulta && e.message === "código de acesso expirado") avisarCodigo("expirado");
     else if (e instanceof ErroConsulta && e.message === "código de acesso inválido") avisarCodigo("invalido");
+    else if (e instanceof ErroConsulta && e.message === "entre com a conta Microsoft") avisarCodigo("so-microsoft");
     else {
       $("erro-codigo").textContent = `Não consegui entrar agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}).`;
       $("erro-codigo").hidden = false;
@@ -717,8 +779,11 @@ $("conversa").addEventListener("scroll", () => {
 $("ir-fim").addEventListener("click", () => rolar(true));
 
 $("nova").addEventListener("click", novaConversa);
-$("sair").addEventListener("click", sair);
+$("sair").addEventListener("click", sairDeVez);
+$("entrar-ms").addEventListener("click", entrarComMicrosoft);
+voltaDaMicrosoft();
 telas();
+carregarFormas();
 atualizarBotao();
 // ja tinha entrado: confere o codigo e o nome (o codigo do time vale ate virar so pessoal)
 if (codigo) quemSou().then(() => { if (codigo && !ocupado) redesenhar(); }, () => {});

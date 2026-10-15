@@ -506,3 +506,12 @@ body.logado .forma-bolha { display: none; }
 body.logado .tema { background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .45); color: #fff; }
 body.logado .tema:hover { background: rgba(255, 255, 255, .2); }
 body.logado .tema[aria-pressed="true"] { color: #f8c103; }
+
+/* Entrar com a conta Microsoft (login acima do código) */
+.entrada-ms { margin: 0 0 12px; }
+.botao-ms { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; max-width: 460px;
+  border: 1px solid #8c8c8c; border-radius: 999px; background: #fff; color: #1b1b1b; cursor: pointer;
+  font: 600 16px/1 "Segoe UI", Tahoma, system-ui, sans-serif; padding: 14px 22px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+.botao-ms:hover { background: #f3f6f8; }
+.botao-ms svg { width: 20px; height: 20px; flex: none; }
+.entrada-ms .ou { margin: 12px 0 0; font-size: 13px; color: #cfe3ee; }
