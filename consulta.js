@@ -60,7 +60,16 @@ async function pedir(params, corpo, parar) {
     if (parar?.aborted) throw new ErroConsulta("interrompida");
     throw new ErroConsulta(e.name === "AbortError" ? "a resposta demorou demais" : "sem conexão com a consulta");
   }
-  if (r.status === 401) { sair(); throw new ErroConsulta("código de acesso inválido"); }
+  if (r.status === 401) {
+    let d = {};
+    try { d = await r.json(); } catch (e) { /* resposta sem corpo */ }
+    const expirado = d.erro === "código de acesso expirado";
+    const estava = !!codigo;
+    sair();
+    // quem estava dentro e foi barrado vê o motivo na tela de entrada
+    if (estava) avisarCodigo(expirado ? "expirado" : "invalido");
+    throw new ErroConsulta(expirado ? "código de acesso expirado" : "código de acesso inválido");
+  }
   if (!r.ok) {
     let d = {};
     try { d = await r.json(); } catch (e) { /* resposta sem corpo */ }
@@ -624,6 +633,16 @@ function telas() {
   if (codigo) { redesenhar(); $("mensagem").focus(); } else $("codigo").focus();
 }
 
+const AVISOS_DE_CODIGO = {
+  invalido: "Código não reconhecido. Peça o seu à Bella no chat pessoal do Teams: “qual o meu código de acesso?”",
+  expirado: "Seu código expirou por ficar 60 dias sem uso. Peça um novo à Bella no chat pessoal do Teams: “qual o meu código de acesso?”",
+};
+
+function avisarCodigo(tipo) {
+  $("erro-codigo").textContent = AVISOS_DE_CODIGO[tipo];
+  $("erro-codigo").hidden = false;
+}
+
 function sair() {
   codigo = "";
   nome = "";
@@ -654,10 +673,12 @@ $("form-codigo").addEventListener("submit", async (ev) => {
     telas();
   } catch (e) {
     codigo = "";
-    $("erro-codigo").textContent = e instanceof ErroConsulta && e.message === "código de acesso inválido"
-      ? "Código não reconhecido. Peça o seu à Bella no chat pessoal do Teams: “qual o meu código de acesso?”"
-      : `Não consegui entrar agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}).`;
-    $("erro-codigo").hidden = false;
+    if (e instanceof ErroConsulta && e.message === "código de acesso expirado") avisarCodigo("expirado");
+    else if (e instanceof ErroConsulta && e.message === "código de acesso inválido") avisarCodigo("invalido");
+    else {
+      $("erro-codigo").textContent = `Não consegui entrar agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}).`;
+      $("erro-codigo").hidden = false;
+    }
     telas();
   } finally {
     botao.disabled = false;
