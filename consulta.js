@@ -431,7 +431,8 @@ function cartaoSap(c) {
     c.texto ? el("p", { className: "cs-texto", textContent: c.texto }) : null,
     el("dl", { className: "cs-campos" }, ...campos.map(([r, v]) => el("div", {}, el("dt", { textContent: r }), el("dd", {}, ...v)))),
     u ? el("p", { className: "cs-usar" }, el("strong", { textContent: "Use no lugar: " }), botaoCodigo(u.codigo),
-      u.texto ? document.createTextNode(` ${u.texto} `) : null, u.bloqueio ? seloBloqueio(u.bloqueio) : null) : null);
+      u.texto ? document.createTextNode(` ${u.texto} `) : null, u.bloqueio ? seloBloqueio(u.bloqueio) : null) : null,
+    c.catalogo_de ? el("p", { className: "cs-rodape", textContent: `Catálogo do SAP de ${c.catalogo_de}` }) : null);
 }
 
 function desenhar(m) {
