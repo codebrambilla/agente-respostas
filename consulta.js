@@ -486,6 +486,8 @@ function boasVindas() {
       el("div", { className: "balao" },
         el("p", {}, nome ? `Oi, ${nome}! ` : "Oi! ", "Sou a ", el("strong", { textContent: "Bella" }),
           " 😊 Pergunte do seu jeito sobre solicitações do Webformat, materiais do SAP ou dúvidas do cadastro."),
+        el("p", { className: "dica" }, "💡 Sentiu falta de alguma coisa? Escreva ", el("strong", { textContent: "feedback" }),
+          " e me conte."),
         !codigoDoTime || ehSessao(codigo) ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. " +
           "Quem é da Meetup entra com a conta Microsoft; usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira.")),
       historico.length ? null : el("div", { className: "ideias", id: "ideias" }, ...EXEMPLOS.map((q) =>
