@@ -603,3 +603,71 @@ body:not(.logado) .sub { max-width: 440px; text-wrap: balance; }
 .cartao-entrada .busca button { height: 48px; padding: 0 22px; border-radius: 10px; font-size: 15px; }
 .cartao-entrada .como-entrar { margin-top: 10px; font-size: 13px; line-height: 1.5; }
 .nome-luiz { font-weight: 700; color: var(--e-tinta); white-space: nowrap; }
+
+/* ------------------------------------------------------------ acompanhar pelo WhatsApp */
+:root { --whats: #1f9d55; --whats-claro: #e4f6ec; --whats-borda: #9fd9b7; }
+:root[data-tema="escuro"] { --whats: #4fd08a; --whats-claro: #123a27; --whats-borda: #2d7a51; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) { --whats: #4fd08a; --whats-claro: #123a27; --whats-borda: #2d7a51; }
+}
+.acoes-topo { display: none; }
+body.logado .acoes-topo { display: flex; gap: 8px; margin-left: auto; flex: none; }
+body.logado .acoes-topo .nova-conversa { margin-left: 0; }
+body.logado .botao-whatsapp svg { fill: #6fe39f; }
+
+.painel { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--linha);
+  border-radius: 16px; background: var(--papel); color: var(--tinta); box-shadow: 0 24px 60px rgba(0, 0, 0, .3); overflow: auto; }
+.painel::backdrop { background: rgba(0, 20, 32, .55); }
+.painel-topo { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 16px 20px 12px; background: var(--papel); border-bottom: 1px solid var(--linha); }
+.painel h2 { margin: 0; font-size: 18px; color: var(--titulo); }
+.painel h3 { margin: 18px 0 8px; font-size: 15px; color: var(--titulo); }
+.painel-fechar { font: inherit; font-size: 24px; line-height: 1; width: 36px; height: 36px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--tinta-2); cursor: pointer; }
+.painel-fechar:hover { background: var(--fundo); color: var(--tinta); }
+.painel-corpo { padding: 4px 20px 20px; }
+.painel p { margin: 10px 0; }
+.selo-teste { margin: 12px 20px 0 !important; padding: 10px 12px; font-size: 14px; border-radius: 10px;
+  background: var(--amarelo-claro); color: var(--tinta); border: 1px solid var(--e-espera-borda); }
+.wa-form { display: flex; flex-direction: column; gap: 6px; }
+.wa-conta, .wa-dica { color: var(--tinta-2); font-size: 14px; }
+.wa-campo { margin-top: 10px; font-weight: 700; font-size: 14px; }
+fieldset.wa-campo { border: 1px solid var(--linha); border-radius: 10px; padding: 8px 12px 12px; font-weight: 400; }
+fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
+.wa-opcao { display: block; padding: 4px 0; cursor: pointer; }
+.wa-linha { display: flex; gap: 8px; margin-top: 8px; }
+.wa-form input[type="text"], .wa-form input[type="tel"] { flex: 1; min-width: 0; font: inherit; color: var(--tinta);
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; }
+.wa-form input:focus { border-color: var(--whats); outline: 2px solid var(--whats-borda); outline-offset: 0; }
+.wa-aceite { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-size: 14px; color: var(--tinta-2); cursor: pointer; }
+.wa-aceite input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--whats); flex: none; }
+.wa-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.wa-principal, .wa-secundario, .wa-perigo { font: inherit; font-size: 14px; font-weight: 700; border-radius: 10px;
+  padding: 10px 16px; cursor: pointer; }
+.wa-principal { background: var(--whats); color: #fff; border: 0; }
+:root[data-tema="escuro"] .wa-principal { color: #062314; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .wa-principal { color: #062314; } }
+.wa-principal:hover { filter: brightness(1.08); }
+.wa-secundario { background: transparent; color: var(--titulo); border: 1px solid var(--linha); }
+.wa-secundario:hover { background: var(--fundo); }
+.wa-perigo { background: transparent; color: var(--erro); border: 1px solid transparent; }
+.wa-perigo:hover { border-color: var(--erro); }
+.wa-principal:disabled, .wa-secundario:disabled, .wa-perigo:disabled { opacity: .6; cursor: progress; }
+.wa-erro { padding: 10px 12px; border-radius: 10px; background: var(--e-erro); border: 1px solid var(--e-erro-borda); color: var(--tinta); font-size: 14px; }
+.wa-ok { padding: 10px 12px; border-radius: 10px; background: var(--whats-claro); border: 1px solid var(--whats-borda); }
+.wa-lista { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.wa-lista li { padding: 6px 0; border-bottom: 1px solid var(--linha); }
+.wa-situacao { display: inline-block; font-size: 12px; color: var(--tinta-2); border: 1px solid var(--linha); border-radius: 999px; padding: 0 8px; }
+.wa-situacao.pendencia { color: var(--amarelo-texto); background: var(--amarelo-claro); border-color: var(--e-espera-borda); }
+.wa-aviso { margin: 8px 0; padding: 10px 12px; border-radius: 4px 12px 12px 12px; background: var(--whats-claro); border: 1px solid var(--whats-borda); }
+.wa-aviso .wa-dica { margin: 6px 0 0; font-size: 12px; }
+.wa-msg { margin: 0 !important; white-space: pre-wrap; font-size: 14px; }
+.wa-boas-vindas { margin-top: 12px; font-size: 14px; }
+.wa-boas-vindas summary { cursor: pointer; color: var(--tinta-2); }
+.selo-breve { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--marinho);
+  background: var(--amarelo); border-radius: 999px; padding: 1px 6px; margin-left: 2px; }
+@media (max-width: 680px) {
+  body.logado .botao-whatsapp span { display: none; }
+  body.logado .botao-whatsapp .selo-breve { display: inline-block; margin-left: 0; }
+  body.logado .botao-whatsapp { padding: 6px 8px; }
+}

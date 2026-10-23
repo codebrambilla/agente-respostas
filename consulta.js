@@ -638,6 +638,155 @@ function novaConversa() {
   $("mensagem").focus();
 }
 
+// ------------------------------------------------------------ acompanhar pelo WhatsApp
+// Painel do botao "WhatsApp": a pessoa confirma como aparece no Webformat e o numero;
+// a Bella acompanha as abertas dela (pendencia tecnica e codigo definitivo).
+// Em teste (modo sombra), os avisos aparecem aqui em vez de sair para o WhatsApp.
+
+let wa = null;          // ultimo estado vindo da funcao
+let waTrocando = false; // "trocar numero" ou "trocar nome" com o acompanhamento ligado
+
+// *negrito* do WhatsApp -> <strong>, o resto como texto
+function textoWhatsapp(t) {
+  const p = el("p", { className: "wa-msg" });
+  String(t).split(/(\*[^*\n]+\*)/).forEach((parte) => {
+    p.append(/^\*[^*\n]+\*$/.test(parte) ? el("strong", { textContent: parte.slice(1, -1) }) : parte);
+  });
+  return p;
+}
+
+const waQuando = (iso) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function waErro(msg) {
+  const velho = $("wa-corpo").querySelector(".wa-erro");
+  if (velho) velho.remove();
+  if (msg) $("wa-corpo").prepend(el("p", { className: "wa-erro", role: "alert", textContent: msg }));
+}
+
+async function waChamar(corpo) {
+  try {
+    wa = corpo ? await chamar({ whatsapp: 1 }, corpo) : await chamar({ whatsapp: 1 });
+    return true;
+  } catch (e) {
+    waErro(e instanceof ErroConsulta ? e.message : "Não deu para falar com a Bella agora. Tente de novo.");
+    return false;
+  }
+}
+
+function waEscolhaDeNome(sugestoes) {
+  const caixa = el("fieldset", { className: "wa-campo" }, el("legend", { textContent: "Como você aparece no Webformat" }));
+  if (sugestoes.length) {
+    sugestoes.forEach((s, i) => {
+      const r = el("input", { type: "radio", name: "wa-solicitante", value: s.nome, checked: i === 0 && sugestoes.length === 1 });
+      caixa.append(el("label", { className: "wa-opcao" }, r, ` ${s.nome} `,
+        el("span", { className: "wa-dica", textContent: `(${s.solicitacoes} ${s.solicitacoes === 1 ? "solicitação" : "solicitações"})` })));
+    });
+  } else {
+    caixa.append(el("p", { className: "wa-dica", textContent: "Procure o seu nome como ele aparece no Webformat:" }));
+  }
+  const busca = el("input", { type: "text", maxLength: 120, placeholder: "Outro nome: digite e procure", id: "wa-busca" });
+  const botao = el("button", { type: "button", className: "wa-secundario", textContent: "Procurar" });
+  botao.addEventListener("click", async () => {
+    const nomeBusca = busca.value.trim();
+    if (nomeBusca.length < 3) { waErro("Digite pelo menos 3 letras do nome."); return; }
+    botao.disabled = true;
+    try {
+      const d = await chamar({ whatsapp: 1 }, { acao: "procurar", nome: nomeBusca });
+      wa = { ...wa, solicitante: null, sugestoes: d.sugestoes || [] };
+      waTrocando = true;
+      waDesenhar();
+      if (!(d.sugestoes || []).length) waErro("Nenhum solicitante com esse nome. Tente só o primeiro e o último nome.");
+    } catch (e) {
+      waErro(e instanceof ErroConsulta ? e.message : "Não deu para procurar agora.");
+    } finally { botao.disabled = false; }
+  });
+  busca.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); botao.click(); } });
+  caixa.append(el("div", { className: "wa-linha" }, busca, botao));
+  return caixa;
+}
+
+function waFormulario() {
+  const f = el("form", { className: "wa-form", autocomplete: "off" });
+  f.append(el("p", { textContent: "Receba no WhatsApp um aviso quando uma solicitação sua no Webformat voltar com pendência técnica da CH ou receber o código definitivo. As que você abrir depois entram sozinhas." }));
+  f.append(el("p", { className: "wa-conta" }, "Sua conta na Bella: ", el("strong", { textContent: wa.email || "?" })));
+  if (wa.solicitante && !waTrocando) {
+    const trocar = el("button", { type: "button", className: "link", textContent: "trocar" });
+    trocar.addEventListener("click", () => { waTrocando = true; wa = { ...wa, solicitante: null, sugestoes: wa.sugestoes || [] }; waDesenhar(); });
+    f.append(el("p", { className: "wa-campo" }, "No Webformat você aparece como ", el("strong", { textContent: wa.solicitante }), " · ", trocar),
+      el("input", { type: "hidden", name: "wa-solicitante", value: wa.solicitante }));
+  } else {
+    f.append(waEscolhaDeNome(wa.sugestoes || []));
+  }
+  const numero = el("input", { type: "tel", id: "wa-numero", inputMode: "tel", maxLength: 20, required: true,
+    placeholder: "(11) 91234-5678", autocomplete: "tel-national" });
+  f.append(el("label", { className: "wa-campo", htmlFor: "wa-numero" }, "Seu WhatsApp (DDD + celular)"), numero);
+  const aceite = el("input", { type: "checkbox", id: "wa-aceite", required: true });
+  f.append(el("label", { className: "wa-aceite", htmlFor: "wa-aceite" }, aceite,
+    " Autorizo a Bella a me mandar avisos das minhas solicitações por WhatsApp. Posso parar quando quiser, e aí o número é apagado."));
+  const ativar = el("button", { type: "submit", className: "wa-principal", textContent: wa.ativo ? "Salvar" : "Ativar acompanhamento" });
+  f.append(el("div", { className: "wa-botoes" }, ativar));
+  f.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const escolhido = f.querySelector('input[name="wa-solicitante"]:checked, input[type="hidden"][name="wa-solicitante"]');
+    if (!escolhido) { waErro("Escolha como você aparece no Webformat (ou procure pelo nome)."); return; }
+    ativar.disabled = true;
+    const ok = await waChamar({ acao: "ativar", whatsapp: numero.value, solicitante: escolhido.value, aceite: aceite.checked });
+    ativar.disabled = false;
+    if (ok) { waTrocando = false; waDesenhar(); }
+  });
+  return f;
+}
+
+function waAcompanhando() {
+  const caixa = el("div", { className: "wa-ativo" });
+  caixa.append(el("p", { className: "wa-ok" }, "✅ Acompanhando as solicitações de ", el("strong", { textContent: wa.solicitante }),
+    " no WhatsApp ", el("strong", { textContent: wa.whatsapp }), "."));
+  const abertas = wa.abertas || [];
+  caixa.append(el("h3", { textContent: abertas.length ? `Em aberto agora (${abertas.length})` : "Nenhuma solicitação em aberto agora" }));
+  if (abertas.length) {
+    caixa.append(el("ul", { className: "wa-lista" }, ...abertas.map((s) => el("li", {},
+      el("strong", { textContent: String(s.numero) }), ` ${s.descricao || ""} `,
+      el("span", { className: `wa-situacao${s.pendencia ? " pendencia" : ""}`, textContent: s.pendencia ? "pendência técnica" : s.situacao })))));
+  }
+  const avisos = wa.avisos || [];
+  caixa.append(el("h3", { textContent: wa.modo === "sombra" ? "Avisos que a Bella mandaria (ainda não enviados)" : "Últimos avisos" }));
+  if (!avisos.length) {
+    caixa.append(el("p", { className: "wa-dica", textContent: "Nenhum ainda. Quando uma solicitação sua voltar com pendência técnica ou receber o código, o aviso aparece aqui." }));
+  }
+  avisos.forEach((a) => {
+    const meta = [waQuando(a.criado_em), a.atraso_min === null ? "" : `${a.atraso_min} min depois do trâmite no Webformat`,
+      a.enviado ? "enviado" : "não enviado (em desenvolvimento)"].filter(Boolean).join(" · ");
+    caixa.append(el("div", { className: "wa-aviso" }, textoWhatsapp(a.texto), el("p", { className: "wa-dica", textContent: meta })));
+  });
+  if (wa.boas_vindas) {
+    caixa.append(el("details", { className: "wa-boas-vindas" }, el("summary", { textContent: "Mensagem de boas-vindas" }),
+      el("div", { className: "wa-aviso" }, textoWhatsapp(wa.boas_vindas))));
+  }
+  const trocar = el("button", { type: "button", className: "wa-secundario", textContent: "Trocar número ou nome" });
+  trocar.addEventListener("click", () => { waTrocando = true; waDesenhar(); });
+  const parar = el("button", { type: "button", className: "wa-perigo", textContent: "Parar acompanhamento" });
+  parar.addEventListener("click", async () => {
+    parar.disabled = true;
+    if (await waChamar({ acao: "parar" })) waDesenhar();
+    parar.disabled = false;
+  });
+  caixa.append(el("div", { className: "wa-botoes" }, trocar, parar));
+  return caixa;
+}
+
+function waDesenhar() {
+  $("wa-teste").hidden = wa?.modo !== "sombra";
+  $("wa-corpo").replaceChildren(wa.ativo && !waTrocando ? waAcompanhando() : waFormulario());
+}
+
+async function abrirWhatsapp() {
+  const painel = $("painel-whatsapp");
+  waTrocando = false;
+  $("wa-corpo").replaceChildren(el("p", { className: "wa-dica", textContent: "Carregando…" }));
+  if (!painel.open) painel.showModal();
+  if (await waChamar()) waDesenhar();
+}
+
 // ------------------------------------------------------------ telas e eventos
 
 function telas() {
@@ -814,6 +963,10 @@ $("conversa").addEventListener("scroll", () => {
 $("ir-fim").addEventListener("click", () => rolar(true));
 
 $("nova").addEventListener("click", novaConversa);
+$("whatsapp").addEventListener("click", abrirWhatsapp);
+$("wa-fechar").addEventListener("click", () => $("painel-whatsapp").close());
+// clique fora do painel (no fundo escuro) fecha
+$("painel-whatsapp").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
 $("sair").addEventListener("click", sairDeVez);
 $("entrar-ms").addEventListener("click", entrarComMicrosoft);
 $("usar-codigo").addEventListener("click", () => { comCodigo = true; telas(); });
