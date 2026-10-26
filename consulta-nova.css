@@ -413,6 +413,14 @@ body.logado .entrada { display: none; }
 .cat-paginas .sugestao:disabled { opacity: .4; cursor: default; }
 .cat-data { margin: 12px 0 0; text-align: center; font-size: 12.5px; color: var(--tinta-3); }
 .cat-data.antigo { color: var(--amarelo); }
+.cat-resumo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.cat-novidade { align-self: flex-start; margin-bottom: 10px; border: 1px solid var(--pilula-borda); background: var(--pilula); color: var(--pilula-tinta);
+  border-radius: 999px; padding: 6px 14px; font-size: 14px; cursor: pointer; box-shadow: 0 6px 16px rgba(18, 205, 255, .2); }
+.cat-novidade strong { text-decoration: underline; }
+.conversas button.novidade::after { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #f8c103; margin-left: 6px; vertical-align: 2px; }
+.icone.novidade { position: relative; }
+.icone.novidade::after { content: ""; position: absolute; top: 7px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #f8c103; }
 .cat-vazio .sugestao { margin-top: 10px; }
 .cat-usar .ref-codigo .ref { font-size: 12px; }
 .cat-vazio { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 40px 12px; color: var(--tinta-2); max-width: 560px; margin: 0 auto; }

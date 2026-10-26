@@ -458,6 +458,7 @@ function adicionar(m) {
   historico.push(m);
   salvar();
   if ($("app-vazia-oi")) { $("app-vazia-oi").remove(); marcarVazia(); }
+  if (cat.aberto && m.de === "bella") marcarNovidade(true);
   const n = desenhar(m);
   $("conversa").append(n);
   rolar();
@@ -565,6 +566,7 @@ function desenharConversas() {
     const b = el("button", { type: "button", textContent: tituloDe(c.historico), title: tituloDe(c.historico),
       onclick: () => abrirConversa(c.sessao) });
     if (c.atual && !cat.aberto) b.setAttribute("aria-current", "true");
+    if (c.atual && cat.novidade) b.classList.add("novidade");
     return b;
   }));
 }
@@ -894,7 +896,49 @@ async function abrirWhatsapp() {
 // ------------------------------------------------------------ procurar material (catalogo do SAP com filtros)
 // Busca enquanto a pessoa digita (espera 350 ms parada); a busca anterior e cancelada.
 
-const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", pedido: null, espera: 0, ultimo: null };
+const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", pedido: null, espera: 0, ultimo: null, novidade: false };
+// link de uma busca (#catalogo&texto=...): aberto antes de entrar, vale depois da entrada
+let linkPendente = /^#catalogo(&|$)/.test(location.hash) ? location.hash : "";
+
+// O endereco guarda a busca, para mandar no Teams: #catalogo&texto=luva pvc&tipo=ZMAT&gm=024&bloqueio=sem
+function linkDaBusca(f) {
+  const p = new URLSearchParams();
+  if (f.texto) p.set("texto", f.texto);
+  if (f.tipo) p.set("tipo", f.tipo);
+  if (f.gm) p.set("gm", f.gm);
+  if (f.bloqueio) p.set("bloqueio", f.bloqueio);
+  if (f.manda_usar_outro) p.set("usar", "1");
+  if (f.tipo_errado) p.set("errado", "1");
+  if (f.pagina > 1) p.set("pagina", String(f.pagina));
+  const q = p.toString();
+  return `#catalogo${q ? `&${q}` : ""}`;
+}
+// troca o endereco sem criar volta no navegador (e sem disparar o hashchange)
+const marcarEndereco = (hash) => history.replaceState(null, "", location.pathname + location.search + hash);
+
+function abrirLinkDoCatalogo(hash) {
+  const p = new URLSearchParams(hash.replace(/^#catalogo&?/, ""));
+  $("cat-texto").value = (p.get("texto") || "").slice(0, 120);
+  $("cat-gm").value = (p.get("gm") || "").slice(0, 40);
+  cat.bloqueio = ["sem", "compras", "total"].includes(p.get("bloqueio")) ? p.get("bloqueio") : "";
+  $("cat-usar").checked = p.get("usar") === "1";
+  $("cat-errado").checked = p.get("errado") === "1";
+  cat.pagina = Math.max(1, Math.min(200, parseInt(p.get("pagina"), 10) || 1));
+  const tipo = (p.get("tipo") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+  // o tipo do link entra na lista mesmo antes das opcoes chegarem
+  if (tipo && ![...$("cat-tipo").options].some((o) => o.value === tipo)) $("cat-tipo").append(el("option", { value: tipo, textContent: tipo }));
+  $("cat-tipo").value = tipo;
+  abrirCatalogo();
+  buscarNoCatalogo();
+}
+
+// resposta da Bella chegou com o catalogo aberto: aviso no catalogo, bolinha no menu
+function marcarNovidade(sim) {
+  cat.novidade = sim;
+  $("cat-novidade").hidden = !sim;
+  $("abrir-lado").classList.toggle("novidade", sim);
+  desenharConversas();
+}
 
 function filtrosDoCatalogo() {
   const gm = grupoDigitado($("cat-gm").value);
@@ -919,7 +963,8 @@ async function carregarOpcoesDoCatalogo() {
   } catch (e) {
     return;   // sem as listas os filtros ainda funcionam digitando
   }
-  $("cat-tipo").append(...(cat.opcoes.tipos || []).map((t) => el("option", { value: t, textContent: t })));
+  const jaTem = new Set([...$("cat-tipo").options].map((o) => o.value));
+  $("cat-tipo").append(...(cat.opcoes.tipos || []).filter((t) => !jaTem.has(t)).map((t) => el("option", { value: t, textContent: t })));
   $("cat-grupos").replaceChildren(...(cat.opcoes.grupos || []).map((g) =>
     el("option", { value: `${g.codigo} · ${g.descricao || ""}`.trim() })));
   if (cat.aberto && !cat.ultimo) desenharCatalogo(null);   // agora com a data dos materiais
@@ -933,6 +978,8 @@ function abrirCatalogo() {
   $("atalho-material").setAttribute("aria-current", "true");
   desenharConversas();
   desenharTitulo();
+  // o endereco mostra a busca que esta na tela (a ultima, se a pessoa voltou ao catalogo)
+  marcarEndereco(cat.ultimo ? linkDaBusca(filtrosDoCatalogo()) : "#catalogo");
   carregarOpcoesDoCatalogo();
   if (!cat.ultimo) desenharCatalogo(null);
   $("cat-texto").focus();
@@ -944,8 +991,9 @@ function fecharCatalogo() {
   $("chat").classList.remove("modo-catalogo");
   $("catalogo").hidden = true;
   $("atalho-material").removeAttribute("aria-current");
+  marcarEndereco("");
+  marcarNovidade(false);
   desenharTitulo();
-  desenharConversas();
 }
 
 function buscarNoCatalogo(espera = 0) {
@@ -953,7 +1001,9 @@ function buscarNoCatalogo(espera = 0) {
   cat.espera = setTimeout(async () => {
     const f = filtrosDoCatalogo();
     $("cat-limpar").hidden = !(f.tipo || f.gm || f.bloqueio || f.manda_usar_outro || f.tipo_errado);
-    if (!f.texto && !f.tipo && !f.gm && !f.manda_usar_outro && !f.tipo_errado && !f.bloqueio) {
+    const vazio = !f.texto && !f.tipo && !f.gm && !f.manda_usar_outro && !f.tipo_errado && !f.bloqueio;
+    if (cat.aberto) marcarEndereco(vazio ? "#catalogo" : linkDaBusca(f));
+    if (vazio) {
       cat.pedido?.abort();
       cat.pedido = null;
       cat.ultimo = null;
@@ -1021,7 +1071,8 @@ function desenharCatalogo(d) {
     el("p", {}, el("strong", { textContent: d.total ? `${numeroBr(d.total)} ${d.total === 1 ? "código" : "códigos"}` : "Nenhum código" }),
       ` · procurei ${d.procurou}`, d.procurou_tambem_como ? ` (também como ${d.procurou_tambem_como.join(", ")})` : "",
       d.filtros?.length ? ` · ${d.filtros.join(" · ")}` : ""),
-    d.texto_planilha && d.total ? botaoPlanilha({ tipo: "sap", total: d.total, texto: d.texto_planilha }) : null);
+    el("div", { className: "cat-resumo-acoes" }, botaoLinkDaBusca(),
+      d.texto_planilha && d.total ? botaoPlanilha({ tipo: "sap", total: d.total, texto: d.texto_planilha }) : null));
   if (!d.total) {
     $("cat-corpo").replaceChildren(resumo, el("div", { className: "cat-vazio" },
       el("img", { src: "img/bella.png", alt: "", width: 72, height: 78 }),
@@ -1054,6 +1105,22 @@ function desenharCatalogo(d) {
   $("cat-corpo").replaceChildren(...[resumo, tabela, paginacao,
     d.total > d.por_pagina * maxPaginas ? el("p", { className: "cat-data", textContent: `Mostrando até ${maxPaginas} páginas: use mais palavras ou filtros para refinar.` }) : null,
     dataDosMateriais()].filter(Boolean));
+}
+
+// "Copiar link": o endereco desta busca, para colar no Teams (quem abrir ve o mesmo resultado)
+function botaoLinkDaBusca() {
+  const b = el("button", { type: "button", className: "sugestao", textContent: "🔗 Copiar link",
+    title: "Copiar o link desta busca para mandar no Teams" });
+  b.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(location.origin + location.pathname + linkDaBusca(filtrosDoCatalogo()));
+      b.textContent = "✓ Link copiado";
+    } catch (e) {
+      b.textContent = "Não consegui copiar";
+    }
+    setTimeout(() => { b.textContent = "🔗 Copiar link"; }, 1800);
+  };
+  return b;
 }
 
 // no catalogo o codigo copia (o clique no texto pergunta a Bella, como na conversa)
@@ -1090,7 +1157,13 @@ function telas() {
   $("chat").hidden = !codigo;
   // o botao do tema fica no canto da entrada ou na barra da conversa
   (codigo ? $("tema-chat") : $("tema-entrada")).append($("tema"));
-  if (codigo) { redesenhar(); $("mensagem").focus(); } else if (aba === "sabesp") $("codigo").focus();
+  if (codigo) { redesenhar(); if (!cat.aberto) $("mensagem").focus(); } else if (aba === "sabesp") $("codigo").focus();
+  // link de uma busca do catalogo: abre depois de entrar
+  if (codigo && linkPendente) {
+    const h = linkPendente;
+    linkPendente = "";
+    abrirLinkDoCatalogo(h);
+  }
 }
 
 function trocarAba(qual) {
@@ -1317,6 +1390,12 @@ $("cat-bloqueio").addEventListener("click", (ev) => {
   buscarNoCatalogo();
 });
 $("cat-limpar").addEventListener("click", limparFiltrosDoCatalogo);
+$("cat-novidade").addEventListener("click", fecharCatalogo);
+// link de busca colado nesta mesma aba
+window.addEventListener("hashchange", () => {
+  if (!/^#catalogo(&|$)/.test(location.hash)) return;
+  if (codigo) abrirLinkDoCatalogo(location.hash); else linkPendente = location.hash;
+});
 $("abrir-lado").addEventListener("click", abrirLado);
 $("fechar-lado").addEventListener("click", fecharLado);
 $("cortina").addEventListener("click", fecharLado);
