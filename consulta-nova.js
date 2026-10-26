@@ -1,4 +1,4 @@
-// Consulta da Bella, tela nova (consulta-nova.html): a mesma logica da consulta.js, com
+// Consulta da Bella, tela nova (consulta.html desde 26/10/2026; antes consulta-nova.html): a mesma logica da consulta.js, com
 // menu lateral, conversa no meio, sugestoes coloridas e a Bella mostrando o que consulta.
 // Seguranca (igual a consulta.js):
 //  - o endereco da funcao e fixo; a politica da pagina tambem so deixa falar com ele;
