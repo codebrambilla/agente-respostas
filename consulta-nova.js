@@ -441,16 +441,63 @@ function desenhar(m) {
     return el("div", { className: "msg da-pessoa", title: horaDe(m.em) }, el("div", { className: "balao" }, ...markdown(m.texto)));
   }
   const corpo = m.ficha ? [montarFicha(m.texto, m.ficha)] : markdown(m.texto, !m.erro);
-  const extras = [];
-  if (m.verMais || m.exportar) {
-    extras.push(el("div", { className: "sugestoes" },
-      m.verMais ? el("button", { type: "button", className: "sugestao", textContent: "Ver mais", onclick: () => enviar("ver mais") }) : null,
-      m.exportar ? botaoPlanilha(m.exportar) : null));
-  }
+  const v = m.veredito && typeof m.veredito === "object" && VEREDITOS[m.veredito.tipo] ? m.veredito : null;
+  // proximos passos do veredito e, depois, "Ver mais" e a planilha
+  const botoes = [
+    ...(v && Array.isArray(v.passos) ? v.passos.slice(0, 4).map(botaoPasso).filter(Boolean) : []),
+    m.verMais ? el("button", { type: "button", className: "sugestao", textContent: "Ver mais", onclick: () => enviar("ver mais") }) : null,
+    m.exportar ? botaoPlanilha(m.exportar) : null,
+  ].filter(Boolean);
   const cartoes = Array.isArray(m.cartoes) && m.cartoes.length
     ? el("div", { className: "cartoes-sap" }, ...m.cartoes.slice(0, 3).map(cartaoSap)) : null;
   return el("div", { className: "msg da-bella" + (m.erro ? " erro" : "") }, avatar(),
-    el("div", { className: "coluna" }, el("div", { className: "balao" }, ...corpo), cartoes, ...extras, botoesAvaliar(m)));
+    el("div", { className: "coluna" }, v ? cabecaDoVeredito(v) : null, el("div", { className: "balao" }, ...corpo), cartoes,
+      v ? palavrasProcuradas(v) : null, botoes.length ? el("div", { className: "sugestoes" }, ...botoes) : null, botoesAvaliar(m)));
+}
+
+// ------------------------------------------------------------ veredito (Fase 2): etiqueta colorida, frase e proximos passos
+// Vem da funcao (da ultima consulta ao SAP da mensagem), nunca e deduzido aqui do texto.
+const VEREDITOS = { achei: ["ok", "✓"], porem: ["atencao", "!"], parecido: ["atencao", "◐"], nao_achei: ["nao", "✕"] };
+
+function cabecaDoVeredito(v) {
+  const [cor, icone] = VEREDITOS[v.tipo];
+  return el("div", { className: "veredito" },
+    el("span", { className: `selo-veredito ${cor}` }, el("span", { ariaHidden: "true", textContent: icone }), String(v.rotulo || "")),
+    v.frase ? el("span", { className: "frase-veredito", textContent: String(v.frase) }) : null);
+}
+
+// "Procurei por": tocar numa palavra refaz a busca sem ela (com uma palavra so, nao ha o que tirar)
+function palavrasProcuradas(v) {
+  const ps = Array.isArray(v.palavras) ? v.palavras.map(String).filter(Boolean).slice(0, 8) : [];
+  if (!ps.length) return null;
+  return el("div", { className: "entendi" }, el("span", { textContent: "Procurei por" }),
+    ...ps.map((p) => ps.length > 1
+      ? el("button", { type: "button", className: "termo", textContent: p, title: `Procurar de novo sem “${p}”`,
+        onclick: () => enviar(`já existe ${ps.filter((x) => x !== p).join(" ")}?`) })
+      : el("span", { className: "termo", textContent: p })));
+}
+
+function botaoPasso(p) {
+  if (!p || !p.rotulo) return null;
+  if (p.catalogo) {
+    return el("button", { type: "button", className: "sugestao", textContent: `⌕ ${p.rotulo}`, onclick: () => abrirCatalogoCom(String(p.catalogo)) });
+  }
+  if (p.pergunta) return el("button", { type: "button", className: "sugestao", textContent: String(p.rotulo), onclick: () => enviar(String(p.pergunta)) });
+  return null;
+}
+
+// "VALVULA GAVETA ⟨bloqueio=sem;gm=024⟩" (o mesmo formato da planilha) -> abre "Procurar material" com isso
+function abrirCatalogoCom(t) {
+  const m = t.match(/⟨([^⟩]*)⟩\s*$/);
+  const p = new URLSearchParams();
+  const texto = (m ? t.slice(0, m.index) : t).trim();
+  if (texto) p.set("texto", texto);
+  for (const par of (m ? m[1].split(";") : [])) {
+    const [k, val] = par.split("=");
+    if (["bloqueio", "tipo", "gm", "usar", "errado"].includes(k) && val) p.set(k, val);
+  }
+  const q = p.toString();
+  abrirLinkDoCatalogo(`#catalogo${q ? `&${q}` : ""}`);
 }
 
 function adicionar(m) {
@@ -701,7 +748,8 @@ async function enviar(texto) {
     vivo = null;
   };
   try {
-    const d = await conversarAoVivo({ sessao, navegador, texto }, aoEvento, parada.signal);
+    // tela: "nova" -> a funcao manda o veredito e a IA nao anuncia "achei" (a etiqueta ja diz)
+    const d = await conversarAoVivo({ sessao, navegador, texto, tela: "nova" }, aoEvento, parada.signal);
     limpar();
     if (d.pedido) {
       aviso.hidden = false;
@@ -710,7 +758,7 @@ async function enviar(texto) {
       aviso.remove();
       adicionar({ de: "bella", texto: d.resposta || "", mensagem: d.mensagem || null, verMais: !!d.ver_mais,
         exportar: d.exportar && typeof d.exportar === "object" ? d.exportar : null,
-        cartoes: Array.isArray(d.cartoes) ? d.cartoes : null });
+        cartoes: Array.isArray(d.cartoes) ? d.cartoes : null, veredito: d.veredito && typeof d.veredito === "object" ? d.veredito : null });
     }
   } catch (e) {
     const parcial = textoVivo;
