@@ -1467,23 +1467,27 @@ function limparFiltrosDoCatalogo() {
 // ------------------------------------------------------------ painel (a primeira tela depois de entrar)
 // Os indicadores da fila do Webformat e das bases (?painel=1, sem IA: nao gasta credito). Os numeros
 // sao os mesmos do bom dia da Bella; o clique num indicador pergunta a lista a Bella (uma pergunta).
-// Abre sozinho ao entrar com a conversa vazia; depois, pelo menu.
+// Abre sozinho ao entrar com a conversa vazia; depois, pelo menu. Duas abas: "Visão geral" (#painel) e
+// "Minhas pendências" (#pendencias: o que espera a pessoa no Webformat, pelo nome dela la).
 
-const pn = { aberto: false, dados: null, em: 0, carregando: false, erro: "", visto: false };
+const pn = { aberto: false, dados: null, em: 0, carregando: false, erro: "", visto: false, aba: "fila", trocarNome: false };
+const LINKS_DO_PAINEL = { "#painel": "fila", "#pendencias": "pendencias" };
 const PAINEL_VELHO_MS = 60000;
 const SVG = "http://www.w3.org/2000/svg";
 const mil = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "–");
 const ddmmDe = (dia) => String(dia || "").slice(5, 10).split("-").reverse().join("/");
 
-function abrirPainel() {
+// qual: "fila" | "pendencias" (sem dizer, a aba que estava)
+function abrirPainel(qual) {
   fecharLado();
   fecharCatalogo();
+  if (qual === "fila" || qual === "pendencias") pn.aba = qual;
   pn.aberto = true;
   pn.visto = true;
   $("chat").classList.add("modo-painel");
   $("painel").hidden = false;
   $("atalho-painel").setAttribute("aria-current", "true");
-  marcarEndereco("#painel");
+  marcarEndereco(pn.aba === "pendencias" ? "#pendencias" : "#painel");
   desenharConversas();
   desenharTitulo();
   if (!pn.dados || Date.now() - pn.em > PAINEL_VELHO_MS) carregarPainel(); else desenharPainel();
@@ -1495,7 +1499,7 @@ function fecharPainel() {
   $("chat").classList.remove("modo-painel");
   $("painel").hidden = true;
   $("atalho-painel").removeAttribute("aria-current");
-  if (location.hash === "#painel") marcarEndereco("");
+  if (LINKS_DO_PAINEL[location.hash]) marcarEndereco("");
   desenharConversas();
   desenharTitulo();
 }
@@ -1665,22 +1669,137 @@ function linhaDaBase(ok, nomeBase, texto, aviso) {
     el("b", { textContent: nomeBase }), ` ${texto}`, aviso ? el("small", { textContent: ` · ⚠️ ${aviso}` }) : null);
 }
 
+function trocarAbaDoPainel(qual) {
+  pn.aba = qual;
+  pn.trocarNome = false;
+  marcarEndereco(qual === "pendencias" ? "#pendencias" : "#painel");
+  desenharPainel();
+  const ativa = document.querySelector(".pn-aba[aria-selected=\"true\"]");
+  if (ativa) ativa.focus();
+}
+
+// ---- aba "Minhas pendências"
+
+// "devolvida hoje", "há 1 dia com você", "há 15 dias com você"
+const diasComVoce = (d) => (d === null || d === undefined ? "" : d === 0 ? "devolvida hoje" : `há ${mil(d)} ${d === 1 ? "dia" : "dias"} com você`);
+const DIAS_CANCELAMENTO = 14;   // regra de negocio (guia da Bella): 2 semanas sem tratamento geram pedido de cancelamento
+
+function cartaoPendencia(p) {
+  const velha = typeof p.dias === "number" && p.dias >= DIAS_CANCELAMENTO;
+  return el("article", { className: "pn-pend" + (velha ? " velha" : "") },
+    el("div", { className: "pn-pend-cab" },
+      botaoSolicitacao(p.numero),
+      el("span", { className: `pn-selo ${p.tecnica ? "tecnica" : "md"}`, textContent: p.tecnica ? "Pendência técnica (CH)" : "Devolvida pelo Master Data" }),
+      el("span", { className: "pn-dias" + (velha ? " alerta" : ""), textContent: diasComVoce(p.dias),
+        title: velha ? "Pela regra, 2 semanas sem resposta geram pedido de cancelamento" : "" })),
+    el("p", { className: "pn-pend-desc", textContent: [p.tipo, p.descricao].filter(Boolean).join(" · ") }),
+    p.pedido ? el("details", { className: "pn-pedido" },
+      el("summary", { textContent: p.tecnica ? "O que a CH pediu" : "O que pediram" }), el("p", { textContent: p.pedido })) : null,
+    el("div", { className: "pn-pend-acoes" },
+      el("button", { type: "button", className: "sugestao", textContent: "💬 Me ajuda a responder",
+        onclick: () => perguntarDoPainel(p.tecnica ? `o que a CH quer na ${p.numero}?` : `o que o Master Data pediu na ${p.numero}?`) })));
+}
+
+async function vincularNome(nomeWf, aviso) {
+  aviso.textContent = "Guardando…";
+  try {
+    const r = await chamar({ painel: 1 }, { acao: "vincular", solicitante: nomeWf });
+    pn.dados.minhas = r.minhas || null;
+    pn.trocarNome = false;
+    desenharPainel();
+  } catch (e) {
+    aviso.textContent = `Não consegui guardar (${e instanceof ErroConsulta ? e.message : "erro inesperado"}).`;
+  }
+}
+
+// "Como o seu nome aparece no Webformat?": sugestoes pelo nome do login e busca pelo nome digitado
+function formNome(sugestoes) {
+  const aviso = el("p", { className: "pn-aviso-nome", role: "status" });
+  const lista = el("div", { className: "pn-sugs-nome" });
+  const mostrar = (ss) => lista.replaceChildren(...ss.map((s) => el("button", { type: "button", className: "sugestao",
+    onclick: () => vincularNome(s.nome, aviso) }, s.nome,
+  el("small", { textContent: ` · ${mil(s.solicitacoes)} ${s.solicitacoes === 1 ? "solicitação" : "solicitações"}` }))));
+  const campo = el("input", { type: "search", maxLength: 120, autocomplete: "off", spellcheck: false,
+    placeholder: "Seu nome ou sobrenome, como no Webformat", ariaLabel: "Seu nome no Webformat" });
+  const form = el("form", { className: "pn-busca-nome" }, campo, el("button", { type: "submit", className: "sugestao", textContent: "Procurar" }));
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    aviso.textContent = "Procurando…";
+    try {
+      const r = await chamar({ painel: 1 }, { acao: "procurar", nome: campo.value });
+      const ss = Array.isArray(r.sugestoes) ? r.sugestoes : [];
+      mostrar(ss);
+      aviso.textContent = !ss.length ? "Não achei esse nome entre os solicitantes. Tente só o sobrenome."
+        : r.aproximado ? "Não achei igual; estes são parecidos. É algum deles?" : "É algum destes?";
+    } catch (e) {
+      aviso.textContent = e instanceof ErroConsulta ? `${e.message[0].toUpperCase()}${e.message.slice(1)}.` : "Não consegui procurar agora.";
+    }
+  });
+  mostrar(sugestoes);
+  if (sugestoes.length) aviso.textContent = "Achei pelo seu nome de login. É algum destes?";
+  return el("section", { className: "pn-secao pn-nome" },
+    el("h3", { textContent: "Como o seu nome aparece no Webformat?" }),
+    el("p", { className: "pn-nota", textContent: "É só uma vez: com ele eu mostro aqui as suas pendências e respondo “como estão as minhas?”." }),
+    aviso, lista, form);
+}
+
+function abaPendencias(d) {
+  const m = d.minhas;
+  if (!m) {
+    return [el("section", { className: "pn-secao pn-vazio" }, el("p", { textContent: "As pendências são pessoais: entre com a sua chave pessoal " +
+      "ou com a conta Microsoft para ver as que estão esperando você." }))];
+  }
+  if (!m.solicitante || pn.trocarNome) return [formNome(m.solicitante ? [] : m.sugestoes || [])];
+  const ps = m.pendencias || [];
+  const cab = el("div", { className: "pn-pend-topo" },
+    el("p", {}, el("strong", { textContent: m.com_voce ? `${mil(m.com_voce)} ${m.com_voce === 1 ? "solicitação está" : "solicitações estão"} esperando você`
+      : "Nenhuma pendência esperando você 🎉" }),
+    el("small", { textContent: ` · ${mil(m.abertas)} ${m.abertas === 1 ? "aberta" : "abertas"} no Webformat como ${m.solicitante}` })),
+    el("button", { type: "button", className: "link", textContent: "Não é você? Trocar o nome",
+      onclick: () => { pn.trocarNome = true; desenharPainel(); } }));
+  const nos = [cab];
+  if (ps.length) {
+    nos.push(el("p", { className: "pn-nota", textContent: "Responda no próprio Webformat, na solicitação. A mais antiga vem primeiro." }),
+      el("div", { className: "pn-pends" }, ...ps.map(cartaoPendencia)));
+    if (m.com_voce > ps.length) nos.push(el("p", { className: "pn-nota", textContent: `Mostrando as ${mil(ps.length)} mais antigas.` }));
+  }
+  return nos;
+}
+
 function desenharPainel() {
   const d = pn.dados;
+  const naFila = pn.aba !== "pendencias";
   const topo = el("div", { className: "pn-topo" },
-    el("div", {}, el("h2", { textContent: `${saudacao()}${nome && !esperandoNome ? `, ${nome}` : ""}! Assim está a fila` }),
-      el("p", { textContent: "Clique num número para a Bella mostrar a lista." })),
+    el("div", {}, el("h2", { textContent: `${saudacao()}${nome && !esperandoNome ? `, ${nome}` : ""}! ` +
+      (naFila ? "Assim está a fila" : "Suas pendências") }),
+    el("p", { textContent: naFila ? "Clique num número para a Bella mostrar a lista." : "O que está esperando a sua resposta no Webformat." })),
     el("button", { type: "button", className: "sugestao", textContent: pn.carregando ? "Atualizando…" : "↻ Atualizar",
       disabled: pn.carregando, onclick: carregarPainel }));
+  const n = d && d.minhas && d.minhas.solicitante ? d.minhas.com_voce : 0;
+  const botaoAba = (id, rotulo, extra) => el("button", { type: "button", role: "tab", className: "pn-aba", id: `pn-aba-${id}`,
+    ariaSelected: String(pn.aba === id), tabIndex: pn.aba === id ? 0 : -1, onclick: () => trocarAbaDoPainel(id) }, rotulo, extra);
+  const abas = el("div", { className: "pn-abas", role: "tablist", ariaLabel: "Painel" },
+    botaoAba("fila", "Visão geral"),
+    botaoAba("pendencias", "Minhas pendências", n ? el("b", { className: "pn-badge", textContent: mil(n), ariaLabel: `${n} esperando você` }) : null));
+  // setas trocam de aba (padrao de abas)
+  abas.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") { ev.preventDefault(); trocarAbaDoPainel(naFila ? "pendencias" : "fila"); }
+  });
   if (!d) {
-    $("pn-corpo").replaceChildren(topo, el("div", { className: "pn-erro", role: "alert" },
+    $("pn-corpo").replaceChildren(topo, abas, el("div", { className: "pn-erro", role: "alert" },
       el("p", { textContent: `Não consegui carregar o painel (${pn.erro || "erro inesperado"}).` }),
       el("button", { type: "button", className: "sugestao", textContent: "Tentar de novo", onclick: carregarPainel })));
     return;
   }
   const a = d.agora || {}, s = d.semana || {}, b = d.bases || {};
-  const nos = [topo];
+  const nos = [topo, abas];
   if (pn.erro) nos.push(el("p", { className: "pn-erro", role: "alert", textContent: `Não consegui atualizar agora (${pn.erro}): números de ${quando(new Date(pn.em).toISOString())}.` }));
+  if (!naFila) {
+    const painelAba = el("div", { className: "pn-conteudo", role: "tabpanel" }, ...abaPendencias(d));
+    painelAba.setAttribute("aria-labelledby", "pn-aba-pendencias");
+    $("pn-corpo").replaceChildren(...nos, painelAba);
+    return;
+  }
 
   nos.push(el("div", { className: "pn-cartoes" },
     cartaoIndicador({ rotulo: "Em aberto", valor: a.abertas, chave: "em_aberto", pergunta: "como está a fila?",
@@ -1693,8 +1812,8 @@ function desenharPainel() {
     cartaoIndicador({ rotulo: `Terminadas desde ${a.desde}`, valor: a.terminadas, pergunta: `quais terminaram desde ${a.desde}?`,
       sub: "encerradas, reprovadas ou canceladas" })));
 
-  if (d.minhas) {
-    nos.push(el("button", { type: "button", className: "pn-minhas", onclick: () => perguntarDoPainel("como estão as minhas solicitações?") },
+  if (d.minhas && d.minhas.solicitante) {
+    nos.push(el("button", { type: "button", className: "pn-minhas", onclick: () => trocarAbaDoPainel("pendencias") },
       el("span", { className: "ic c-amarelo", ariaHidden: "true", textContent: "▤" }),
       el("span", {}, el("b", { textContent: "Suas solicitações: " }),
         `${mil(d.minhas.abertas)} ${d.minhas.abertas === 1 ? "aberta" : "abertas"}`,
@@ -1752,9 +1871,9 @@ function telas() {
     const h = linkPendente;
     linkPendente = "";
     abrirLinkDoCatalogo(h);
-  } else if (codigo && !pn.visto && !cat.aberto && (!historico.length || location.hash === "#painel")) {
-    // a primeira tela depois de entrar: o painel (com a conversa vazia ou pelo link #painel)
-    abrirPainel();
+  } else if (codigo && !pn.visto && !cat.aberto && (!historico.length || LINKS_DO_PAINEL[location.hash])) {
+    // a primeira tela depois de entrar: o painel (com a conversa vazia ou pelo link #painel / #pendencias)
+    abrirPainel(LINKS_DO_PAINEL[location.hash]);
   }
 }
 
@@ -1891,6 +2010,8 @@ function sair() {
   fecharPainel();
   pn.dados = null;
   pn.visto = false;
+  pn.aba = "fila";
+  pn.trocarNome = false;
   telas();
 }
 
@@ -2008,7 +2129,7 @@ $("cat-limpar").addEventListener("click", limparFiltrosDoCatalogo);
 $("cat-novidade").addEventListener("click", fecharCatalogo);
 // link de busca colado nesta mesma aba
 window.addEventListener("hashchange", () => {
-  if (location.hash === "#painel" && codigo) { abrirPainel(); return; }
+  if (LINKS_DO_PAINEL[location.hash] && codigo) { abrirPainel(LINKS_DO_PAINEL[location.hash]); return; }
   if (!/^#catalogo(&|$)/.test(location.hash)) return;
   if (codigo) abrirLinkDoCatalogo(location.hash); else linkPendente = location.hash;
 });
