@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data Sabesp</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261029a">
+<link rel="stylesheet" href="consulta-nova.css?v=20261029b">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -91,6 +91,7 @@
       <button type="button" class="fechar-lado so-celular" id="fechar-lado" aria-label="Fechar o menu">×</button>
     </div>
     <button type="button" class="novo" id="nova" title="Começar uma conversa nova">＋ Nova conversa</button>
+    <button type="button" class="item" id="atalho-painel"><span class="ic" aria-hidden="true">◔</span>Painel da fila</button>
     <button type="button" class="item" id="atalho-material"><span class="ic" aria-hidden="true">⌕</span>Procurar material</button>
     <button type="button" class="item" id="atalho-minhas"><span class="ic" aria-hidden="true">▤</span>Minhas solicitações</button>
     <button type="button" class="item" id="whatsapp" aria-haspopup="dialog"
@@ -127,6 +128,9 @@
         </div>
       </div>
     </header>
+    <section class="painel-fila" id="painel" aria-label="Painel da fila do Webformat" hidden>
+      <div class="pn-corpo" id="pn-corpo" aria-live="polite"></div>
+    </section>
     <section class="catalogo" id="catalogo" aria-label="Procurar material no SAP" hidden>
       <button type="button" class="cat-novidade" id="cat-novidade" hidden>💬 A Bella respondeu na conversa · <strong>ver agora</strong></button>
       <div class="cat-topo">
@@ -206,6 +210,6 @@
   </div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261029a"></script>
+<script src="consulta-nova.js?v=20261029b"></script>
 </body>
 </html>

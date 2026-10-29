@@ -681,7 +681,7 @@ const tituloDe = (h) => {
 };
 
 // com o catalogo aberto o titulo e dele (a resposta que chega por tras nao troca)
-function desenharTitulo() { $("titulo").textContent = cat.aberto ? "Procurar material" : tituloDe(historico); }
+function desenharTitulo() { $("titulo").textContent = cat.aberto ? "Procurar material" : pn.aberto ? "Painel" : tituloDe(historico); }
 
 function guardarAtual() {
   if (!historico.length) return;
@@ -719,7 +719,7 @@ function itemDaConversa(c) {
   const t = tituloDaConversa(c);
   const abrir = el("button", { type: "button", className: "abrir", textContent: t, title: t });
   abrir.onclick = () => abrirConversa(c.sessao, abrir);
-  if (c.atual && !cat.aberto) abrir.setAttribute("aria-current", "true");
+  if (c.atual && !cat.aberto && !pn.aberto) abrir.setAttribute("aria-current", "true");
   if (c.atual && cat.novidade) abrir.classList.add("novidade");
   // o primeiro clique pergunta ("Apagar?"); o segundo apaga
   const x = el("button", { type: "button", className: "apagar", textContent: "×", title: "Apagar esta conversa",
@@ -741,6 +741,7 @@ function itemDaConversa(c) {
 async function abrirConversa(s, botao) {
   fecharLado();
   fecharCatalogo();
+  fecharPainel();
   if (s === sessao || ocupado) return;
   const c = conversas.find((x) => x.sessao === s);
   if (!c) return;
@@ -925,6 +926,7 @@ const rotuloConsulta = (fs) => CONSULTANDO[(fs || [])[0]] || "Consultando a base
 async function enviar(texto, refazer = null) {
   texto = String(texto || "").trim();
   if (!texto || ocupado || !codigo) return;
+  fecharPainel();
   ocupado = true;
   parada = new AbortController();
   atualizarBotao();
@@ -996,6 +998,7 @@ function novaConversa() {
   fecharLado();
   if (ocupado) return;   // primeiro termina (ou para) a resposta desta conversa
   fecharCatalogo();
+  fecharPainel();
   cancelarEdicao(true);
   espera++;
   guardarAtual();
@@ -1040,6 +1043,7 @@ function editarUltima() {
   const u = ultimaTroca();
   if (!u) return;
   fecharCatalogo();
+  fecharPainel();
   editando = true;
   $("editando").hidden = false;
   $("chat").classList.add("com-edicao");
@@ -1291,6 +1295,7 @@ async function carregarOpcoesDoCatalogo() {
 
 function abrirCatalogo() {
   fecharLado();
+  fecharPainel();
   cat.aberto = true;   // com a Bella respondendo, a resposta continua na conversa, por tras
   $("chat").classList.add("modo-catalogo");
   $("catalogo").hidden = false;
@@ -1459,6 +1464,276 @@ function limparFiltrosDoCatalogo() {
   buscarNoCatalogo();
 }
 
+// ------------------------------------------------------------ painel (a primeira tela depois de entrar)
+// Os indicadores da fila do Webformat e das bases (?painel=1, sem IA: nao gasta credito). Os numeros
+// sao os mesmos do bom dia da Bella; o clique num indicador pergunta a lista a Bella (uma pergunta).
+// Abre sozinho ao entrar com a conversa vazia; depois, pelo menu.
+
+const pn = { aberto: false, dados: null, em: 0, carregando: false, erro: "", visto: false };
+const PAINEL_VELHO_MS = 60000;
+const SVG = "http://www.w3.org/2000/svg";
+const mil = (n) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "–");
+const ddmmDe = (dia) => String(dia || "").slice(5, 10).split("-").reverse().join("/");
+
+function abrirPainel() {
+  fecharLado();
+  fecharCatalogo();
+  pn.aberto = true;
+  pn.visto = true;
+  $("chat").classList.add("modo-painel");
+  $("painel").hidden = false;
+  $("atalho-painel").setAttribute("aria-current", "true");
+  marcarEndereco("#painel");
+  desenharConversas();
+  desenharTitulo();
+  if (!pn.dados || Date.now() - pn.em > PAINEL_VELHO_MS) carregarPainel(); else desenharPainel();
+}
+
+function fecharPainel() {
+  if (!pn.aberto) return;
+  pn.aberto = false;
+  $("chat").classList.remove("modo-painel");
+  $("painel").hidden = true;
+  $("atalho-painel").removeAttribute("aria-current");
+  if (location.hash === "#painel") marcarEndereco("");
+  desenharConversas();
+  desenharTitulo();
+}
+
+async function carregarPainel() {
+  if (pn.carregando) return;
+  pn.carregando = true;
+  $("pn-corpo").classList.add("carregando");
+  if (!pn.dados) $("pn-corpo").replaceChildren(el("p", { className: "pn-msg", textContent: "Contando a fila…" }));
+  try {
+    pn.dados = await chamar({ painel: 1 });
+    pn.em = Date.now();
+    pn.erro = "";
+  } catch (e) {
+    pn.erro = e instanceof ErroConsulta ? e.message : "erro inesperado";
+  } finally {
+    pn.carregando = false;
+    $("pn-corpo").classList.remove("carregando");
+  }
+  if (pn.aberto && codigo) desenharPainel();
+}
+
+// o clique num indicador: a Bella lista na conversa
+function perguntarDoPainel(q) {
+  fecharPainel();
+  enviar(q);
+}
+
+// "hoje às 08:32", "ontem às 17:10", "em 27/10 às 09:00"
+function quando(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const dia = (x) => x.toLocaleDateString("pt-BR");
+  const ontem = new Date(Date.now() - 864e5);
+  return dia(d) === dia(new Date()) ? `hoje às ${hora}` : dia(d) === dia(ontem) ? `ontem às ${hora}`
+    : `em ${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${hora}`;
+}
+
+// Tendencia: as fotos da manha de cada dia util e, no fim, o numero de agora.
+// Linha fina no tom apagado e o ponto de agora em destaque; cada ponto tem a dica (title) com o dia.
+function sparkline(pontos, rotulo) {
+  const W = 132, H = 36, P = 5;
+  const vs = pontos.map((p) => p.v);
+  const min = Math.min(...vs), max = Math.max(...vs);
+  const x = (i) => P + (pontos.length === 1 ? (W - 2 * P) : (i * (W - 2 * P)) / (pontos.length - 1));
+  const y = (v) => (max === min ? H / 2 : H - P - ((v - min) * (H - 2 * P)) / (max - min));
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
+  svg.setAttribute("class", "pn-tendencia");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `${rotulo}: de ${mil(pontos[0].v)} em ${pontos[0].rotulo} para ${mil(vs[vs.length - 1])} agora`);
+  const linha = document.createElementNS(SVG, "polyline");
+  linha.setAttribute("points", pontos.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" "));
+  linha.setAttribute("class", "pn-linha");
+  svg.append(linha);
+  const fim = document.createElementNS(SVG, "circle");
+  fim.setAttribute("cx", x(pontos.length - 1).toFixed(1));
+  fim.setAttribute("cy", y(vs[vs.length - 1]).toFixed(1));
+  fim.setAttribute("r", "4");
+  fim.setAttribute("class", "pn-agora");
+  svg.append(fim);
+  // faixas invisiveis para a dica de cada ponto (alvo maior que o ponto)
+  const passo = pontos.length > 1 ? (W - 2 * P) / (pontos.length - 1) : W;
+  pontos.forEach((p, i) => {
+    const r = document.createElementNS(SVG, "rect");
+    r.setAttribute("x", Math.max(0, x(i) - passo / 2).toFixed(1));
+    r.setAttribute("y", "0");
+    r.setAttribute("width", passo.toFixed(1));
+    r.setAttribute("height", H);
+    r.setAttribute("class", "pn-alvo");
+    const t = document.createElementNS(SVG, "title");
+    t.textContent = `${p.rotulo}: ${mil(p.v)}`;
+    r.append(t);
+    svg.append(r);
+  });
+  return svg;
+}
+
+// serie de uma chave das fotos + o valor de agora; e a variacao desde a foto de uma semana atras
+function serieDe(chave, agora) {
+  const fotos = (pn.dados.evolucao || []).filter((f) => typeof f[chave] === "number");
+  const pontos = fotos.map((f) => ({ v: f[chave], rotulo: ddmmDe(f.dia), dia: f.dia }));
+  if (typeof agora === "number") pontos.push({ v: agora, rotulo: "agora", dia: "" });
+  const semana = new Date(Date.now() - 7 * 864e5).toLocaleDateString("sv-SE");
+  const base = [...fotos].reverse().find((f) => f.dia <= semana) || fotos[0];
+  return {
+    pontos: pontos.length >= 3 ? pontos : null,
+    variacao: base && typeof agora === "number" ? { n: agora - base[chave], desde: ddmmDe(base.dia) } : null,
+  };
+}
+
+// fila: subir e pior (vermelho com ▲), descer e melhor (verde com ▼); a seta e o texto dizem, a cor reforca
+function variacao(v) {
+  if (!v) return null;
+  if (v.n === 0) return el("span", { className: "pn-var igual", textContent: `= igual a ${v.desde}` });
+  return el("span", { className: `pn-var ${v.n > 0 ? "pior" : "melhor"}`,
+    textContent: `${v.n > 0 ? "▲" : "▼"} ${mil(Math.abs(v.n))} desde ${v.desde}` });
+}
+
+function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta }) {
+  const s = chave ? serieDe(chave, valor) : { pontos: null, variacao: null };
+  const corpo = [
+    el("span", { className: "pn-rotulo", textContent: rotulo }),
+    el("strong", { className: "pn-valor", textContent: mil(valor) }),
+    sub ? el("span", { className: "pn-sub" + (alerta ? " alerta" : ""), textContent: sub }) : null,
+    s.pontos || s.variacao ? el("span", { className: "pn-rodape" }, variacao(s.variacao), s.pontos ? sparkline(s.pontos, rotulo) : null) : null,
+  ];
+  return pergunta
+    ? el("button", { type: "button", className: "pn-cartao", title: `Ver a lista com a Bella: “${pergunta}”`,
+      onclick: () => perguntarDoPainel(pergunta) }, ...corpo)
+    : el("div", { className: "pn-cartao" }, ...corpo);
+}
+
+function secao(titulo, sub, ...filhos) {
+  return el("section", { className: "pn-secao" },
+    el("div", { className: "pn-secao-topo" }, el("h3", { textContent: titulo }), sub ? el("small", { textContent: sub }) : null),
+    ...filhos);
+}
+
+// com quem estao as abertas: barras horizontais de uma cor so, valor na ponta
+function barrasComQuem(itens, total) {
+  const maior = Math.max(1, ...itens.map((d) => d.n));
+  return el("div", { className: "pn-barras" }, ...itens.map((d) => {
+    const barra = el("span", { className: "pn-barra" });
+    barra.style.width = `${Math.max((d.n / maior) * 100, 0.6)}%`;
+    const pct = total ? Math.round((d.n / total) * 100) : 0;
+    const corpo = [
+      el("span", { className: "pn-b-rotulo", textContent: d.rotulo }),
+      el("span", { className: "pn-b-trilho" }, barra),
+      el("span", { className: "pn-b-valor" }, mil(d.n), el("small", { textContent: pct || !d.n ? ` ${pct}%` : " <1%" })),
+    ];
+    return d.pergunta
+      ? el("button", { type: "button", className: "pn-b-linha", title: `${mil(d.n)} de ${mil(total)} (${pct}%) · ver a lista com a Bella`,
+        onclick: () => perguntarDoPainel(d.pergunta) }, ...corpo)
+      : el("div", { className: "pn-b-linha", title: `${mil(d.n)} de ${mil(total)} (${pct}%)` }, ...corpo);
+  }));
+}
+
+// como terminaram as da semana: barra empilhada (verde, vermelho, cinza) com legenda e numeros
+function barraTerminadas(s) {
+  const partes = [["encerradas", "Encerradas", s.encerradas], ["reprovadas", "Reprovadas", s.reprovadas],
+    ["canceladas", "Canceladas", s.canceladas]].filter((p) => p[2] > 0);
+  const total = partes.reduce((a, p) => a + p[2], 0);
+  if (!total) return null;
+  const pilha = el("div", { className: "pn-pilha", role: "img",
+    ariaLabel: partes.map((p) => `${p[1]}: ${mil(p[2])}`).join(", ") });
+  for (const [cls, nome, n] of partes) {
+    const seg = el("span", { className: `pn-seg ${cls}`, title: `${nome}: ${mil(n)} (${Math.round((n / total) * 100)}%)` });
+    seg.style.flexGrow = String(n);
+    pilha.append(seg);
+  }
+  return el("div", { className: "pn-terminadas" }, pilha,
+    el("ul", { className: "pn-legenda" }, ...partes.map(([cls, nome, n]) =>
+      el("li", {}, el("i", { className: `pn-seg ${cls}`, ariaHidden: "true" }), `${nome} `, el("b", { textContent: mil(n) })))));
+}
+
+function numeroDaSemana(rotulo, valor, sub) {
+  return el("div", { className: "pn-num" }, el("span", { className: "pn-rotulo", textContent: rotulo }),
+    el("strong", { textContent: valor }), sub ? el("small", { textContent: sub }) : null);
+}
+
+function linhaDaBase(ok, nomeBase, texto, aviso) {
+  return el("li", {}, el("i", { className: `ponto ${ok ? "verde" : "amarelo"}`, ariaHidden: "true" }),
+    el("b", { textContent: nomeBase }), ` ${texto}`, aviso ? el("small", { textContent: ` · ⚠️ ${aviso}` }) : null);
+}
+
+function desenharPainel() {
+  const d = pn.dados;
+  const topo = el("div", { className: "pn-topo" },
+    el("div", {}, el("h2", { textContent: `${saudacao()}${nome && !esperandoNome ? `, ${nome}` : ""}! Assim está a fila` }),
+      el("p", { textContent: "Clique num número para a Bella mostrar a lista." })),
+    el("button", { type: "button", className: "sugestao", textContent: pn.carregando ? "Atualizando…" : "↻ Atualizar",
+      disabled: pn.carregando, onclick: carregarPainel }));
+  if (!d) {
+    $("pn-corpo").replaceChildren(topo, el("div", { className: "pn-erro", role: "alert" },
+      el("p", { textContent: `Não consegui carregar o painel (${pn.erro || "erro inesperado"}).` }),
+      el("button", { type: "button", className: "sugestao", textContent: "Tentar de novo", onclick: carregarPainel })));
+    return;
+  }
+  const a = d.agora || {}, s = d.semana || {}, b = d.bases || {};
+  const nos = [topo];
+  if (pn.erro) nos.push(el("p", { className: "pn-erro", role: "alert", textContent: `Não consegui atualizar agora (${pn.erro}): números de ${quando(new Date(pn.em).toISOString())}.` }));
+
+  nos.push(el("div", { className: "pn-cartoes" },
+    cartaoIndicador({ rotulo: "Em aberto", valor: a.abertas, chave: "em_aberto", pergunta: "como está a fila?",
+      sub: `${mil(a.novas)} ${a.novas === 1 ? "nova" : "novas"} desde ${a.desde}` + (a.novas ? ` (${mil(a.novas_urgentes)} ${a.novas_urgentes === 1 ? "urgente" : "urgentes"})` : "") }),
+    cartaoIndicador({ rotulo: "Com a CH", valor: a.com_a_ch, chave: "com_a_ch", pergunta: "quais estão com a CH há mais de 48 horas úteis?",
+      sub: `${mil(a.ch_48h)} há mais de 48 h úteis`, alerta: a.ch_48h > 0 }),
+    cartaoIndicador({ rotulo: "Pendência técnica", valor: a.pendencia_tecnica, chave: "pendencia_tecnica",
+      pergunta: "quais estão em pendência técnica?",
+      sub: a.pendencia_mais_antiga ? `a mais antiga: ${a.pendencia_mais_antiga.numero} (${mil(a.pendencia_mais_antiga.dias)} dias)` : "" }),
+    cartaoIndicador({ rotulo: `Terminadas desde ${a.desde}`, valor: a.terminadas, pergunta: `quais terminaram desde ${a.desde}?`,
+      sub: "encerradas, reprovadas ou canceladas" })));
+
+  if ((a.esquecidas_na_ch || []).length) {
+    nos.push(el("div", { className: "pn-atencao" }, el("span", { textContent: "👀 Podem ter ficado esquecidas na CH:" }),
+      ...a.esquecidas_na_ch.map((e) => el("span", { className: "pn-esq" }, botaoSolicitacao(e.numero), ` ${mil(e.horas)} h úteis`))));
+  }
+
+  if (d.minhas) {
+    nos.push(el("button", { type: "button", className: "pn-minhas", onclick: () => perguntarDoPainel("como estão as minhas solicitações?") },
+      el("span", { className: "ic c-amarelo", ariaHidden: "true", textContent: "▤" }),
+      el("span", {}, el("b", { textContent: "Suas solicitações: " }),
+        `${mil(d.minhas.abertas)} ${d.minhas.abertas === 1 ? "aberta" : "abertas"}`,
+        d.minhas.com_voce ? el("strong", { className: "pn-com-voce", textContent: ` · ${mil(d.minhas.com_voce)} esperando você (pendência)` }) : null),
+      el("span", { className: "pn-ir", ariaHidden: "true", textContent: "→" })));
+  }
+
+  const grade = el("div", { className: "pn-grade" });
+  if ((d.com_quem || []).length) {
+    grade.append(secao(`Com quem estão as ${mil(a.abertas)} abertas`, "agora", barrasComQuem(d.com_quem, a.abertas)));
+  }
+  const taxa = s.terminadas ? Math.round((100 * s.reprovadas) / s.terminadas) : null;
+  grade.append(secao("Esta semana", `desde segunda, ${s.desde}`,
+    el("div", { className: "pn-nums" },
+      numeroDaSemana("Novas", mil(s.novas), s.novas ? `${mil(s.novas_urgentes)} ${s.novas_urgentes === 1 ? "urgente" : "urgentes"}` : ""),
+      numeroDaSemana("Terminadas", mil(s.terminadas), ""),
+      numeroDaSemana("Reprovação", taxa === null ? "–" : `${taxa}%`, "das terminadas"),
+      numeroDaSemana("Tempo médio", s.tempo_medio_dias === null || s.tempo_medio_dias === undefined ? "–" : `${mil(s.tempo_medio_dias)} ${s.tempo_medio_dias === 1 ? "dia" : "dias"}`,
+        "da abertura ao fim")),
+    barraTerminadas(s),
+    s.trocadas ? el("p", { className: "pn-nota", textContent: `${mil(s.trocadas)} ${s.trocadas === 1 ? "foi aberta" : "foram abertas"} com um tipo e ` +
+      `${s.trocadas === 1 ? "cadastrada" : "cadastradas"} com outro` + (s.troca_comum ? ` (mais comum: ${s.troca_comum.par}, ${mil(s.troca_comum.n)})` : "") + "." }) : null));
+  nos.push(grade);
+
+  const velho = b.webformat_em && Date.now() - new Date(b.webformat_em).getTime() > 3 * 3600e3;
+  nos.push(el("ul", { className: "pn-bases" },
+    b.webformat_em ? linhaDaBase(!velho, "Webformat", `atualizado ${quando(b.webformat_em)}`, velho ? "pode estar desatualizado" : "") : null,
+    b.sap_de ? linhaDaBase(!b.sap_antigo, "SAP", `${mil(b.sap_materiais)} materiais · carga de ${b.sap_de}`, b.sap_antigo || "") : null));
+  const inicio = (d.evolucao || [])[0];
+  nos.push(el("p", { className: "pn-nota fim", textContent: "Os mesmos números do Relatório Gerencial do Webformat e do bom dia da Bella no Teams." +
+    (inicio ? ` As linhas mostram a fila na manhã de cada dia útil desde ${ddmmDe(inicio.dia)}.` : "") }));
+  $("pn-corpo").replaceChildren(...nos);
+}
+
 // ------------------------------------------------------------ telas e eventos
 
 // Entrada em abas: "Sou da Sabesp" (chave de acesso) e "Sou da Meetup" (conta Microsoft).
@@ -1482,6 +1757,9 @@ function telas() {
     const h = linkPendente;
     linkPendente = "";
     abrirLinkDoCatalogo(h);
+  } else if (codigo && !pn.visto && !cat.aberto && (!historico.length || location.hash === "#painel")) {
+    // a primeira tela depois de entrar: o painel (com a conversa vazia ou pelo link #painel)
+    abrirPainel();
   }
 }
 
@@ -1614,6 +1892,10 @@ function sair() {
   sessao = novoId();
   guardar(sessionStorage, "consulta-sessao", sessao);
   cancelarEdicao(true);
+  // o painel tinha as solicitacoes de quem saiu
+  fecharPainel();
+  pn.dados = null;
+  pn.visto = false;
   telas();
 }
 
@@ -1713,6 +1995,7 @@ $("mostrar").addEventListener("click", () => {
 });
 // atalhos do menu: "Procurar material" comeca a pergunta; "Minhas solicitacoes" ja pergunta
 $("atalho-material").addEventListener("click", abrirCatalogo);
+$("atalho-painel").addEventListener("click", abrirPainel);
 $("atalho-minhas").addEventListener("click", () => { fecharLado(); fecharCatalogo(); enviar("como estão as minhas solicitações?"); });
 // catalogo: texto busca quando a pessoa para de digitar; filtros na hora
 $("cat-texto").addEventListener("input", () => { cat.pagina = 1; buscarNoCatalogo(350); });
@@ -1730,6 +2013,7 @@ $("cat-limpar").addEventListener("click", limparFiltrosDoCatalogo);
 $("cat-novidade").addEventListener("click", fecharCatalogo);
 // link de busca colado nesta mesma aba
 window.addEventListener("hashchange", () => {
+  if (location.hash === "#painel" && codigo) { abrirPainel(); return; }
   if (!/^#catalogo(&|$)/.test(location.hash)) return;
   if (codigo) abrirLinkDoCatalogo(location.hash); else linkPendente = location.hash;
 });
@@ -1750,7 +2034,7 @@ const ATALHOS = [
   [["↑"], "Editar a última pergunta (com a caixa vazia)"],
   [["Enter"], "Enviar"],
   [["Shift", "Enter"], "Quebrar a linha"],
-  [["Esc"], "Parar a resposta, cancelar a edição ou fechar o catálogo"],
+  [["Esc"], "Parar a resposta, cancelar a edição ou fechar o catálogo e o painel"],
   [[CTRL, "/"], "Ver estes atalhos"],
 ];
 
@@ -1772,6 +2056,7 @@ document.addEventListener("keydown", (ev) => {
     else if (editando) { cancelarEdicao(true); $("mensagem").focus(); }
     // no campo de busca do catalogo o Esc primeiro limpa o texto (do proprio navegador)
     else if (cat.aberto && !(ev.target === $("cat-texto") && $("cat-texto").value)) fecharCatalogo();
+    else if (pn.aberto) fecharPainel();
     return;
   }
   if (!codigo) return;
@@ -1806,8 +2091,10 @@ function passosDoPasseio() {
   }];
   if (celular()) {
     passos.push({ alvo: "abrir-lado", titulo: "Tudo no menu ☰",
-      texto: "Procurar material no catálogo do SAP, as suas solicitações e as conversas guardadas." });
+      texto: "O painel da fila, procurar material no catálogo do SAP, as suas solicitações e as conversas guardadas." });
   } else {
+    passos.push({ alvo: "atalho-painel", titulo: "Painel da fila",
+      texto: "Os números do Webformat agora: com a CH, pendências e a semana. Clique num número e eu mostro a lista." });
     passos.push({ alvo: "atalho-material", titulo: "Procurar material",
       texto: "O catálogo do SAP com filtros de tipo, grupo de mercadorias e bloqueio. Dá para mandar o link da busca para alguém." });
     if (nuvem) {
@@ -1831,7 +2118,9 @@ function abrirPasseio() {
   if (!codigo || $("chat").hidden || document.querySelector("dialog[open]")) return;
   fecharLado();
   fecharCatalogo();
-  passeio = { passos: passosDoPasseio(), i: 0 };
+  const comPainel = pn.aberto;
+  fecharPainel();
+  passeio = { passos: passosDoPasseio(), i: 0, comPainel };
   $("tour").showModal();
   mostrarPasso();
 }
@@ -1872,10 +2161,12 @@ function posicionarPasso() {
 }
 
 function fecharPasseio() {
+  const voltar = passeio && passeio.comPainel;
   passeio = null;
   guardar(localStorage, "consulta-passeio", "1");
   if ($("tour").open) $("tour").close();
-  if (!cat.aberto) $("mensagem").focus();
+  if (voltar && codigo) abrirPainel();
+  else if (!cat.aberto) $("mensagem").focus();
 }
 
 $("tour-proximo").addEventListener("click", () => {
@@ -1903,5 +2194,6 @@ if (codigo) {
   quemSou().catch(() => {}).finally(() => {
     esperandoNome = false;
     if (codigo && !ocupado) redesenhar();
+    if (pn.aberto && pn.dados) desenharPainel();   // agora com o nome no "Bom dia, Luiz!"
   });
 }
