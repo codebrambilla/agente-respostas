@@ -152,6 +152,16 @@ body.logado .entrada { display: none; }
   border-radius: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conversas button:hover { background: rgba(255, 255, 255, .07); color: #fff; }
 .conversas button[aria-current="true"] { background: rgba(18, 205, 255, .16); color: #fff; box-shadow: inset 3px 0 0 var(--ciano); }
+/* cada conversa: abrir + apagar (o "×" aparece ao passar o mouse; no celular, sempre) */
+.item-conversa { display: flex; align-items: center; position: relative; }
+.item-conversa .abrir { flex: 1; min-width: 0; padding-right: 30px; }
+.item-conversa .abrir:disabled { cursor: progress; }
+.item-conversa .apagar { position: absolute; right: 2px; padding: 3px 8px; font-size: 16px; line-height: 1; color: #8fb6ca; opacity: 0; }
+.item-conversa:hover .apagar, .item-conversa .apagar:focus-visible, .item-conversa .apagar.confirmar { opacity: 1; }
+.item-conversa .apagar:hover { color: #fff; background: rgba(255, 255, 255, .12); }
+.item-conversa .apagar.confirmar { font-size: 12px; font-weight: 700; color: #fff; background: #c4314b; }
+@media (hover: none) { .item-conversa .apagar { opacity: 1; } }
+.grupo-data { margin: 10px 0 2px; padding: 0 12px; font-size: 11px; font-weight: 700; color: #6f97ad; }
 .ondas-lado { position: absolute; left: 0; bottom: 40px; width: 100%; height: 150px; opacity: .5; pointer-events: none; }
 .baixo { margin-top: auto; border-top: 1px solid rgba(255, 255, 255, .1); padding-top: 10px; position: relative; z-index: 1; }
 .perfil { display: flex; gap: 10px; align-items: center; padding: 6px 10px; font-size: 14px; color: #fff; }
@@ -174,6 +184,66 @@ body.logado .entrada { display: none; }
 .tema svg { width: 19px; height: 19px; fill: currentColor; }
 .tema[aria-pressed="true"] { color: #f8c103; }
 .so-celular { display: none; }
+/* refazer e editar: so na ultima troca e com a Bella parada */
+.msg .so-ultima, .msg .avaliar .so-ultima { display: none; }
+.msg.ultima .avaliar .so-ultima { display: inline-flex; }
+.editar { align-self: center; flex: none; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 50%; background: none;
+  color: var(--tinta-2); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.editar svg { width: 15px; height: 15px; fill: currentColor; }
+.msg.ultima .editar { display: grid; }
+.msg.da-pessoa:hover .editar, .editar:focus-visible { opacity: 1; }
+.editar:hover { background: var(--ciano-cl); color: var(--titulo); }
+@media (hover: none) { .editar { opacity: 1; } }
+.app.ocupado .msg .so-ultima { display: none; }
+.editando { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 18px; padding: 6px 14px 8px;
+  border-radius: 12px 12px 0 0; background: var(--ciano-cl); color: var(--tinta-2); font-size: 13px; }
+.editando[hidden] { display: none; }
+/* com a faixa de edicao o compositor cresce: o "ir para o fim" sobe junto */
+.app.com-edicao .ir-fim { transform: translateY(-48px); }
+.editando .link { color: var(--titulo); font-weight: 700; }
+/* 👎: "o que não ajudou?" */
+.motivo { border: 1px solid var(--linha); border-radius: 14px; padding: 12px 14px; background: var(--fundo); display: flex; flex-direction: column; gap: 10px; }
+.motivo p { margin: 0; font-weight: 600; color: var(--titulo); font-size: 14px; }
+.chips-motivo { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-motivo { border: 1px solid var(--linha); background: var(--papel); color: var(--tinta-2); border-radius: 999px; padding: 5px 12px;
+  font: inherit; font-size: 13px; cursor: pointer; }
+.chip-motivo:hover { border-color: var(--ciano); color: var(--titulo); }
+.chip-motivo[aria-pressed="true"] { background: var(--ciano-cl); border-color: var(--ciano); color: var(--titulo); font-weight: 600; }
+.campo-motivo { font: inherit; font-size: 14px; color: var(--tinta); background: var(--papel); border: 1px solid var(--campo-borda);
+  border-radius: 10px; padding: 8px 10px; resize: vertical; min-height: 44px; }
+.campo-motivo:focus { outline: 2px solid var(--ciano); outline-offset: 0; }
+.acoes-motivo { display: flex; justify-content: flex-end; align-items: center; gap: 14px; font-size: 14px; }
+.acoes-motivo .link { color: var(--tinta-2); }
+.botao-motivo { border: 0; border-radius: 10px; padding: 8px 18px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  background: var(--titulo); color: var(--papel); }
+.botao-motivo:disabled { opacity: .6; cursor: progress; }
+.obrigada-motivo { margin: 0; font-size: 13.5px; color: var(--tinta-2); }
+/* passeio da primeira visita: o dialog cobre a tela; o "furo" e uma sombra enorme em volta do alvo */
+.tour { position: fixed; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: 100%; margin: 0; padding: 0; border: 0;
+  background: transparent; overflow: hidden; }
+.tour::backdrop { background: transparent; }
+.tour-foco { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 20, 32, .6); pointer-events: none;
+  transition: left .25s, top .25s, width .25s, height .25s; }
+.tour-balao { position: fixed; width: min(330px, calc(100vw - 32px)); background: var(--papel); color: var(--tinta); border-radius: 16px;
+  padding: 14px 18px 14px; box-shadow: 0 18px 40px rgba(0, 20, 32, .35); transition: left .25s, top .25s; }
+.tour-topo { display: flex; align-items: center; justify-content: space-between; }
+.tour-topo small { color: var(--tinta-3); font-size: 12px; }
+.tour-balao h2 { margin: 6px 0 4px; font-size: 17px; color: var(--titulo); }
+.tour-balao p { margin: 0 0 12px; font-size: 14.5px; line-height: 1.45; color: var(--tinta-2); }
+.tour-botoes { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+.tour-botoes .link { color: var(--tinta-2); font-size: 14px; }
+.tour-botoes .link[hidden] { display: none; }
+.tour-proximo { border: 0; border-radius: 10px; padding: 8px 18px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  background: linear-gradient(135deg, #12cdff, #0a8fc2); color: #00253a; }
+@media (prefers-reduced-motion: reduce) { .tour-foco, .tour-balao { transition: none; } }
+.rever { margin: 16px 0 0; font-size: 14px; }
+.rever .link { color: var(--titulo); }
+/* painel dos atalhos */
+.atalhos { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; margin: 8px 0 4px; }
+.atalhos dt { display: flex; gap: 4px; align-items: center; }
+.atalhos dd { margin: 0; align-self: center; color: var(--tinta-2); font-size: 14px; }
+kbd { font: 600 12px/1 inherit; min-width: 26px; text-align: center; padding: 5px 7px; border: 1px solid var(--linha);
+  border-bottom-width: 2px; border-radius: 7px; background: var(--fundo); color: var(--tinta); }
 
 .conversa { flex: 1; overflow-y: auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 22px;
   padding: 14px max(24px, calc((100% - 780px) / 2)) 26px; scrollbar-width: thin; scrollbar-color: var(--linha) transparent; }
@@ -287,6 +357,9 @@ button.termo:hover { text-decoration: line-through; background: var(--erro-cl); 
 /* rodapé da resposta: hora, copiar e 👍👎 */
 .avaliar { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--linha); padding-top: 6px; font-size: 12.5px; color: var(--tinta-3); min-height: 36px; }
 .avaliar .hora { margin-right: auto; display: flex; align-items: center; gap: 6px; }
+/* com refazer e o "obrigada" a linha pode quebrar, mas nunca no meio da hora ou da frase */
+.avaliar { flex-wrap: wrap; row-gap: 2px; }
+.avaliar .hora, .avaliar .obrigada { white-space: nowrap; }
 .avaliar .hora::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #3ddc6f; }
 .avaliar .acao { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--tinta-2); cursor: pointer;
   padding: 5px 8px; border-radius: 8px; font-size: 12.5px; }
@@ -499,6 +572,7 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
     box-shadow: 0 0 40px rgba(0, 0, 0, .35); }
   .lado.aberto { transform: none; }
   .so-celular { display: grid; }
+  .so-pc { display: none; }
   .fechar-lado.so-celular { display: block; }
   .barra { padding: 0 8px; height: 54px; }
   .titulo { flex: 1; text-align: center; }

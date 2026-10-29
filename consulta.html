@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data Sabesp</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261026c">
+<link rel="stylesheet" href="consulta-nova.css?v=20261029a">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -105,6 +105,7 @@
     <div class="baixo">
       <div class="perfil"><span class="ini" id="iniciais">?</span><div><span id="perfil-nome">Você</span><small>Master Data</small></div></div>
       <div class="links-lado"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a> ·
+        <span class="so-pc"><button type="button" class="link" id="ver-atalhos">Atalhos</button> ·</span>
         <button type="button" class="link" id="sair">Sair</button></div>
     </div>
   </aside>
@@ -157,6 +158,10 @@
     <div class="conversa" id="conversa" role="log" aria-live="polite" aria-label="Conversa com a Bella"></div>
     <button type="button" class="ir-fim" id="ir-fim" hidden aria-label="Ir para a última mensagem" title="Ir para a última mensagem">↓</button>
     <form id="form-chat" class="compositor" autocomplete="off">
+      <div class="editando" id="editando" hidden>
+        <span title="Ao enviar, a pergunta e a resposta dela são trocadas">✎ Editando a última pergunta</span>
+        <button type="button" class="link" id="cancelar-edicao">Cancelar</button>
+      </div>
       <div class="caixa">
         <label class="oculto" for="mensagem">Mensagem para a Bella</label>
         <textarea id="mensagem" rows="1" maxlength="1000" placeholder="Pergunte sobre um material, um código ou uma solicitação…" title="Enter envia; Shift+Enter quebra a linha"></textarea>
@@ -179,6 +184,28 @@
   <div class="painel-corpo" id="wa-corpo" aria-live="polite"></div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261026c"></script>
+<dialog class="painel" id="painel-atalhos" aria-labelledby="atalhos-titulo">
+  <div class="painel-topo">
+    <h2 id="atalhos-titulo">Atalhos do teclado</h2>
+    <button type="button" class="painel-fechar" id="atalhos-fechar" aria-label="Fechar">×</button>
+  </div>
+  <div class="painel-corpo"><dl class="atalhos" id="lista-atalhos"></dl>
+    <p class="rever"><button type="button" class="link" id="rever-tour">Ver de novo o passeio pela página</button></p></div>
+</dialog>
+
+<dialog class="tour" id="tour" aria-labelledby="tour-titulo" aria-describedby="tour-texto">
+  <div class="tour-foco" id="tour-foco"></div>
+  <div class="tour-balao" id="tour-balao">
+    <div class="tour-topo"><img src="img/bella.png" alt="" width="34" height="37"><small id="tour-passo"></small></div>
+    <h2 id="tour-titulo"></h2>
+    <p id="tour-texto"></p>
+    <div class="tour-botoes">
+      <button type="button" class="link" id="tour-pular">Pular</button>
+      <button type="button" class="tour-proximo" id="tour-proximo">Próximo</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="consulta-nova.js?v=20261029a"></script>
 </body>
 </html>

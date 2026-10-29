@@ -6,7 +6,8 @@
 //    HTML: o markdown da Bella (negrito, listas, links) e montado aqui, peca a peca;
 //  - link so abre se for https;
 //  - a entrada (Meetup: conta Microsoft; Sabesp: chave de acesso criada no banco) fica so
-//    neste navegador (localStorage); a conversa, so nesta aba (sessionStorage);
+//    neste navegador (localStorage); a conversa, nesta aba (sessionStorage) e, com chave pessoal
+//    ou conta Microsoft, no historico (banco de dados, so da pessoa, 30 dias: ?historico=1);
 //  - a resposta aparece enquanto a Bella escreve (stream); numeros de solicitacao
 //    e codigos do SAP viram botao; listas podem ser baixadas em planilha (CSV).
 "use strict";
@@ -46,7 +47,13 @@ if (!sessao) { sessao = novoId(); guardar(sessionStorage, "consulta-sessao", ses
 // historico desta aba: [{de: "pessoa"|"bella", texto, mensagem?, verMais?, ficha?}]
 let historico = [];
 try { historico = JSON.parse(ler(sessionStorage, "consulta-historico") || "[]"); } catch (e) { historico = []; }
-const salvar = () => guardar(sessionStorage, "consulta-historico", JSON.stringify(historico.slice(-60)));
+// so nesta aba (abrir uma conversa ou comecar outra nao conta como mensagem nova)
+const salvarNaAba = () => guardar(sessionStorage, "consulta-historico", JSON.stringify(historico.slice(-60)));
+// mensagem nova (ou avaliada): na aba e no historico
+const salvar = () => { salvarNaAba(); agendarNuvem(sessao, historico); };
+// atalhos: Ctrl no Windows, Cmd no Mac
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+const CTRL = MAC ? "⌘" : "Ctrl";
 
 // ------------------------------------------------------------ chamadas
 
@@ -147,6 +154,8 @@ const ICONES = {
   ok: "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z",
   enviar: "M3 20.5v-6.2l9-2.3-9-2.3V3.5l19 8.5z",
   parar: "M6 6h12v12H6z",
+  refazer: "M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z",
+  editar: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z",
 };
 function icone(nome) {
   const NS = "http://www.w3.org/2000/svg";
@@ -349,12 +358,18 @@ const horaDe = (ms) => ms ? new Date(ms).toLocaleString("pt-BR", { day: "2-digit
 const textoPuro = (md) => String(md || "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\[([^\]]+)\]\((https:[^)\s]+)\)/g, "$1 ($2)")
   .replace(/(^|[\s(])[_*](?![\s_*])(.+?)(?<!\s)[_*](?=[\s).,!?]|$)/gm, "$1$2").replace(/`([^`]+)`/g, "$1");
 
-// Linha discreta embaixo da resposta: hora, copiar e 👍👎 (aparece ao passar o mouse; fixa na ultima)
+// "Refazer" (so na ultima resposta): a mesma pergunta de novo, sem a resposta antiga na memoria da Bella
+function botaoRefazer(rotulo) {
+  return el("button", { type: "button", className: "acao so-ultima", title: "Gerar a resposta de novo", ariaLabel: rotulo,
+    onclick: refazer }, icone("refazer"), el("span", { textContent: rotulo }));
+}
+
+// Linha discreta embaixo da resposta: hora, copiar, refazer e 👍👎 (aparece ao passar o mouse; fixa na ultima)
 function botoesAvaliar(m) {
-  if (m.erro) return null;
+  if (m.erro) return el("div", { className: "avaliar" }, botaoRefazer("Tentar de novo"));
   const caixa = el("div", { className: "avaliar" },
     m.em ? el("span", { className: "hora", textContent: horaDe(m.em) }) : null,
-    botaoCopiar(() => textoPuro(m.texto), "Copiar a resposta", "acao", true));
+    botaoCopiar(() => textoPuro(m.texto), "Copiar a resposta", "acao", true), botaoRefazer("Refazer"));
   if (!m.mensagem) return caixa;
   if (m.avaliada) {
     caixa.append(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
@@ -369,6 +384,11 @@ function botoesAvaliar(m) {
       salvar();
       for (const b of votos) b.remove();
       caixa.append(el("span", { className: "obrigada", textContent: "Obrigada pelo retorno! 💙" }));
+      if (reacao === "dislike") {
+        const painel = painelMotivo(m);
+        caixa.after(painel);
+        painel.querySelector("button").focus();
+      }
     } catch (e) {
       for (const b of votos) b.disabled = false;
     }
@@ -377,6 +397,46 @@ function botoesAvaliar(m) {
     el("button", { type: "button", className: "voto", title: "Ajudou", ariaLabel: "Ajudou", textContent: "👍", onclick: () => votar("like") }),
     el("button", { type: "button", className: "voto", title: "Não ajudou", ariaLabel: "Não ajudou", textContent: "👎", onclick: () => votar("dislike") }));
   return caixa;
+}
+
+// 👎: logo depois do voto, "o que não ajudou?" (opcional). Vai para a mesma avaliacao (a funcao completa a linha).
+const MOTIVOS = ["Código ou material errado", "Não achou o que existe", "Informação desatualizada", "Resposta confusa",
+  "Faltou informação"];
+
+function painelMotivo(m) {
+  const conversaDoVoto = sessao;   // a pessoa pode trocar de conversa antes de enviar
+  const escolhidos = new Set();
+  const chips = MOTIVOS.map((t) => {
+    const b = el("button", { type: "button", className: "chip-motivo", textContent: t });
+    b.setAttribute("aria-pressed", "false");
+    b.onclick = () => {
+      if (escolhidos.has(t)) escolhidos.delete(t); else escolhidos.add(t);
+      b.setAttribute("aria-pressed", String(escolhidos.has(t)));
+    };
+    return b;
+  });
+  const campo = el("textarea", { className: "campo-motivo", rows: 2, maxLength: 500,
+    placeholder: "Conte mais, se quiser (ex.: o código certo era…)", ariaLabel: "O que não ajudou, com as suas palavras" });
+  const enviarB = el("button", { type: "button", className: "botao-motivo", textContent: "Enviar" });
+  const pular = el("button", { type: "button", className: "link", textContent: "Agora não" });
+  const painel = el("div", { className: "motivo", role: "group", ariaLabel: "O que não ajudou?" },
+    el("p", { textContent: "Poxa 😕 O que não ajudou? (opcional)" }),
+    el("div", { className: "chips-motivo" }, ...chips), campo, el("div", { className: "acoes-motivo" }, pular, enviarB));
+  pular.onclick = () => painel.remove();
+  enviarB.onclick = async () => {
+    const comentario = [...escolhidos, campo.value.trim()].filter(Boolean).join(" · ");
+    if (!comentario) { painel.remove(); return; }
+    enviarB.disabled = true;
+    enviarB.textContent = "Enviando…";
+    try {
+      await chamar({ avaliacao: 1 }, { sessao: conversaDoVoto, mensagem: m.mensagem, reacao: "dislike", comentario });
+      painel.replaceWith(el("p", { className: "obrigada-motivo", textContent: "Anotado! Isso ajuda a melhorar a Bella 💙" }));
+    } catch (e) {
+      enviarB.disabled = false;
+      enviarB.textContent = "Tentar de novo";
+    }
+  };
+  return painel;
 }
 
 // "Baixar planilha": a lista completa do que a Bella consultou, em CSV (abre no Excel)
@@ -438,7 +498,10 @@ function cartaoSap(c) {
 
 function desenhar(m) {
   if (m.de === "pessoa") {
-    return el("div", { className: "msg da-pessoa", title: horaDe(m.em) }, el("div", { className: "balao" }, ...markdown(m.texto)));
+    return el("div", { className: "msg da-pessoa", title: horaDe(m.em) },
+      el("button", { type: "button", className: "editar so-ultima", title: "Editar a pergunta (↑)", ariaLabel: "Editar a pergunta",
+        onclick: editarUltima }, icone("editar")),
+      el("div", { className: "balao" }, ...markdown(m.texto)));
   }
   const corpo = m.ficha ? [montarFicha(m.texto, m.ficha)] : markdown(m.texto, !m.erro);
   const v = m.veredito && typeof m.veredito === "object" && VEREDITOS[m.veredito.tipo] ? m.veredito : null;
@@ -507,10 +570,23 @@ function adicionar(m) {
   if ($("app-vazia-oi")) { $("app-vazia-oi").remove(); marcarVazia(); }
   if (cat.aberto && m.de === "bella") marcarNovidade(true);
   const n = desenhar(m);
+  n.dataset.i = String(historico.length - 1);
   $("conversa").append(n);
+  marcarUltimas();
   rolar();
   desenharTitulo();
+  desenharConversas();   // a conversa aberta entra (ou sobe) na lista do menu
   return n;
+}
+
+// "Refazer" e "Editar" so aparecem na ultima resposta e na ultima pergunta
+function marcarUltimas() {
+  const c = $("conversa");
+  for (const n of c.querySelectorAll(".msg.ultima")) n.classList.remove("ultima");
+  const j = historico.map((m) => m.de).lastIndexOf("pessoa");
+  for (const i of new Set([historico.length - 1, j])) {
+    if (i >= 0) c.querySelector(`.msg[data-i="${i}"]`)?.classList.add("ultima");
+  }
 }
 
 // Bella pensando: pontinhos, uma frase e, embaixo, o que ela ja consultou (cada "consultando" da funcao vira um passo)
@@ -574,7 +650,9 @@ function desenharSugestoes() {
 const marcarVazia = () => $("chat").classList.toggle("vazia", !historico.length);
 
 function redesenhar() {
-  $("conversa").replaceChildren(...(historico.length ? historico.map(desenhar) : [boasVindas()]));
+  $("conversa").replaceChildren(...(historico.length
+    ? historico.map((m, i) => { const n = desenhar(m); n.dataset.i = String(i); return n; }) : [boasVindas()]));
+  marcarUltimas();
   marcarVazia();
   desenharTitulo();
   desenharConversas();
@@ -582,12 +660,19 @@ function redesenhar() {
   rolar();
 }
 
-// ------------------------------------------------------------ conversas desta aba (menu lateral)
-// Ficam so nesta aba (sessionStorage), como a conversa de sempre: fechou a aba, some.
+// ------------------------------------------------------------ conversas (menu lateral)
+// Com chave pessoal ou conta Microsoft ficam no historico (banco de dados, so da pessoa, 30 dias desde
+// a ultima mensagem): reabre amanha ou em outro computador. Sem isso, so nesta aba (fechou, some).
 
-let conversas = [];   // [{sessao, historico}] das conversas anteriores desta aba (a atual fica em `historico`)
+let conversas = [];   // [{sessao, titulo, em, historico?}] das outras conversas (a atual fica em `historico`)
 try { conversas = JSON.parse(ler(sessionStorage, "consulta-conversas") || "[]"); } catch (e) { conversas = []; }
-const salvarConversas = () => guardar(sessionStorage, "consulta-conversas", JSON.stringify(conversas.slice(0, 10)));
+if (!Array.isArray(conversas)) conversas = [];
+let nuvem = false;    // o historico respondeu: a lista vem dele e cada mensagem nova vai para ele
+// na aba fica o que cabe: as 10 primeiras com a conversa, as outras so com o titulo
+const salvarConversas = () => guardar(sessionStorage, "consulta-conversas",
+  JSON.stringify(conversas.slice(0, 50).map((c, i) => i < 10 ? c : { sessao: c.sessao, titulo: c.titulo, em: c.em })));
+const tituloDaConversa = (c) => c.titulo || tituloDe(c.historico || []);
+const quandoDe = (h) => (h.length && h[h.length - 1].em) || Date.now();
 
 const tituloDe = (h) => {
   const p = h.find((m) => m.de === "pessoa");
@@ -600,30 +685,81 @@ function desenharTitulo() { $("titulo").textContent = cat.aberto ? "Procurar mat
 
 function guardarAtual() {
   if (!historico.length) return;
-  conversas = [{ sessao, historico }, ...conversas.filter((c) => c.sessao !== sessao)].slice(0, 10);
+  conversas = [{ sessao, historico, titulo: tituloDe(historico), em: quandoDe(historico) },
+    ...conversas.filter((c) => c.sessao !== sessao)].slice(0, 50);
   salvarConversas();
+}
+
+function grupoDaData(ms) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const d = hoje.getTime();
+  return ms >= d ? "Hoje" : ms >= d - 864e5 ? "Ontem" : ms >= d - 6 * 864e5 ? "Últimos 7 dias" : "Mais antigas";
 }
 
 function desenharConversas() {
   const itens = [];
-  if (historico.length) itens.push({ sessao, historico, atual: true });
+  if (historico.length) itens.push({ sessao, titulo: tituloDe(historico), em: quandoDe(historico), atual: true });
   for (const c of conversas) if (c.sessao !== sessao) itens.push(c);
+  itens.sort((a, b) => (b.em || 0) - (a.em || 0));
   $("titulo-conversas").hidden = !itens.length;
-  $("lista-conversas").replaceChildren(...itens.map((c) => {
-    const b = el("button", { type: "button", textContent: tituloDe(c.historico), title: tituloDe(c.historico),
-      onclick: () => abrirConversa(c.sessao) });
-    if (c.atual && !cat.aberto) b.setAttribute("aria-current", "true");
-    if (c.atual && cat.novidade) b.classList.add("novidade");
-    return b;
-  }));
+  $("titulo-conversas").textContent = nuvem ? "Conversas" : "Conversas desta aba";
+  $("titulo-conversas").title = nuvem ? "Ficam guardadas por 30 dias, só para você" : "Somem quando a aba é fechada";
+  const nos = [];
+  let grupo = "";
+  for (const c of itens) {
+    const g = nuvem ? grupoDaData(c.em || 0) : "";
+    if (g && g !== grupo) { grupo = g; nos.push(el("h3", { className: "grupo-data", textContent: g })); }
+    nos.push(itemDaConversa(c));
+  }
+  $("lista-conversas").replaceChildren(...nos);
 }
 
-function abrirConversa(s) {
+function itemDaConversa(c) {
+  const t = tituloDaConversa(c);
+  const abrir = el("button", { type: "button", className: "abrir", textContent: t, title: t });
+  abrir.onclick = () => abrirConversa(c.sessao, abrir);
+  if (c.atual && !cat.aberto) abrir.setAttribute("aria-current", "true");
+  if (c.atual && cat.novidade) abrir.classList.add("novidade");
+  // o primeiro clique pergunta ("Apagar?"); o segundo apaga
+  const x = el("button", { type: "button", className: "apagar", textContent: "×", title: "Apagar esta conversa",
+    ariaLabel: `Apagar a conversa “${t}”` });
+  const voltar = () => { x.classList.remove("confirmar"); x.textContent = "×"; x.title = "Apagar esta conversa"; };
+  x.onclick = () => {
+    if (!x.classList.contains("confirmar")) {
+      x.classList.add("confirmar");
+      x.textContent = "Apagar?";
+      x.title = "Clique de novo para apagar";
+      return;
+    }
+    apagarConversa(c.sessao, x);
+  };
+  x.onblur = voltar;
+  return el("div", { className: "item-conversa" }, abrir, x);
+}
+
+async function abrirConversa(s, botao) {
   fecharLado();
   fecharCatalogo();
   if (s === sessao || ocupado) return;
   const c = conversas.find((x) => x.sessao === s);
   if (!c) return;
+  if (!c.historico) {
+    // do historico: so o titulo veio na lista; a conversa vem agora
+    if (botao) { botao.textContent = "Abrindo…"; botao.disabled = true; }
+    try {
+      const d = await chamar({ historico: 1 }, { acao: "abrir", sessao: s });
+      c.historico = Array.isArray(d.mensagens) ? d.mensagens : [];
+    } catch (e) {
+      if (botao) {
+        botao.textContent = "Não consegui abrir. Tente de novo";
+        setTimeout(desenharConversas, 2500);
+      }
+      return;
+    }
+    if (s === sessao || ocupado || !conversas.includes(c)) return;
+  }
+  cancelarEdicao(true);
   espera++;
   guardarAtual();
   conversas = conversas.filter((x) => x.sessao !== s);
@@ -631,8 +767,83 @@ function abrirConversa(s) {
   sessao = c.sessao;
   historico = c.historico;
   guardar(sessionStorage, "consulta-sessao", sessao);
-  salvar();
+  salvarNaAba();
   redesenhar();
+}
+
+async function apagarConversa(s, botao) {
+  if (ocupado) return;
+  pendentes.delete(s);
+  if (nuvem) {
+    if (botao) { botao.textContent = "Apagando…"; botao.disabled = true; }
+    try {
+      await chamar({ historico: 1 }, { acao: "apagar", sessao: s });
+    } catch (e) {
+      // nao apagou: avisa no proprio botao e a lista volta como estava
+      if (botao) { botao.textContent = "Não deu"; setTimeout(desenharConversas, 2000); }
+      return;
+    }
+  }
+  conversas = conversas.filter((x) => x.sessao !== s);
+  salvarConversas();
+  if (s !== sessao) { desenharConversas(); return; }
+  // era a conversa aberta: fica uma nova no lugar
+  cancelarEdicao(true);
+  espera++;
+  historico = [];
+  salvarNaAba();
+  sessao = novoId();
+  guardar(sessionStorage, "consulta-sessao", sessao);
+  redesenhar();
+}
+
+// ------------------------------------------------------------ historico no banco de dados
+const pendentes = new Map();   // sessao -> conversa esperando para ir ao historico
+let relogioNuvem = 0;
+
+// junta as mensagens de um mesmo instante (pergunta, resposta, avaliacao) numa ida so
+function agendarNuvem(s, h) {
+  if (!nuvem || !h.length) return;
+  pendentes.set(s, h);
+  clearTimeout(relogioNuvem);
+  relogioNuvem = setTimeout(mandarPendentes, 1200);
+}
+
+async function mandarPendentes() {
+  const lote = [...pendentes];
+  pendentes.clear();
+  for (const [s, h] of lote) {
+    try {
+      await chamar({ historico: 1 }, { acao: "salvar", sessao: s, titulo: tituloDe(h), mensagens: h.slice(-60) });
+    } catch (e) { /* fica na aba; vai de novo na proxima mensagem */ }
+  }
+}
+
+// Depois de entrar com chave pessoal ou conta Microsoft: a lista vem do historico, e o que so estava
+// nesta aba (de antes) sobe para ele. Uma conversa do historico so e lida quando a pessoa abre.
+let historicoPedido = false;
+async function carregarHistorico() {
+  if (historicoPedido) return;
+  historicoPedido = true;
+  let d;
+  try {
+    d = await chamar({ historico: 1 }, { acao: "listar" });
+  } catch (e) {
+    historicoPedido = false;   // tenta de novo na proxima entrada
+    return;
+  }
+  if (!codigo || !Array.isArray(d.conversas)) return;
+  nuvem = true;
+  const doBanco = d.conversas.filter((c) => c && typeof c.sessao === "string")
+    .map((c) => ({ sessao: c.sessao, titulo: String(c.titulo || ""), em: Date.parse(c.atualizado_em) || 0 }));
+  const noBanco = new Set(doBanco.map((c) => c.sessao));
+  const soNaAba = conversas.filter((c) => !noBanco.has(c.sessao) && Array.isArray(c.historico) && c.historico.length);
+  for (const c of soNaAba) agendarNuvem(c.sessao, c.historico);
+  if (historico.length && !noBanco.has(sessao)) agendarNuvem(sessao, historico);
+  conversas = [...soNaAba.map((c) => ({ ...c, titulo: tituloDaConversa(c), em: c.em || quandoDe(c.historico) })), ...doBanco]
+    .filter((c) => c.sessao !== sessao).sort((a, b) => (b.em || 0) - (a.em || 0)).slice(0, 50);
+  salvarConversas();
+  desenharConversas();
 }
 
 // menu lateral no celular
@@ -660,9 +871,10 @@ function atualizarBotao() {
   b.disabled = !ocupado && !$("mensagem").value.trim();
   for (const id of ["nova", "nova-cel"]) {
     $(id).disabled = ocupado;
-    $(id).title = ocupado ? "Espere a resposta terminar (ou pare a resposta)" : "Começar uma conversa nova";
+    $(id).title = ocupado ? "Espere a resposta terminar (ou pare a resposta)" : `Começar uma conversa nova (${CTRL}+Shift+O)`;
   }
   $("lista-conversas").classList.toggle("travada", ocupado);
+  $("chat").classList.toggle("ocupado", ocupado);
 }
 
 function pararResposta() {
@@ -709,7 +921,8 @@ const CONSULTANDO = {
 };
 const rotuloConsulta = (fs) => CONSULTANDO[(fs || [])[0]] || "Consultando a base de conhecimento…";
 
-async function enviar(texto) {
+// refazer: id da resposta que sai da memoria da Bella ("Refazer" ou pergunta editada)
+async function enviar(texto, refazer = null) {
   texto = String(texto || "").trim();
   if (!texto || ocupado || !codigo) return;
   ocupado = true;
@@ -749,7 +962,8 @@ async function enviar(texto) {
   };
   try {
     // tela: "nova" -> a funcao manda o veredito e a IA nao anuncia "achei" (a etiqueta ja diz)
-    const d = await conversarAoVivo({ sessao, navegador, texto, tela: "nova" }, aoEvento, parada.signal);
+    const d = await conversarAoVivo({ sessao, navegador, texto, tela: "nova", ...(refazer ? { refazer } : {}) },
+      aoEvento, parada.signal);
     limpar();
     if (d.pedido) {
       aviso.hidden = false;
@@ -782,14 +996,71 @@ function novaConversa() {
   fecharLado();
   if (ocupado) return;   // primeiro termina (ou para) a resposta desta conversa
   fecharCatalogo();
+  cancelarEdicao(true);
   espera++;
   guardarAtual();
   historico = [];
-  salvar();
+  salvarNaAba();
   sessao = novoId();
   guardar(sessionStorage, "consulta-sessao", sessao);
   redesenhar();
   $("mensagem").focus();
+}
+
+// ------------------------------------------------------------ refazer e editar (so a ultima pergunta)
+let editando = false;
+
+// a ultima pergunta: onde esta na conversa e o id da resposta dela na memoria da Bella (se tiver)
+function ultimaTroca() {
+  const j = historico.map((m) => m.de).lastIndexOf("pessoa");
+  if (j < 0) return null;
+  const r = historico.slice(j + 1).find((m) => m.mensagem);
+  return { j, texto: historico[j].texto, refazer: r ? r.mensagem : null };
+}
+
+// tira a ultima pergunta (e a resposta) da tela e pergunta de novo
+function perguntarDeNovo(u, texto) {
+  historico = historico.slice(0, u.j);
+  salvarNaAba();
+  redesenhar();
+  enviar(texto, u.refazer);
+}
+
+function refazer() {
+  if (ocupado) return;
+  const u = ultimaTroca();
+  if (!u) return;
+  cancelarEdicao(true);
+  perguntarDeNovo(u, u.texto);
+}
+
+// a ultima pergunta volta para a caixa; ao enviar, ela e a resposta dela sao trocadas
+function editarUltima() {
+  if (ocupado) return;
+  const u = ultimaTroca();
+  if (!u) return;
+  fecharCatalogo();
+  editando = true;
+  $("editando").hidden = false;
+  $("chat").classList.add("com-edicao");
+  const t = $("mensagem");
+  t.value = u.texto;
+  ajustarAltura();
+  atualizarBotao();
+  t.focus();
+  t.setSelectionRange(t.value.length, t.value.length);
+}
+
+function cancelarEdicao(limpar) {
+  if (!editando) return;
+  editando = false;
+  $("editando").hidden = true;
+  $("chat").classList.remove("com-edicao");
+  if (limpar) {
+    $("mensagem").value = "";
+    ajustarAltura();
+    atualizarBotao();
+  }
 }
 
 // ------------------------------------------------------------ acompanhar pelo WhatsApp
@@ -1332,6 +1603,17 @@ function sair() {
     for (const k of ["consulta-codigo", "consulta-nome", "consulta-time"]) localStorage.removeItem(k);
   } catch (e) { /* ok */ }
   espera++;
+  // as conversas eram de quem saiu: nao ficam na aba para a proxima pessoa (as do historico continuam la)
+  nuvem = false;
+  historicoPedido = false;
+  pendentes.clear();
+  conversas = [];
+  historico = [];
+  salvarConversas();
+  salvarNaAba();
+  sessao = novoId();
+  guardar(sessionStorage, "consulta-sessao", sessao);
+  cancelarEdicao(true);
   telas();
 }
 
@@ -1342,6 +1624,8 @@ async function quemSou() {
   codigoDoTime = !d.pessoal && !d.microsoft;
   guardar(localStorage, "consulta-nome", nome);
   guardar(localStorage, "consulta-time", codigoDoTime ? "1" : "");
+  // o historico e pessoal: so com chave pessoal ou conta Microsoft; depois, o passeio da primeira visita
+  if (d.pessoal || d.microsoft) carregarHistorico().finally(talvezPasseio); else talvezPasseio();
 }
 
 $("form-codigo").addEventListener("submit", async (ev) => {
@@ -1380,14 +1664,19 @@ $("form-chat").addEventListener("submit", (ev) => {
   if (!t.trim()) return;
   $("mensagem").value = "";
   ajustarAltura();
-  enviar(t);
+  const u = editando ? ultimaTroca() : null;
+  cancelarEdicao();
+  if (u) perguntarDeNovo(u, t); else enviar(t);
 });
 
-// Enter envia; Shift+Enter quebra a linha
+// Enter envia; Shift+Enter quebra a linha; seta para cima com a caixa vazia edita a ultima pergunta
 $("mensagem").addEventListener("keydown", (ev) => {
   if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
     ev.preventDefault();
     if (!ocupado) $("form-chat").requestSubmit();  // Enter nunca para a resposta: so o botao
+  } else if (ev.key === "ArrowUp" && !ev.shiftKey && !ev.isComposing && !$("mensagem").value) {
+    ev.preventDefault();
+    editarUltima();
   }
 });
 function ajustarAltura() {
@@ -1447,7 +1736,161 @@ window.addEventListener("hashchange", () => {
 $("abrir-lado").addEventListener("click", abrirLado);
 $("fechar-lado").addEventListener("click", fecharLado);
 $("cortina").addEventListener("click", fecharLado);
-document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharLado(); });
+$("cancelar-edicao").addEventListener("click", () => { cancelarEdicao(true); $("mensagem").focus(); });
+$("ver-atalhos").addEventListener("click", () => { fecharLado(); abrirAtalhos(); });
+$("atalhos-fechar").addEventListener("click", () => $("painel-atalhos").close());
+$("painel-atalhos").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
+$("atalho-material").title = `Procurar material (${CTRL}+K)`;
+
+// ------------------------------------------------------------ atalhos do teclado
+const ATALHOS = [
+  [[CTRL, "Shift", "O"], "Nova conversa"],
+  [[CTRL, "K"], "Procurar material"],
+  [["/"], "Ir para a caixa de mensagem"],
+  [["↑"], "Editar a última pergunta (com a caixa vazia)"],
+  [["Enter"], "Enviar"],
+  [["Shift", "Enter"], "Quebrar a linha"],
+  [["Esc"], "Parar a resposta, cancelar a edição ou fechar o catálogo"],
+  [[CTRL, "/"], "Ver estes atalhos"],
+];
+
+function abrirAtalhos() {
+  $("lista-atalhos").replaceChildren(...ATALHOS.flatMap(([teclas, oque]) => [
+    el("dt", {}, ...teclas.map((t) => el("kbd", { textContent: t }))),
+    el("dd", { textContent: oque }),
+  ]));
+  if (!$("painel-atalhos").open) $("painel-atalhos").showModal();
+}
+
+const emCampo = (alvo) => alvo instanceof HTMLElement && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName));
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.isComposing || document.querySelector("dialog[open]")) return;   // o painel aberto cuida do proprio Esc
+  if (ev.key === "Escape") {
+    if ($("lado").classList.contains("aberto")) fecharLado();
+    else if (ocupado) pararResposta();
+    else if (editando) { cancelarEdicao(true); $("mensagem").focus(); }
+    // no campo de busca do catalogo o Esc primeiro limpa o texto (do proprio navegador)
+    else if (cat.aberto && !(ev.target === $("cat-texto") && $("cat-texto").value)) fecharCatalogo();
+    return;
+  }
+  if (!codigo) return;
+  const mod = MAC ? ev.metaKey : ev.ctrlKey;
+  const tecla = ev.key.toLowerCase();
+  if (mod && ev.shiftKey && tecla === "o") {
+    ev.preventDefault();
+    novaConversa();
+  } else if (mod && !ev.shiftKey && tecla === "k") {
+    ev.preventDefault();
+    if (cat.aberto) $("cat-texto").focus(); else abrirCatalogo();
+  } else if (mod && ev.key === "/") {
+    ev.preventDefault();
+    abrirAtalhos();
+  } else if (ev.key === "/" && !mod && !ev.altKey && !emCampo(ev.target)) {
+    ev.preventDefault();
+    (cat.aberto ? $("cat-texto") : $("mensagem")).focus();
+  }
+});
+// ------------------------------------------------------------ primeira visita: passeio pela pagina
+// Uma vez por navegador (consulta-passeio); da para ver de novo no painel de atalhos. O balao e um
+// <dialog> do tamanho da tela: o resto da pagina fica escurecido e sem clique, com um "furo" no alvo.
+let passeio = null;   // {passos, i}
+const celular = () => !!window.matchMedia && matchMedia("(max-width: 760px)").matches;
+
+function passosDoPasseio() {
+  const vazia = $("chat").classList.contains("vazia");
+  const passos = [{
+    alvo: vazia ? "sugs" : "form-chat", titulo: "Pergunte do seu jeito",
+    texto: vazia ? "Escreva como está no pedido, abreviado mesmo. Ou comece por uma destas sugestões."
+      : "Escreva como está no pedido, abreviado mesmo: eu procuro no SAP, no Webformat e na base de conhecimento.",
+  }];
+  if (celular()) {
+    passos.push({ alvo: "abrir-lado", titulo: "Tudo no menu ☰",
+      texto: "Procurar material no catálogo do SAP, as suas solicitações e as conversas guardadas." });
+  } else {
+    passos.push({ alvo: "atalho-material", titulo: "Procurar material",
+      texto: "O catálogo do SAP com filtros de tipo, grupo de mercadorias e bloqueio. Dá para mandar o link da busca para alguém." });
+    if (nuvem) {
+      passos.push({ alvo: "nova", titulo: "Suas conversas ficam guardadas",
+        texto: "Por 30 dias, só para você: aparecem aqui embaixo para reabrir, e o × apaga. Conversa nova começa por este botão." });
+    }
+    passos.push({ alvo: "ver-atalhos", titulo: "Atalhos do teclado",
+      texto: `${CTRL}+K procura material, / vai para a caixa de mensagem e ↑ edita a última pergunta. Todos estão aqui.` });
+  }
+  passos.push({ alvo: null, titulo: "É isso! 💙",
+    texto: "Embaixo de cada resposta tem 👍 e 👎. Quando eu errar, me conta o que faltou: é assim que eu melhoro." });
+  return passos;
+}
+
+function talvezPasseio() {
+  if (ler(localStorage, "consulta-passeio")) return;
+  setTimeout(() => { if (!ocupado && !cat.aberto) abrirPasseio(); }, 600);
+}
+
+function abrirPasseio() {
+  if (!codigo || $("chat").hidden || document.querySelector("dialog[open]")) return;
+  fecharLado();
+  fecharCatalogo();
+  passeio = { passos: passosDoPasseio(), i: 0 };
+  $("tour").showModal();
+  mostrarPasso();
+}
+
+function mostrarPasso() {
+  const { passos, i } = passeio;
+  const p = passos[i];
+  const ultimo = i === passos.length - 1;
+  $("tour-passo").textContent = `${i + 1} de ${passos.length}`;
+  $("tour-titulo").textContent = p.titulo;
+  $("tour-texto").textContent = p.texto;
+  $("tour-proximo").textContent = ultimo ? "Começar!" : "Próximo";
+  $("tour-pular").hidden = ultimo;
+  posicionarPasso();
+  $("tour-proximo").focus();
+}
+
+// o "furo" em volta do alvo e o balao ao lado (direita, embaixo ou em cima: o que couber na tela)
+function posicionarPasso() {
+  if (!passeio) return;
+  const p = passeio.passos[passeio.i];
+  const alvo = p.alvo ? $(p.alvo) : null;
+  const r = alvo && alvo.getClientRects().length ? alvo.getBoundingClientRect() : null;
+  const foco = $("tour-foco"), balao = $("tour-balao");
+  const W = innerWidth, H = innerHeight, M = 16, F = 6, D = 14;
+  foco.style.left = `${r ? r.left - F : W / 2}px`;
+  foco.style.top = `${r ? r.top - F : H / 2}px`;
+  foco.style.width = `${r ? r.width + 2 * F : 0}px`;
+  foco.style.height = `${r ? r.height + 2 * F : 0}px`;
+  const bw = balao.offsetWidth, bh = balao.offsetHeight;
+  let x, y;
+  if (!r) { x = (W - bw) / 2; y = (H - bh) / 2; }
+  else if (r.right + D + bw <= W - M) { x = r.right + D; y = r.top; }
+  else if (r.bottom + D + bh <= H - M) { x = r.left; y = r.bottom + D; }
+  else { x = r.left; y = r.top - D - bh; }
+  balao.style.left = `${Math.min(Math.max(x, M), W - bw - M)}px`;
+  balao.style.top = `${Math.min(Math.max(y, M), H - bh - M)}px`;
+}
+
+function fecharPasseio() {
+  passeio = null;
+  guardar(localStorage, "consulta-passeio", "1");
+  if ($("tour").open) $("tour").close();
+  if (!cat.aberto) $("mensagem").focus();
+}
+
+$("tour-proximo").addEventListener("click", () => {
+  if (!passeio) return;
+  if (passeio.i === passeio.passos.length - 1) { fecharPasseio(); return; }
+  passeio.i++;
+  mostrarPasso();
+});
+$("tour-pular").addEventListener("click", fecharPasseio);
+$("tour").addEventListener("close", () => { if (passeio) fecharPasseio(); });   // Esc
+window.addEventListener("resize", posicionarPasso);
+$("rever-tour").addEventListener("click", () => { $("painel-atalhos").close(); abrirPasseio(); });
+
+// saindo da pagina: o que ainda esperava vai para o historico
+window.addEventListener("pagehide", () => { if (pendentes.size) mandarPendentes(); });
 // no celular o texto de exemplo do campo fica curto (o longo nao cabe numa linha)
 if (window.matchMedia && matchMedia("(max-width: 760px)").matches) $("mensagem").placeholder = "Pergunte à Bella…";
 desenharSugestoes();
