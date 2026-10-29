@@ -648,10 +648,6 @@ button.pn-cartao:hover { border-color: var(--pilula-borda); box-shadow: 0 10px 2
 .pn-agora { fill: var(--ciano-2); stroke: var(--papel); stroke-width: 2; }
 .pn-alvo { fill: transparent; }
 
-.pn-atencao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 14px; border-radius: 14px; font-size: 14px;
-  background: var(--amarelo-cl); color: var(--tinta); }
-.pn-esq { white-space: nowrap; color: var(--tinta-2); }
-.pn-esq .ref { font-weight: 700; }
 .pn-minhas { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; padding: 12px 16px; border-radius: 16px; cursor: pointer;
   background: var(--papel); border: 1px solid var(--linha); box-shadow: var(--sombra-leve); font-size: 15px; }
 .pn-minhas:hover { border-color: var(--pilula-borda); }

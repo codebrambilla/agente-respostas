@@ -1686,17 +1686,12 @@ function desenharPainel() {
     cartaoIndicador({ rotulo: "Em aberto", valor: a.abertas, chave: "em_aberto", pergunta: "como está a fila?",
       sub: `${mil(a.novas)} ${a.novas === 1 ? "nova" : "novas"} desde ${a.desde}` + (a.novas ? ` (${mil(a.novas_urgentes)} ${a.novas_urgentes === 1 ? "urgente" : "urgentes"})` : "") }),
     cartaoIndicador({ rotulo: "Com a CH", valor: a.com_a_ch, chave: "com_a_ch", pergunta: "quais estão com a CH há mais de 48 horas úteis?",
-      sub: `${mil(a.ch_48h)} há mais de 48 h úteis`, alerta: a.ch_48h > 0 }),
+      sub: `${mil(a.ch_48h)} acima de 48 h úteis (somando as passagens)`, alerta: a.ch_48h > 0 }),
     cartaoIndicador({ rotulo: "Pendência técnica", valor: a.pendencia_tecnica, chave: "pendencia_tecnica",
       pergunta: "quais estão em pendência técnica?",
       sub: a.pendencia_mais_antiga ? `a mais antiga: ${a.pendencia_mais_antiga.numero} (${mil(a.pendencia_mais_antiga.dias)} dias)` : "" }),
     cartaoIndicador({ rotulo: `Terminadas desde ${a.desde}`, valor: a.terminadas, pergunta: `quais terminaram desde ${a.desde}?`,
       sub: "encerradas, reprovadas ou canceladas" })));
-
-  if ((a.esquecidas_na_ch || []).length) {
-    nos.push(el("div", { className: "pn-atencao" }, el("span", { textContent: "👀 Podem ter ficado esquecidas na CH:" }),
-      ...a.esquecidas_na_ch.map((e) => el("span", { className: "pn-esq" }, botaoSolicitacao(e.numero), ` ${mil(e.horas)} h úteis`))));
-  }
 
   if (d.minhas) {
     nos.push(el("button", { type: "button", className: "pn-minhas", onclick: () => perguntarDoPainel("como estão as minhas solicitações?") },
