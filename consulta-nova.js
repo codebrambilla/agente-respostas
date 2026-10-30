@@ -1611,7 +1611,8 @@ function variacao(v) {
 }
 
 // abrir: o clique abre uma tela (o "Em aberto"); pergunta: o clique pergunta a lista a Bella
-function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir }) {
+// dica: o que o número é, em português simples (aparece ao passar o mouse, antes do que o clique faz)
+function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir, dica }) {
   const s = chave ? serieDe(chave, valor) : { pontos: null, variacao: null };
   const corpo = [
     el("span", { className: "pn-rotulo", textContent: rotulo }),
@@ -1619,11 +1620,12 @@ function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir })
     sub ? el("span", { className: "pn-sub" + (alerta ? " alerta" : ""), textContent: sub }) : null,
     s.pontos || s.variacao ? el("span", { className: "pn-rodape" }, variacao(s.variacao), s.pontos ? sparkline(s.pontos, rotulo) : null) : null,
   ];
-  if (abrir) return el("button", { type: "button", className: "pn-cartao", title: "Abrir os detalhes", onclick: abrir }, ...corpo);
+  const antes = dica ? `${dica}\n\n` : "";
+  if (abrir) return el("button", { type: "button", className: "pn-cartao", title: `${antes}Clique para abrir os detalhes`, onclick: abrir }, ...corpo);
   return pergunta
-    ? el("button", { type: "button", className: "pn-cartao", title: `Ver a lista com a Bella: “${pergunta}”`,
+    ? el("button", { type: "button", className: "pn-cartao", title: `${antes}Clique para ver a lista com a Bella: “${pergunta}”`,
       onclick: () => perguntarDoPainel(pergunta) }, ...corpo)
-    : el("div", { className: "pn-cartao" }, ...corpo);
+    : el("div", { className: "pn-cartao", title: dica || "" }, ...corpo);
 }
 
 function secao(titulo, sub, ...filhos) {
@@ -1816,13 +1818,17 @@ function desenharPainel() {
 
   nos.push(el("div", { className: "pn-cartoes" },
     cartaoIndicador({ rotulo: "Em aberto", valor: a.abertas, chave: "em_aberto", abrir: abrirEmAberto,
+      dica: "Solicitações que ainda não terminaram no Webformat (nem encerradas, nem reprovadas, nem canceladas). A seta compara com a manhã anterior.",
       sub: `${mil(a.novas)} ${a.novas === 1 ? "nova" : "novas"} desde ${a.desde}` + (a.novas ? ` (${mil(a.novas_urgentes)} ${a.novas_urgentes === 1 ? "urgente" : "urgentes"})` : "") }),
     cartaoIndicador({ rotulo: "Com a CH", valor: a.com_a_ch, chave: "com_a_ch", pergunta: "quais estão com a CH há mais de 48 horas úteis?",
+      dica: "Com a CH (a consultoria de cadastro) agora. O prazo dela é de 24 a 48 h úteis; o número de baixo são as que já passaram de 48 h, somando todas as passagens.",
       sub: `${mil(a.ch_48h)} acima de 48 h úteis (somando as passagens)`, alerta: a.ch_48h > 0 }),
     cartaoIndicador({ rotulo: "Pendência técnica", valor: a.pendencia_tecnica, chave: "pendencia_tecnica",
+      dica: "A CH devolveu ao solicitante pedindo informação; a solicitação só anda quando ele responde no Webformat.",
       pergunta: "quais estão em pendência técnica?",
       sub: a.pendencia_mais_antiga ? `a mais antiga: ${a.pendencia_mais_antiga.numero} (${mil(a.pendencia_mais_antiga.dias)} dias)` : "" }),
     cartaoIndicador({ rotulo: `Terminadas desde ${a.desde}`, valor: a.terminadas, pergunta: `quais terminaram desde ${a.desde}?`,
+      dica: "As que saíram da fila desde o último dia útil: cadastradas (encerradas), reprovadas ou canceladas.",
       sub: "encerradas, reprovadas ou canceladas" })));
 
   if (d.minhas && d.minhas.solicitante) {
@@ -1836,10 +1842,15 @@ function desenharPainel() {
 
   const grade = el("div", { className: "pn-grade" });
   if ((d.com_quem || []).length) {
-    grade.append(secao(`Com quem estão as ${mil(a.abertas)} abertas`, "agora", barrasComQuem(d.com_quem, a.abertas)));
+    grade.append(secao(`Com quem estão as ${mil(a.abertas)} abertas`, "agora",
+      el("p", { className: "ea-explica", textContent: "Em que etapa cada aberta está parada agora. Cada uma conta uma vez só: " +
+        "a soma das barras dá o total em aberto. Clique numa barra para ver a lista." }),
+      barrasComQuem(d.com_quem, a.abertas)));
   }
   const taxa = s.terminadas ? Math.round((100 * s.reprovadas) / s.terminadas) : null;
   grade.append(secao("Esta semana", `desde segunda, ${s.desde}`,
+    el("p", { className: "ea-explica", textContent: "O que entrou e o que saiu da fila desde segunda. Reprovação é a parte " +
+      "das terminadas que foi reprovada; tempo médio é da abertura até terminar, em dias corridos." }),
     el("div", { className: "pn-nums" },
       numeroDaSemana("Novas", mil(s.novas), s.novas ? `${mil(s.novas_urgentes)} ${s.novas_urgentes === 1 ? "urgente" : "urgentes"}` : ""),
       numeroDaSemana("Terminadas", mil(s.terminadas), ""),
@@ -1866,9 +1877,8 @@ function desenharPainel() {
 }
 
 // ------------------------------------------------------------ tela "Em aberto" (o clique no cartão "Em aberto")
-// As abertas vistas de vários jeitos (?painel=1&detalhe=aberto, sem IA). Cada caixa tem perguntas prontas e um
-// campo próprio: a pergunta vai para a Bella já com o assunto da caixa e a resposta aparece na própria caixa
-// (uma conversa por caixa, separada da conversa principal). O clique numa barra pergunta a lista na caixa.
+// As abertas vistas de vários jeitos (?painel=1&detalhe=aberto, sem IA). Cada caixa explica o que mostra; o
+// clique numa barra leva a lista para a conversa principal, com o mesmo número da barra.
 
 const ea = { dados: null, em: 0, carregando: false, erro: "" };
 
@@ -1990,9 +2000,15 @@ function linhaDaFila(evolucao, agora, lidoEm) {
 
 // Caixa da tela "Em aberto": título, subtítulo e o gráfico. Sem pergunta dentro da caixa (pedido do Luiz em
 // 30/10/2026): o clique numa barra leva a lista para a conversa, com o mesmo número da barra.
-function caixaEa(titulo, sub, grafico, largura) {
+// Cada card diz, nesta ordem: o resumo (a leitura do número que importa, em uma frase), o que ele mostra e
+// como ler (português simples) e o gráfico. Pedido do Luiz: "bem explicativo e intuitivo".
+function caixaEa(titulo, sub, texto, grafico, largura) {
+  const { resumo, explica } = texto || {};
   return el("section", { className: "pn-secao ea-caixa" + (largura ? " largo" : "") },
     el("div", { className: "pn-secao-topo" }, el("h3", { textContent: titulo }), sub ? el("small", { textContent: sub }) : null),
+    resumo ? el("p", { className: "ea-resumo" }, el("span", { className: "ea-resumo-ic", ariaHidden: "true", textContent: "💡" }), resumo) : null,
+    explica ? el("details", { className: "ea-como", open: true }, el("summary", { textContent: "O que é e como ler" }),
+      el("p", { className: "ea-explica", textContent: explica })) : null,
     grafico(perguntarDoPainel));
 }
 
@@ -2053,17 +2069,21 @@ function desenharEmAberto() {
     return;
   }
   const pct = (n) => d.total ? `${Math.round((n / d.total) * 100)}% do total` : "";
-  const numero = (rotulo, valor, sub) => el("div", { className: "pn-cartao" },
+  const numero = (rotulo, valor, sub, dica) => el("div", { className: "pn-cartao", title: dica || "" },
     el("span", { className: "pn-rotulo", textContent: rotulo }), el("strong", { className: "pn-valor", textContent: valor }),
     sub ? el("span", { className: "pn-sub", textContent: sub }) : null);
   const barras = (itens) => (clicar) => barrasComQuem(itens || [], d.total, clicar);
   const nos = [topo];
   if (ea.erro) nos.push(el("p", { className: "pn-erro", role: "alert", textContent: `Não consegui atualizar agora (${ea.erro}): números de ${quando(new Date(ea.em).toISOString())}.` }));
   nos.push(el("div", { className: "pn-cartoes" },
-    numero("Em aberto", mil(d.total), `de ${mil(d.solicitantes_total)} solicitantes`),
-    numero("Esperando o solicitante", mil(d.pendencia_tecnica), pct(d.pendencia_tecnica)),
-    numero("Com a CH", mil(d.com_a_ch), pct(d.com_a_ch)),
-    numero("Urgentes", mil(d.urgentes), pct(d.urgentes)),
+    numero("Em aberto", mil(d.total), `de ${mil(d.solicitantes_total)} solicitantes · ainda não terminaram`,
+      "Solicitações que ainda não foram encerradas, reprovadas nem canceladas no Webformat."),
+    numero("Esperando o solicitante", mil(d.pendencia_tecnica), `${pct(d.pendencia_tecnica)} · a CH devolveu com pendência`,
+      "Pendência técnica: a CH devolveu ao solicitante pedindo informação; a solicitação só anda quando ele responde."),
+    numero("Com a CH", mil(d.com_a_ch), `${pct(d.com_a_ch)} · em análise na consultoria`,
+      "Com a CH (a consultoria de cadastro) agora, na análise técnica."),
+    numero("Urgentes", mil(d.urgentes), `${pct(d.urgentes)} · marcadas na abertura`,
+      "Marcadas como urgentes pelo solicitante quando abriu a solicitação."),
   ));
   if (d.parada_mediana_dias !== null && d.parada_mediana_dias !== undefined) {
     nos.push(el("p", { className: "pn-nota", textContent: `Metade das abertas teve o último trâmite há até ${mil(d.parada_mediana_dias)} ` +
@@ -2071,19 +2091,85 @@ function desenharEmAberto() {
   }
   nos.push(...fonteDoEmAberto(d.fonte));
   const pc = d.pedem_certo;
+  // a frase de resumo de cada card, tirada dos mesmos números das barras
+  const p100 = (n) => d.total ? Math.round((n / d.total) * 100) : 0;
+  const maior = (l) => (l || []).filter((x) => x.rotulo !== "Outros").reduce((m, x) => (!m || x.n > m.n ? x : m), null);
+  const r = {};
+  const cq = maior(d.com_quem);
+  if (cq) r.com_quem = /^solicitante/i.test(cq.rotulo)
+    ? `A maior parte está esperando o solicitante responder uma pendência técnica: ${mil(cq.n)} (${p100(cq.n)}% da fila).`
+    : `A maior parte está com ${cq.rotulo}: ${mil(cq.n)} (${p100(cq.n)}% da fila).`;
+  const id = d.idade || [];
+  if (id.length) {
+    const velhas = id[id.length - 1], novas = id[0];
+    r.idade = `${p100(velhas.n)}% estão paradas há ${velhas.rotulo} (${mil(velhas.n)}); ${p100(novas.n)}% andaram ${novas.rotulo.replace(/^até/, "nos últimos")}.`;
+  }
+  const fora = (d.horas_ch || []).filter((x) => x.alerta).reduce((t, x) => t + x.n, 0);
+  if (d.com_a_ch) r.horas_ch = fora
+    ? `${mil(fora)} das ${mil(d.com_a_ch)} com a CH (${Math.round((fora / d.com_a_ch) * 100)}%) já passaram do prazo de 48 h úteis.`
+    : `Todas as ${mil(d.com_a_ch)} com a CH estão dentro do prazo de 48 h úteis.`;
+  const tp = maior(d.tipos);
+  if (tp) r.tipos = `${tp.rotulo} é ${p100(tp.n)}% das abertas (${mil(tp.n)}).`;
+  const ev = ((pn.dados && pn.dados.evolucao) || []).filter((f) => typeof f.em_aberto === "number");
+  if (ev.length) {
+    const dif = d.total - ev[0].em_aberto;
+    r.evolucao = dif === 0 ? `A fila está do mesmo tamanho de ${ddmmDe(ev[0].dia)}: ${mil(d.total)}.`
+      : `De ${mil(ev[0].em_aberto)} em ${ddmmDe(ev[0].dia)} para ${mil(d.total)} agora: a fila ${dif > 0 ? "cresceu" : "diminuiu"} ${mil(Math.abs(dif))}.`;
+  }
+  if (d.total) r.urgencia = `${p100(d.urgentes)}% das abertas estão marcadas como urgentes (${mil(d.urgentes)} de ${mil(d.total)}).`;
+  const gm = maior(d.grupos);
+  if (gm) r.grupos = `O grupo ${gm.rotulo} sozinho tem ${p100(gm.n)}% das abertas (${mil(gm.n)}).`;
+  const top3 = (d.solicitantes || []).slice(0, 3).reduce((t, x) => t + x.n, 0);
+  if (top3) r.solicitantes = `As 3 pessoas com mais abertas somam ${mil(top3)}: ${p100(top3)}% da fila.`;
+  const lider = pc && pc.itens && pc.itens[0];
+  if (lider) r.pede_certo = `${lider.rotulo} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
   const grade = el("div", { className: "ea-grade" },
-    caixaEa("Com quem está", "onde cada uma espera agora", barras(d.com_quem)),
-    caixaEa("Há quanto tempo estão paradas", "desde o último trâmite; \"2 a 5\" = mais de 2 até 5 dias", (clicar) => colunas(d.idade, clicar)),
+    caixaEa("Com quem está", "onde cada uma espera agora",
+      { resumo: r.com_quem, explica:
+        "Em que etapa cada solicitação aberta está parada agora: com o solicitante (pendência técnica), com a CH, com o " +
+      "Master Data ou com uma área técnica. Cada uma conta uma vez só, então a soma das barras dá o total em aberto." },
+      barras(d.com_quem)),
+    caixaEa("Há quanto tempo estão paradas", "desde o último trâmite; \"2 a 5\" = mais de 2 até 5 dias",
+      { resumo: r.idade, explica:
+        "Dias corridos desde o último trâmite de cada aberta (não desde a abertura): mostra o que parou de andar. " +
+      "Quanto mais à direita, mais tempo sem nenhuma movimentação." },
+      (clicar) => colunas(d.idade, clicar)),
     caixaEa("Horas úteis na CH", `as ${mil(d.com_a_ch)} com a CH; soma das passagens, como no Relatório Gerencial · prazo: 24 a 48 h` +
-      (d.horas_ch_sem_dado ? ` · ${mil(d.horas_ch_sem_dado)} sem a hora ainda` : ""), (clicar) => colunas(d.horas_ch, clicar)),
-    caixaEa("Tipo de material", "", barras(d.tipos)),
+      (d.horas_ch_sem_dado ? ` · ${mil(d.horas_ch_sem_dado)} sem a hora ainda` : ""),
+      { resumo: r.horas_ch, explica:
+        "Só as que estão com a CH agora: quantas horas úteis a CH já usou em cada uma, somando todas as vezes que passou por " +
+      "ela (24 h por dia útil, de segunda a sexta). Em laranja, as que já passaram do prazo de 48 h úteis." },
+      (clicar) => colunas(d.horas_ch, clicar)),
+    caixaEa("Tipo de material", "",
+      { resumo: r.tipos, explica:
+        "O tipo pedido em cada aberta: ZMAT é material de estoque, NLAG é compra pontual (não fica em estoque), SERV e DIEN " +
+      "são serviços; ZQUI passa também por Gestão de Fornecedores e ZHID por Hidrometria." },
+      barras(d.tipos)),
     caixaEa("Evolução da fila", "a manhã de cada dia útil e o agora",
+      { resumo: r.evolucao, explica:
+        "Quantas estavam em aberto (linha cheia) e em pendência técnica (tracejada) na manhã de cada dia útil; o anel no fim " +
+      "é o número de agora. Linha subindo é a fila crescendo; descendo, a fila andando." },
       () => linhaDaFila(pn.dados && pn.dados.evolucao, { abertas: d.total, pendencia_tecnica: d.pendencia_tecnica }, d.fonte && d.fonte.lido_em), true),
-    caixaEa("Urgência", "", barras(d.urgencia)),
-    caixaEa("Grupos de mercadorias", "os 8 com mais abertas", barras(d.grupos)),
-    caixaEa("Solicitantes", `os 8 com mais abertas, de ${mil(d.solicitantes_total)}`, barras(d.solicitantes)),
+    caixaEa("Urgência", "",
+      { resumo: r.urgencia, explica:
+        "Quantas abertas o solicitante marcou como urgentes na abertura. Quando quase tudo é urgente, a marca deixa de " +
+      "mostrar o que é prioridade de verdade." },
+      barras(d.urgencia)),
+    caixaEa("Grupos de mercadorias", "os 8 com mais abertas",
+      { resumo: r.grupos, explica:
+        "O grupo de mercadorias é a família do material no SAP (tubos, válvulas, peças...). Aqui, os 8 grupos com mais " +
+      "solicitações abertas: onde está o volume de cadastro." },
+      barras(d.grupos)),
+    caixaEa("Solicitantes", `os 8 com mais abertas, de ${mil(d.solicitantes_total)}`,
+      { resumo: r.solicitantes, explica:
+        "As 8 pessoas com mais solicitações abertas agora, em qualquer etapa (com a CH, com o Master Data, em pendência...)." },
+      barras(d.solicitantes)),
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
-      `cadastradas sem nenhuma pendência técnica, das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais · ordem: acerto e volume juntos`,
+      `das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais`,
+      { resumo: r.pede_certo, explica:
+        `Das solicitações de cada pessoa que terminaram nos últimos ${mil(pc.dias)} dias, a porcentagem cadastrada sem ` +
+      "nenhuma pendência técnica: a CH nunca precisou devolver. Reprovada e cancelada contam como não certas. A ordem junta " +
+      "a porcentagem e a quantidade: quem pede muito e certo fica no topo (19 certas de 20 vem antes de 2 de 2)." },
       () => barrasAcerto(pc.itens), true) : null,
   );
   nos.push(grade);

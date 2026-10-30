@@ -785,6 +785,15 @@ button.pn-b-linha:hover { background: var(--bloco); }
 .ea-eixo-agora { fill: var(--tinta); font-weight: 600; }
 .ea-chave-agora { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--tinta-2); background: var(--papel); }
 .ea-legenda { margin-top: 0; }
+/* cada card: o resumo em uma frase e, ao abrir, o que e e como ler */
+.ea-resumo { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px;
+  background: var(--ciano-cl); color: var(--titulo); font-size: 14px; font-weight: 600; line-height: 1.4; }
+.ea-resumo-ic { flex: none; }
+.ea-como { margin: 0 0 12px; font-size: 13px; color: var(--tinta-2); }
+.ea-como summary { cursor: pointer; color: var(--ciano-2); font-weight: 600; width: fit-content; }
+.ea-como summary:focus-visible { outline: 2px solid var(--ciano); outline-offset: 2px; border-radius: 4px; }
+.ea-explica { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--tinta-2); }
+.pn-secao > .ea-explica { margin: -4px 0 12px; }
 /* quem mais pede certo: barra verde (taxa de acerto, nao quantidade) */
 .pn-barra.ea-acerto { background: var(--verde); }
 
