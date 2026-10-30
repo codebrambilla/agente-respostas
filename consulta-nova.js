@@ -1839,8 +1839,12 @@ function desenharPainel() {
   nos.push(grade);
 
   const velho = b.webformat_em && Date.now() - new Date(b.webformat_em).getTime() > 3 * 3600e3;
+  // conferencia diaria do leitor (Relatorio Gerencial x banco); diferenca vai para o Luiz no Teams
+  const conf = b.conferido;
   nos.push(el("ul", { className: "pn-bases" },
     b.webformat_em ? linhaDaBase(!velho, "Webformat", `atualizado ${quando(b.webformat_em)}`, velho ? "pode estar desatualizado" : "") : null,
+    conf ? linhaDaBase(!conf.diferencas, "Conferência", `com o Webformat ${quando(conf.em)}${conf.diferencas ? "" : " ✓"}`,
+      conf.diferencas ? `${conf.diferencas} ${conf.diferencas === 1 ? "diferença" : "diferenças"}, o time já foi avisado` : "") : null,
     b.sap_de ? linhaDaBase(!b.sap_antigo, "SAP", `${mil(b.sap_materiais)} materiais · carga de ${b.sap_de}`, b.sap_antigo || "") : null));
   const inicio = (d.evolucao || [])[0];
   nos.push(el("p", { className: "pn-nota fim", textContent: "Os mesmos números do Relatório Gerencial do Webformat e do bom dia da Bella no Teams." +
