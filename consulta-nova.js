@@ -2124,11 +2124,18 @@ function desenharEmAberto() {
   const lider = pc && pc.itens && pc.itens[0];
   if (lider) r.pede_certo = `${lider.rotulo} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
   const grade = el("div", { className: "ea-grade" },
+    // em pares de altura parecida (lado a lado na tela larga): barras curtas, colunas, as 8 maiores;
+    // os largos ocupam a linha toda
     caixaEa("Com quem está", "onde cada uma espera agora",
       { resumo: r.com_quem, explica:
         "Em que etapa cada solicitação aberta está parada agora: com o solicitante (pendência técnica), com a CH, com o " +
       "Master Data ou com uma área técnica. Cada uma conta uma vez só, então a soma das barras dá o total em aberto." },
       barras(d.com_quem)),
+    caixaEa("Tipo de material", "",
+      { resumo: r.tipos, explica:
+        "O tipo pedido em cada aberta: ZMAT é material de estoque, NLAG é compra pontual (não fica em estoque), SERV e DIEN " +
+      "são serviços; ZQUI passa também por Gestão de Fornecedores e ZHID por Hidrometria." },
+      barras(d.tipos)),
     caixaEa("Há quanto tempo estão paradas", "desde o último trâmite; \"2 a 5\" = mais de 2 até 5 dias",
       { resumo: r.idade, explica:
         "Dias corridos desde o último trâmite de cada aberta (não desde a abertura): mostra o que parou de andar. " +
@@ -2140,21 +2147,11 @@ function desenharEmAberto() {
         "Só as que estão com a CH agora: quantas horas úteis a CH já usou em cada uma, somando todas as vezes que passou por " +
       "ela (24 h por dia útil, de segunda a sexta). Em laranja, as que já passaram do prazo de 48 h úteis." },
       (clicar) => colunas(d.horas_ch, clicar)),
-    caixaEa("Tipo de material", "",
-      { resumo: r.tipos, explica:
-        "O tipo pedido em cada aberta: ZMAT é material de estoque, NLAG é compra pontual (não fica em estoque), SERV e DIEN " +
-      "são serviços; ZQUI passa também por Gestão de Fornecedores e ZHID por Hidrometria." },
-      barras(d.tipos)),
     caixaEa("Evolução da fila", "a manhã de cada dia útil e o agora",
       { resumo: r.evolucao, explica:
         "Quantas estavam em aberto (linha cheia) e em pendência técnica (tracejada) na manhã de cada dia útil; o anel no fim " +
       "é o número de agora. Linha subindo é a fila crescendo; descendo, a fila andando." },
       () => linhaDaFila(pn.dados && pn.dados.evolucao, { abertas: d.total, pendencia_tecnica: d.pendencia_tecnica }, d.fonte && d.fonte.lido_em), true),
-    caixaEa("Urgência", "",
-      { resumo: r.urgencia, explica:
-        "Quantas abertas o solicitante marcou como urgentes na abertura. Quando quase tudo é urgente, a marca deixa de " +
-      "mostrar o que é prioridade de verdade." },
-      barras(d.urgencia)),
     caixaEa("Grupos de mercadorias", "os 8 com mais abertas",
       { resumo: r.grupos, explica:
         "O grupo de mercadorias é a família do material no SAP (tubos, válvulas, peças...). Aqui, os 8 grupos com mais " +
@@ -2164,6 +2161,11 @@ function desenharEmAberto() {
       { resumo: r.solicitantes, explica:
         "As 8 pessoas com mais solicitações abertas agora, em qualquer etapa (com a CH, com o Master Data, em pendência...)." },
       barras(d.solicitantes)),
+    caixaEa("Urgência", "",
+      { resumo: r.urgencia, explica:
+        "Quantas abertas o solicitante marcou como urgentes na abertura. Quando quase tudo é urgente, a marca deixa de " +
+      "mostrar o que é prioridade de verdade." },
+      barras(d.urgencia), true),
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
       `das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais`,
       { resumo: r.pede_certo, explica:

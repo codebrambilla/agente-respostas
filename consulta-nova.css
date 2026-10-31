@@ -759,7 +759,8 @@ button.pn-b-linha:hover { background: var(--bloco); }
 
 /* Tela "Em aberto": caixas com gráfico, perguntas prontas e um campo de pergunta cada */
 .ea-voltar { color: var(--ciano-2); text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.ea-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+/* stretch: os dois cards da linha ficam da mesma altura (sem buraco ao lado do mais baixo) */
+.ea-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
 .ea-caixa.largo { grid-column: 1 / -1; }
 .ea-colunas { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; height: 190px; }
 .ea-col { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 4px; border: 0; background: none; padding: 4px 2px; border-radius: 10px;
