@@ -1704,6 +1704,9 @@ function trocarAbaDoPainel(qual) {
 // "devolvida hoje", "há 1 dia com você", "há 15 dias com você"
 const diasComVoce = (d) => (d === null || d === undefined ? "" : d === 0 ? "devolvida hoje" : `há ${mil(d)} ${d === 1 ? "dia" : "dias"} com você`);
 const DIAS_CANCELAMENTO = 14;   // regra de negocio (guia da Bella): 2 semanas sem tratamento geram pedido de cancelamento
+// a busca por numero do proprio Webformat: abre a ficha com o login de quem clica (so as dele; a de outro volta);
+// estas estao com o solicitante, fora da fila da Central, entao abrir nao prende
+const fichaNoWebformat = (numero) => `https://prd2.webformat.com.br/root/mat_solBuscaNum.asp?Num=${encodeURIComponent(numero)}`;
 
 function cartaoPendencia(p) {
   const velha = typeof p.dias === "number" && p.dias >= DIAS_CANCELAMENTO;
@@ -1718,7 +1721,10 @@ function cartaoPendencia(p) {
       el("summary", { textContent: p.tecnica ? "O que a CH pediu" : "O que pediram" }), el("p", { textContent: p.pedido })) : null,
     el("div", { className: "pn-pend-acoes" },
       el("button", { type: "button", className: "sugestao", textContent: "Me ajuda a responder",
-        onclick: () => perguntarDoPainel(p.tecnica ? `o que a CH quer na ${p.numero}?` : `o que o Master Data pediu na ${p.numero}?`) })));
+        onclick: () => perguntarDoPainel(p.tecnica ? `o que a CH quer na ${p.numero}?` : `o que o Master Data pediu na ${p.numero}?`) }),
+      /^\d+$/.test(String(p.numero)) ? el("a", { className: "sugestao", href: fichaNoWebformat(p.numero), target: "_blank", rel: "noopener",
+        textContent: "Responder no Webformat ↗", title: "Abre a ficha no Webformat, numa aba nova (entre com o seu login, se ele pedir)",
+        ariaLabel: `Responder a ${p.numero} no Webformat (abre numa aba nova)` }) : null));
 }
 
 async function vincularNome(nomeWf, aviso) {

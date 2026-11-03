@@ -731,6 +731,7 @@ button.pn-b-linha:hover { background: var(--bloco); }
 .pn-pedido p { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--bloco); color: var(--tinta); white-space: pre-line; overflow-wrap: anywhere; }
 .pn-pend-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
 .pn-pend-acoes .sugestao { font-size: 13px; padding: 5px 12px; }
+.pn-pend-acoes a.sugestao { display: inline-flex; align-items: center; text-decoration: none; }
 .pn-nome h3 { margin: 0 0 4px; font-size: 17px; color: var(--titulo); }
 .pn-nome .pn-nota { margin: 0 0 10px; }
 .pn-aviso-nome { margin: 0 0 8px; font-size: 14px; color: var(--tinta-2); min-height: 1em; }
