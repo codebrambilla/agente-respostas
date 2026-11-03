@@ -1,4 +1,4 @@
-/* Consulta da Bella - cores e fonte do modelo de apresentacao da Sabesp:
+/* Consulta da Bella - cores e fonte do modelo de apresentacao da empresa:
    azul-marinho #003854, ciano #12CDFF / #42BFEF, verde #199E38,
    amarelo #F8C103, laranja #F08419, pessego #F6AD80; fonte Tahoma. */
 :root {
@@ -507,7 +507,7 @@ body.logado .tema { background: rgba(255, 255, 255, .1); border: 1px solid rgba(
 body.logado .tema:hover { background: rgba(255, 255, 255, .2); }
 body.logado .tema[aria-pressed="true"] { color: #f8c103; }
 
-/* Entrada: um cartão com a conta Microsoft (Meetup) e, atrás de um link, a chave (Sabesp) */
+/* Entrada: um cartão com a conta Microsoft (Meetup) e, atrás de um link, a chave (time interno) */
 .cartao-entrada { max-width: 440px; padding: 20px; border-radius: 18px; background: rgba(255, 255, 255, .06);
   border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 18px 40px rgba(0, 0, 0, .18); }
 .entrada-rotulo { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9fd8ee; }
@@ -543,7 +543,7 @@ body.logado .tema[aria-pressed="true"] { color: #f8c103; }
 }
 
 /* Tela de entrada no modo claro: fundo claro, cartão branco e texto marinho.
-   No modo escuro continua o azul-marinho da Sabesp. */
+   No modo escuro continua o azul-marinho da marca. */
 :root {
   --e-fundo: linear-gradient(160deg, #f4fafd 0%, #e3f2f9 100%); --e-tinta: var(--marinho); --e-tinta-2: #3d5a6c;
   --e-destaque: #0a7fae; --e-cartao: #fff; --e-borda: #d3e3ec; --e-sombra: 0 18px 40px rgba(0, 56, 84, .12);

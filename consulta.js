@@ -4,7 +4,7 @@
 //  - todo texto que vem da funcao entra como texto (textContent), nunca como
 //    HTML: o markdown da Bella (negrito, listas, links) e montado aqui, peca a peca;
 //  - link so abre se for https;
-//  - a entrada (Meetup: conta Microsoft; Sabesp: chave de acesso criada no banco) fica so
+//  - a entrada (Meetup: conta Microsoft; time interno: chave de acesso criada no banco) fica so
 //    neste navegador (localStorage); a conversa, so nesta aba (sessionStorage);
 //  - a resposta aparece enquanto a Bella escreve (stream); numeros de solicitacao
 //    e codigos do SAP viram botao; listas podem ser baixadas em planilha (CSV).
@@ -490,7 +490,7 @@ function boasVindas() {
         el("p", { className: "dica" }, "💡 Sentiu falta de alguma coisa? Escreva ", el("strong", { textContent: "feedback" }),
           " e me conte."),
         !codigoDoTime || ehSessao(codigo) ? null : el("p", { className: "dica" }, "🔐 Você entrou com o código do time, que vai deixar de valer. " +
-          "Quem é da Meetup entra com a conta Microsoft; usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira.")),
+          "Quem é da Meetup entra com a conta Microsoft; quem tem chave de acesso recebe a chave pessoal do Luiz Henrique Brambilla Teixeira.")),
       historico.length ? null : el("div", { className: "ideias", id: "ideias" }, ...EXEMPLOS.map((q) =>
         el("button", { type: "button", className: "ideia", textContent: q, onclick: () => enviar(q) })))));
 }
@@ -810,8 +810,8 @@ const AVISOS_DE_CODIGO = {
   expirado: ["Chave expirada", "Ela ficou 60 dias sem uso. Peça uma nova ao Luiz Henrique Brambilla Teixeira, do time de Master Data.", "espera"],
   sessao: ["Sua entrada terminou", "É só entrar de novo com a conta Microsoft.", "espera"],
   "sessao-expirada": ["Sua entrada expirou", "Ela ficou 30 dias sem uso. É só entrar de novo com a conta Microsoft.", "espera"],
-  "so-microsoft": ["Use a conta Microsoft", "Quem é da Meetup entra pelo botão da Microsoft. A chave de acesso é só para usuários da Sabesp.", "espera"],
-  "time-desativado": ["O código do time não vale mais", "Quem é da Meetup entra com a conta Microsoft. Usuários da Sabesp: peça a sua chave pessoal ao Luiz Henrique Brambilla Teixeira.", "espera"],
+  "so-microsoft": ["Use a conta Microsoft", "Quem é da Meetup entra pelo botão da Microsoft. A chave de acesso é só para o time interno.", "espera"],
+  "time-desativado": ["O código do time não vale mais", "Quem é da Meetup entra com a conta Microsoft. Time interno: peça a sua chave pessoal ao Luiz Henrique Brambilla Teixeira.", "espera"],
   negada: ["Conta não liberada", "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.", "erro"],
   bloqueada: ["Acesso aguardando liberação", "Seu login foi registrado. Avise o Luiz Henrique Brambilla Teixeira para liberar o seu acesso e depois entre de novo.", "espera"],
   cancelada: ["Entrada cancelada", "Quando quiser, é só clicar em “Entrar com a conta Microsoft”.", "espera"],

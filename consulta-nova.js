@@ -5,7 +5,7 @@
 //  - todo texto que vem da funcao entra como texto (textContent), nunca como
 //    HTML: o markdown da Bella (negrito, listas, links) e montado aqui, peca a peca;
 //  - link so abre se for https;
-//  - a entrada (Meetup: conta Microsoft; Sabesp: chave de acesso criada no banco) fica so
+//  - a entrada (Meetup: conta Microsoft; time interno: chave de acesso criada no banco) fica so
 //    neste navegador (localStorage); a conversa, nesta aba (sessionStorage) e, com chave pessoal
 //    ou conta Microsoft, no historico (banco de dados, so da pessoa, 30 dias: ?historico=1);
 //  - a resposta aparece enquanto a Bella escreve (stream); numeros de solicitacao
@@ -37,7 +37,7 @@ let esperandoNome = false;
 const ehSessao = (c) => /^S[0-9a-f]{64}$/.test(c);
 // formas de entrar que a pagina mostra (o servidor diz; ?microsoft=1 mostra o botao para testar)
 let formas = { microsoft: /[?&]microsoft=1/.test(location.search), codigo: true };
-let aba = "sabesp";      // aba aberta na entrada: "sabesp" (chave) ou "meetup" (conta Microsoft)
+let aba = "chave";       // aba aberta na entrada: "chave" ou "meetup" (conta Microsoft)
 // o navegador (para "as minhas") e a conversa desta aba
 let navegador = ler(localStorage, "consulta-navegador");
 if (!navegador) { navegador = novoId(); guardar(localStorage, "consulta-navegador", navegador); }
@@ -623,7 +623,7 @@ const DICAS = [
   "clique num número de solicitação ou num código do SAP para abrir os detalhes.",
   "sentiu falta de alguma coisa? Escreva “feedback” e conte o que faltou.",
   "lista grande? Peça a planilha para abrir no Excel.",
-  "no painel, a tela Em aberto mostra com quem está cada uma; clique numa barra para ver a lista.",
+  "no painel, clique no cartão Em aberto para ver mais do Webformat: com quem está cada uma, há quanto tempo, horas na CH e a evolução da fila.",
   "“o que a CH pediu na 1234?” traz o motivo da pendência, lido na hora no Webformat.",
 ];
 
@@ -640,7 +640,7 @@ function boasVindas() {
       el("h2", { textContent: `${saudacao()}${nome && !esperandoNome ? `, ${nome}` : ""}! ${icone}` }),
       el("p", { textContent: "Bora achar esse material? Me conta o que precisa." }),
       !codigoDoTime || ehSessao(codigo) ? null : el("p", { className: "aviso-time", textContent: "🔐 Você entrou com o código do time, que vai deixar de valer. " +
-        "Quem é da Meetup entra com a conta Microsoft; usuários da Sabesp recebem a chave pessoal do Luiz Henrique Brambilla Teixeira." })));
+        "Quem é da Meetup entra com a conta Microsoft; quem tem chave de acesso recebe a chave pessoal do Luiz Henrique Brambilla Teixeira." })));
 }
 
 function desenharSugestoes() {
@@ -1612,12 +1612,14 @@ function variacao(v) {
 
 // abrir: o clique abre uma tela (o "Em aberto"); pergunta: o clique pergunta a lista a Bella
 // dica: o que o número é, em português simples (aparece ao passar o mouse, antes do que o clique faz)
-function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir, dica }) {
+// acao: uma linha visivel dizendo o que o clique abre (so no cartao que abre uma tela)
+function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir, dica, acao }) {
   const s = chave ? serieDe(chave, valor) : { pontos: null, variacao: null };
   const corpo = [
     el("span", { className: "pn-rotulo", textContent: rotulo }),
     el("strong", { className: "pn-valor", textContent: mil(valor) }),
     sub ? el("span", { className: "pn-sub" + (alerta ? " alerta" : ""), textContent: sub }) : null,
+    abrir && acao ? el("span", { className: "pn-acao", textContent: acao }) : null,
     s.pontos || s.variacao ? el("span", { className: "pn-rodape" }, variacao(s.variacao), s.pontos ? sparkline(s.pontos, rotulo) : null) : null,
   ];
   const antes = dica ? `${dica}\n\n` : "";
@@ -1822,6 +1824,7 @@ function desenharPainel() {
 
   nos.push(el("div", { className: "pn-cartoes" },
     cartaoIndicador({ rotulo: "Em aberto", valor: a.abertas, chave: "em_aberto", abrir: abrirEmAberto,
+      acao: "Clique para ver mais do Webformat →",
       dica: "Solicitações que ainda não terminaram no Webformat (nem encerradas, nem reprovadas, nem canceladas). A seta compara com a manhã anterior.",
       sub: `${mil(a.novas)} ${a.novas === 1 ? "nova" : "novas"} desde ${a.desde}` + (a.novas ? ` (${mil(a.novas_urgentes)} ${a.novas_urgentes === 1 ? "urgente" : "urgentes"})` : "") }),
     cartaoIndicador({ rotulo: "Com a CH", valor: a.com_a_ch, chave: "com_a_ch", pergunta: "quais estão com a CH há mais de 48 horas úteis?",
@@ -2039,19 +2042,29 @@ const nomeLegivel = (s) => String(s || "").toLowerCase().split(/\s+/).filter(Boo
 // de números com título, não em tons de cor (03/11/2026: quatro tons de laranja confundiam). As faixas do servidor
 // (FAIXAS_PEND do painel.ts) são até 7, 7 a 30, 30 a 90 e mais de 90 dias; aqui as duas primeiras viram "até 30".
 // A linha inteira é o botão: o clique traz a lista da pessoa, com o mesmo número do total.
+// Com a foto de uns dias atrás (pp.comparado, desde 04/11/2026), mais uma coluna: quanto cada pessoa mudou desde
+// aquele dia. Subiu em vermelho, baixou em verde, com o sinal escrito (a cor nunca sozinha).
 const COLUNAS_PEND = [[[0, 1], "Até 30 dias", "meio"], [[2], "30 a 90 dias", "meio"], [[3], "+90 dias", "velha"]];
 function barrasPendencia(pp, aoClicar) {
   const itens = pp.itens || [];
   const maior = Math.max(1, ...itens.map((d) => d.n));
   const somar = (f, idx) => idx.reduce((s, i) => s + (f[i] || 0), 0);
   const velhasTotal = somar(pp.por_faixa, [3]);
-  return el("div", { className: "ea-pend" },
+  const desde = pp.comparado ? ddmmDe(pp.comparado.dia) : "";
+  const variacao = (d) => {
+    const dif = d.n - d.antes;
+    const cls = dif > 0 ? "subiu" : dif < 0 ? "baixou" : "zero";
+    return el("span", { className: `num var ${cls}`, title: `Em ${desde}: ${mil(d.antes)}; agora: ${mil(d.n)}`,
+      textContent: dif > 0 ? `+${mil(dif)}` : dif < 0 ? `−${mil(-dif)}` : "=" });
+  };
+  return el("div", { className: "ea-pend" + (pp.comparado ? " com-variacao" : "") },
     el("ul", { className: "pn-legenda ea-pend-legenda" },
       el("li", {}, el("i", { className: "ok", ariaHidden: "true" }), "Até 90 dias ", el("b", { textContent: mil(pp.total - velhasTotal) })),
       el("li", {}, el("i", { className: "velha", ariaHidden: "true" }), "Mais de 90 dias sem resposta ", el("b", { textContent: mil(velhasTotal) }))),
     el("div", { className: "ea-pend-cab", ariaHidden: "true" },
       el("span", { textContent: "Solicitante" }), el("span", {}), el("span", { className: "num", textContent: "Total" }),
-      ...COLUNAS_PEND.map(([, rotulo, cls]) => el("span", { className: `num ${cls}`, textContent: rotulo }))),
+      ...COLUNAS_PEND.map(([, rotulo, cls]) => el("span", { className: `num ${cls}`, textContent: rotulo })),
+      pp.comparado ? el("span", { className: "num var-cab", textContent: `Desde ${desde}` }) : null),
     el("div", { className: "pn-barras" }, ...itens.map((d) => {
       const nome = nomeLegivel(d.rotulo);
       const colunas = COLUNAS_PEND.map(([idx]) => somar(d.faixas, idx));
@@ -2070,7 +2083,8 @@ function barrasPendencia(pp, aoClicar) {
         ? `a mais antiga há ${mil(d.mais_antiga_dias)} ${d.mais_antiga_dias === 1 ? "dia" : "dias"}` : "";
       return el("button", { type: "button", className: "pn-b-linha ea-pend-linha",
         title: `${nome}: ${mil(d.n)} em pendência técnica (${detalhe}). Clique para ver a lista com a Bella.`,
-        ariaLabel: `${nome}: ${mil(d.n)} pendências técnicas, ${detalhe}; ${antiga}. Ver a lista.`,
+        ariaLabel: `${nome}: ${mil(d.n)} pendências técnicas, ${detalhe}; ${antiga}` +
+          (pp.comparado ? `; em ${desde} eram ${mil(d.antes)}` : "") + ". Ver a lista.",
         onclick: () => aoClicar(d.pergunta) },
         el("span", { className: "ea-pend-quem" },
           el("span", { className: "pn-b-rotulo", textContent: nome }),
@@ -2079,8 +2093,11 @@ function barrasPendencia(pp, aoClicar) {
         el("span", { className: "pn-b-valor num", textContent: mil(d.n) }),
         // "meio" some no celular; o vermelho só no número que existe (o "–" fica apagado)
         ...COLUNAS_PEND.map(([, , cls], i) => el("span", { className: `num${cls === "meio" ? " meio" : ""}${!colunas[i] ? " zero" : cls === "velha" ? " velha" : ""}`,
-          textContent: colunas[i] ? mil(colunas[i]) : "–" })));
-    })));
+          textContent: colunas[i] ? mil(colunas[i]) : "–" })),
+        pp.comparado ? variacao(d) : null);
+    })),
+    pp.comparado ? null : el("p", { className: "pn-nota", textContent: "A comparação com dias anteriores aparece aqui " +
+      "quando houver uma foto da manhã com a lista por pessoa (a primeira é a de 04/11)." }));
 }
 
 // De onde vêm os números: a leitura do Webformat e a última conferência com o Relatório Gerencial.
@@ -2182,6 +2199,15 @@ function desenharEmAberto() {
     const velhas = pp.por_faixa[pp.por_faixa.length - 1];
     r.pendencias = `3 pessoas concentram ${Math.round((topo3 / pp.total) * 100)}% das pendências técnicas (${mil(topo3)} de ${mil(pp.total)}).` +
       (velhas ? ` ${mil(velhas)} esperam resposta há mais de 90 dias, em vermelho: são as primeiras a cobrar.` : "");
+    const c = pp.comparado;
+    if (c && typeof c.total === "number") {
+      const dif = pp.total - c.total;
+      r.pendencias += ` Desde ${ddmmDe(c.dia)}, o total ${dif === 0 ? `ficou em ${mil(pp.total)}`
+        : `${dif > 0 ? "subiu" : "baixou"} de ${mil(c.total)} para ${mil(pp.total)}`}.`;
+    }
+    if (c && c.reduziram && c.reduziram.length) {
+      r.pendencias += ` Quem mais reduziu: ${c.reduziram.map((x) => `${nomeLegivel(x.rotulo)} (${mil(x.antes)} → ${mil(x.agora)})`).join(", ")}.`;
+    }
   }
   const lider = pc && pc.itens && pc.itens[0];
   if (lider) r.pede_certo = `${nomeLegivel(lider.rotulo)} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
@@ -2233,7 +2259,8 @@ function desenharEmAberto() {
       { resumo: r.pendencias, explica:
         "Pendência técnica é quando a CH devolve a solicitação ao solicitante pedindo uma informação: ela só anda quando ele " +
       "responde. Cada linha é uma pessoa: a barra é o total dela, e o pedaço vermelho é o que espera resposta há mais de " +
-      "90 dias. As colunas dividem o total pelo tempo desde a devolução." },
+      "90 dias. As colunas dividem o total pelo tempo desde a devolução. A última coluna compara com a foto da manhã de " +
+      "uns dias atrás (uma semana, quando já houver): + subiu, − baixou, = igual." },
       (clicar) => barrasPendencia(pp, clicar), true) : null,
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
       `das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais`,
@@ -2297,22 +2324,22 @@ function cartaoParecido(p) {
 
 // ------------------------------------------------------------ telas e eventos
 
-// Entrada em abas: "Sou da Sabesp" (chave de acesso) e "Sou da Meetup" (conta Microsoft).
+// Entrada em abas: "Tenho chave de acesso" e "Sou da Meetup" (conta Microsoft).
 // Sem uma das formas (o servidor diz), fica so a outra, sem abas.
 function telas() {
   document.body.classList.toggle("logado", !!codigo);
-  if (!formas.microsoft) aba = "sabesp";
+  if (!formas.microsoft) aba = "chave";
   else if (!formas.codigo) aba = "meetup";
   $("abas").hidden = !(formas.microsoft && formas.codigo);
-  $("aba-sabesp").setAttribute("aria-selected", String(aba === "sabesp"));
+  $("aba-chave").setAttribute("aria-selected", String(aba === "chave"));
   $("aba-meetup").setAttribute("aria-selected", String(aba === "meetup"));
-  $("form-codigo").hidden = !!codigo || aba !== "sabesp";
+  $("form-codigo").hidden = !!codigo || aba !== "chave";
   $("entrada-ms").hidden = !!codigo || aba !== "meetup";
   if (codigo) $("erro-codigo").hidden = true;
   $("chat").hidden = !codigo;
   // o botao do tema fica no canto da entrada ou na barra da conversa
   (codigo ? $("tema-chat") : $("tema-entrada")).append($("tema"));
-  if (codigo) { redesenhar(); if (!cat.aberto) $("mensagem").focus(); } else if (aba === "sabesp") $("codigo").focus();
+  if (codigo) { redesenhar(); if (!cat.aberto) $("mensagem").focus(); } else if (aba === "chave") $("codigo").focus();
   // link de uma busca do catalogo: abre depois de entrar
   if (codigo && linkPendente) {
     const h = linkPendente;
@@ -2328,6 +2355,35 @@ function trocarAba(qual) {
   aba = qual;
   $("erro-codigo").hidden = true;
   telas();
+}
+
+// Balão da Bella na entrada: muda a cada visita (pedido do Luiz em 03/11/2026), entre a recepção e dicas de SAP
+// e Webformat. Só o que a base do time confirma (catalogo.ts, guia.ts). Nunca a mesma da visita anterior
+// (consulta-fala); no celular aparece só o título. Sem JavaScript fica a recepção do HTML.
+const FALAS = [
+  [null, "Consulto o SAP e o Webformat para o time de Master Data."],
+  [null, "Pergunte do seu jeito, como perguntaria a alguém do time."],
+  [null, "Mande o número de uma solicitação e eu digo em que etapa ela está e com quem."],
+  ["Dica de SAP", "Código com 10 dígitos é do SAP S/4 HANA; com menos dígitos, é do SAP antigo (ECC)."],
+  ["Dica de SAP", "Tem um código antigo do ECC? Mande para mim que eu acho o código novo no S/4."],
+  ["Dica de SAP", "ZMAT é material de estoque; NLAG é compra pontual, não fica em estoque."],
+  ["Dica de Webformat", "Antes de pedir, pesquise: item com P verde já existe e não precisa ser pedido de novo."],
+  ["Dica de Webformat", "Recebeu uma pendência técnica? A resposta vai no próprio Webformat, na solicitação."],
+  ["Dica de Webformat", "Faltar atributo do padrão (PDM) é o motivo mais comum de a CH devolver. Descreva o item completo."],
+  ["Dica de Webformat", "ZQUI passa também por Gestão de Fornecedores, e ZHID por Hidrometria."],
+];
+function falaDaEntrada() {
+  const h = new Date().getHours();
+  const oi = `${h < 5 || h >= 18 ? "Boa noite" : h < 12 ? "Bom dia" : "Boa tarde"}! Eu sou a Bella 👋`;
+  const guardada = ler(localStorage, "consulta-fala");
+  const antes = guardada === "" ? -1 : Number(guardada);
+  const opcoes = FALAS.map((_, i) => i).filter((i) => i !== antes);
+  const i = opcoes[Math.floor(Math.random() * opcoes.length)];
+  guardar(localStorage, "consulta-fala", String(i));
+  const [titulo, texto] = FALAS[i];
+  const grande = document.querySelector(".palco .fala"), cel = document.querySelector(".cel-topo .fala");
+  if (grande) grande.replaceChildren(el("strong", { textContent: titulo || oi }), texto);
+  if (cel) cel.textContent = titulo ? `${titulo}: ${texto}` : oi;
 }
 
 // A chave como a pessoa colou ("bella k7qf 2mxp 9dwr", sem o "BELLA-", minuscula) no formato certo.
@@ -2354,8 +2410,8 @@ const AVISOS_DE_CODIGO = {
   expirado: ["Chave expirada", "Ela ficou 60 dias sem uso. Peça uma nova ao Luiz Henrique Brambilla Teixeira, do time de Master Data.", "espera"],
   sessao: ["Sua entrada terminou", "É só entrar de novo com a conta Microsoft.", "espera"],
   "sessao-expirada": ["Sua entrada expirou", "Ela ficou 30 dias sem uso. É só entrar de novo com a conta Microsoft.", "espera"],
-  "so-microsoft": ["Use a conta Microsoft", "Quem é da Meetup entra pelo botão da Microsoft. A chave de acesso é só para usuários da Sabesp.", "espera"],
-  "time-desativado": ["O código do time não vale mais", "Quem é da Meetup entra com a conta Microsoft. Usuários da Sabesp: peça a sua chave pessoal ao Luiz Henrique Brambilla Teixeira.", "espera"],
+  "so-microsoft": ["Use a conta Microsoft", "Quem é da Meetup entra pelo botão da Microsoft. A chave de acesso é só para o time interno.", "espera"],
+  "time-desativado": ["O código do time não vale mais", "Quem é da Meetup entra com a conta Microsoft. Time interno: peça a sua chave pessoal ao Luiz Henrique Brambilla Teixeira.", "espera"],
   negada: ["Conta não liberada", "Sua conta Microsoft não está liberada na Bella. Fale com o Luiz Henrique Brambilla Teixeira.", "erro"],
   bloqueada: ["Acesso aguardando liberação", "Seu login foi registrado. Avise o Luiz Henrique Brambilla Teixeira para liberar o seu acesso e depois entre de novo.", "espera"],
   cancelada: ["Entrada cancelada", "Quando quiser, é só clicar em “Entrar com a conta Microsoft”.", "espera"],
@@ -2378,10 +2434,10 @@ const tipoDoBarrado = (erro) => ({
 
 function avisarCodigo(tipo) {
   // erro da chave: aba da chave aberta e o campo em vermelho; o resto e da conta Microsoft
-  aba = tipo === "invalido" || tipo === "expirado" || tipo === "time-desativado" ? "sabesp" : "meetup";
+  aba = tipo === "invalido" || tipo === "expirado" || tipo === "time-desativado" ? "chave" : "meetup";
   telas();
   mostrarAviso(...AVISOS_DE_CODIGO[tipo]);
-  if (aba === "sabesp") {
+  if (aba === "chave") {
     conferirChave();
     $("campo-chave").classList.replace("ok", "erro") || $("campo-chave").classList.add("erro");
     $("dica-chave").classList.remove("ok");
@@ -2546,8 +2602,9 @@ $("wa-fechar").addEventListener("click", () => $("painel-whatsapp").close());
 $("painel-whatsapp").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
 $("sair").addEventListener("click", sairDeVez);
 $("entrar-ms").addEventListener("click", entrarComMicrosoft);
-$("aba-sabesp").addEventListener("click", () => trocarAba("sabesp"));
+$("aba-chave").addEventListener("click", () => trocarAba("chave"));
 $("aba-meetup").addEventListener("click", () => trocarAba("meetup"));
+falaDaEntrada();
 $("codigo").addEventListener("input", conferirChave);
 $("mostrar").addEventListener("click", () => {
   const ver = $("codigo").type === "password";
@@ -2661,7 +2718,7 @@ function passosDoPasseio() {
       texto: "O painel da fila (com a tela Em aberto), procurar material no SAP, as suas solicitações e as conversas guardadas." });
   } else {
     passos.push({ alvo: "atalho-painel", titulo: "Painel da fila",
-      texto: "Os números do Webformat agora. Em “Em aberto”: com quem está, há quanto tempo, horas na CH, tipos e a evolução " +
+      texto: "Os números do Webformat agora. Clique no cartão “Em aberto” para ver mais: com quem está, há quanto tempo, horas na CH, tipos e a evolução " +
         "dia a dia e quem mais pede certo. Clique numa barra e a lista vem na conversa, com o mesmo número." });
     passos.push({ alvo: "atalho-material", titulo: "Procurar material",
       texto: "O catálogo do SAP com filtros de tipo, grupo de mercadorias e bloqueio, e os parecidos com a porcentagem de " +

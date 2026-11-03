@@ -1,8 +1,8 @@
-/* Consulta da Bella, tela nova: conversa no meio (estilo ChatGPT/Claude) com as cores da Sabesp,
+/* Consulta da Bella, tela nova: conversa no meio (estilo ChatGPT/Claude) com as cores da marca,
    sem o logo: azul-marinho #003854, ciano #12CDFF, verde #199E38, amarelo #F8C103, laranja #F08419. */
 :root {
   --marinho: #003854; --marinho-2: #00618f; --ciano: #12cdff; --ciano-2: #0a8fc2;
-  --verde: #16903a; --amarelo: #b98a00; --laranja: #e8740c; --erro: #c0392b;
+  --verde: #16903a; --verde-tx: #0f7a31; --acao-tx: #00618f; --amarelo: #b98a00; --laranja: #e8740c; --erro: #c0392b;
   --fundo: #ffffff; --papel: #ffffff; --tinta: #14232e; --tinta-2: #55697a; --tinta-3: #8a9aa6; --linha: #e1e9ef;
   --ceu: linear-gradient(180deg, #e9f8ff 0%, #f6fcff 38%, #ffffff 70%);
   --campo-borda: #cfe3ee; --sombra: 0 2px 6px rgba(0, 56, 84, .06), 0 12px 32px rgba(0, 56, 84, .09);
@@ -17,7 +17,7 @@
   --fundo: #0b1d29; --papel: #10283a; --tinta: #e7eef3; --tinta-2: #9fb3c1; --tinta-3: #6f8797; --linha: #1f4258;
   --ceu: linear-gradient(180deg, #0e2a3c 0%, #0b1d29 55%);
   --campo-borda: #24506a; --sombra: none; --sombra-leve: none;
-  --bloco: #0f2637; --titulo: #fff; --ciano-2: #5fd6ff; --verde: #5fd384; --amarelo: #ffd75e; --erro: #ff8a80; --laranja: #ffa25a;
+  --bloco: #0f2637; --titulo: #fff; --ciano-2: #5fd6ff; --verde: #5fd384; --verde-tx: #5fd384; --acao-tx: #5fd6ff; --amarelo: #ffd75e; --erro: #ff8a80; --laranja: #ffa25a;
   --verde-cl: #123a26; --amarelo-cl: #3a3110; --erro-cl: #3d1d1d; --laranja-cl: #3b2612; --ciano-cl: #0f3a52;
   --pilula: #103a52; --pilula-borda: #1f5878; --pilula-tinta: #9fe6ff; --abas: #10314a;
   --whats: #4fd08a; --whats-claro: #123a27; --whats-borda: #2d7a51;
@@ -28,7 +28,7 @@
     --fundo: #0b1d29; --papel: #10283a; --tinta: #e7eef3; --tinta-2: #9fb3c1; --tinta-3: #6f8797; --linha: #1f4258;
     --ceu: linear-gradient(180deg, #0e2a3c 0%, #0b1d29 55%);
     --campo-borda: #24506a; --sombra: none; --sombra-leve: none;
-    --bloco: #0f2637; --titulo: #fff; --ciano-2: #5fd6ff; --verde: #5fd384; --amarelo: #ffd75e; --erro: #ff8a80; --laranja: #ffa25a;
+    --bloco: #0f2637; --titulo: #fff; --ciano-2: #5fd6ff; --verde: #5fd384; --verde-tx: #5fd384; --acao-tx: #5fd6ff; --amarelo: #ffd75e; --erro: #ff8a80; --laranja: #ffa25a;
     --verde-cl: #123a26; --amarelo-cl: #3a3110; --erro-cl: #3d1d1d; --laranja-cl: #3b2612; --ciano-cl: #0f3a52;
     --pilula: #103a52; --pilula-borda: #1f5878; --pilula-tinta: #9fe6ff; --abas: #10314a;
     --whats: #4fd08a; --whats-claro: #123a27; --whats-borda: #2d7a51;
@@ -81,8 +81,8 @@ body.logado .entrada { display: none; }
 .cel-topo { display: none; }
 .login h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; color: var(--titulo); }
 .login .sub { margin: -8px 0 0; color: var(--tinta-2); }
-.abas { display: grid; grid-template-columns: 1fr 1fr; background: var(--abas); border-radius: 999px; padding: 4px; }
-.abas button { border: 0; background: none; padding: 8px; border-radius: 999px; font-size: 14.5px; font-weight: 600; color: var(--tinta-2); cursor: pointer; }
+.abas { display: grid; grid-template-columns: 1.25fr 1fr; background: var(--abas); border-radius: 999px; padding: 4px; }
+.abas button { border: 0; background: none; padding: 8px; border-radius: 999px; font-size: 14.5px; font-weight: 600; color: var(--tinta-2); cursor: pointer; white-space: nowrap; }
 .abas button[aria-selected="true"] { background: var(--marinho); color: #fff; box-shadow: 0 4px 10px rgba(0, 56, 84, .25); }
 :root[data-tema="escuro"] .abas button[aria-selected="true"] { background: var(--ciano); color: #00253a; }
 @media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .abas button[aria-selected="true"] { background: var(--ciano); color: #00253a; } }
@@ -641,6 +641,8 @@ button.pn-cartao:hover { border-color: var(--ciano-2); background: var(--bloco);
 .pn-sub { font-size: 13px; color: var(--tinta-2); }
 .pn-sub.alerta { color: var(--tinta); font-weight: 600; }
 .pn-sub.alerta::before { content: "⚠ "; color: var(--laranja); }
+.pn-acao { font-size: 13px; font-weight: 600; color: var(--acao-tx); margin-top: 4px; }
+button.pn-cartao:hover .pn-acao { text-decoration: underline; }
 .pn-rodape { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 8px; margin-top: auto; padding-top: 8px; min-height: 36px; }
 .pn-var { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 .pn-var.pior { color: var(--erro); } .pn-var.melhor { color: var(--verde); } .pn-var.igual { color: var(--tinta-3); }
@@ -829,9 +831,16 @@ button.pn-b-linha:hover { background: var(--bloco); }
 .ea-pend-linha .num.velha { color: var(--erro); font-weight: 700; }
 .ea-pend-linha .pn-b-valor { font-size: 15px; }
 .ea-pend-linha:focus-visible { outline: 2px solid var(--ciano); outline-offset: 1px; }
+/* com a foto de dias atras: mais uma coluna, quanto mudou desde aquele dia */
+.com-variacao .ea-pend-cab, .com-variacao .ea-pend-linha { grid-template-columns: minmax(0, 190px) minmax(0, 1fr) 44px 70px 70px 70px 72px; }
+.ea-pend-linha .num.var { font-weight: 700; }
+.ea-pend-linha .num.subiu { color: var(--erro); }
+.ea-pend-linha .num.baixou { color: var(--verde-tx); }
 @media (max-width: 760px) {
-  /* no celular: quem | barra | total | mais de 90 (as outras duas colunas ficam na dica) */
+  /* no celular: quem | barra | total | mais de 90 [| desde] (as outras duas colunas ficam na dica) */
   .ea-pend-cab, .ea-pend-linha { grid-template-columns: minmax(0, 132px) minmax(0, 1fr) 36px 52px; gap: 8px; }
+  .com-variacao .ea-pend-cab, .com-variacao .ea-pend-linha { grid-template-columns: minmax(0, 112px) minmax(0, 1fr) 32px 48px 52px; }
+  .ea-pend-cab .var-cab { white-space: normal; }
   .ea-pend-cab .meio, .ea-pend-linha .meio { display: none; }
 }
 

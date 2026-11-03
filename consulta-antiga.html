@@ -11,7 +11,7 @@
   consultas: solicitacoes do Webformat, catalogo do SAP, base de conhecimento).
 
   Pagina estatica e sem segredo: os dados vem da funcao `consultar`, que so
-  responde a quem entrou: Meetup pela conta Microsoft, Sabesp por uma chave de
+  responde a quem entrou: Meetup pela conta Microsoft, o time interno por uma chave de
   acesso pessoal (criada so no banco de dados; guardada so neste navegador).
   A politica abaixo so deixa a pagina rodar o proprio script e falar com a
   funcao de consulta: nenhum script, estilo ou envio para outro endereco.
@@ -22,7 +22,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Consulta da Bella</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta.css?v=20261023a">
+<link rel="stylesheet" href="consulta.css?v=20261103d">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -42,7 +42,7 @@
   <div class="topo-conteudo">
     <img class="bella" src="img/bella.png" alt="Bella, a agente de IA do Master Data" width="180" height="195">
     <div class="topo-texto">
-      <p class="sobretitulo">Master Data · Sabesp</p>
+      <p class="sobretitulo">Master Data</p>
       <h1>Consulta da Bella</h1>
       <p class="sub">Pergunte do seu jeito sobre solicitações do Webformat, materiais do SAP e cadastro.</p>
 
@@ -58,9 +58,9 @@
             <span>Entrar com a conta Microsoft</span>
           </button>
           <div class="separador" id="separador" hidden><span>ou</span></div>
-          <button type="button" class="link-codigo" id="usar-codigo" hidden>Usuários da Sabesp: <strong>entrar com a chave de acesso</strong></button>
+          <button type="button" class="link-codigo" id="usar-codigo" hidden>Tem chave de acesso? <strong>Entrar com a chave</strong></button>
         </div>
-        <p class="entrada-rotulo" id="rotulo-chave" hidden>Usuários da Sabesp</p>
+        <p class="entrada-rotulo" id="rotulo-chave" hidden>Chave de acesso</p>
         <form id="form-codigo" class="busca" autocomplete="off" hidden>
           <label class="oculto" for="codigo">Sua chave de acesso</label>
           <input id="codigo" type="password" placeholder="Sua chave (BELLA-…)" maxlength="200" required>
@@ -108,9 +108,9 @@
 </dialog>
 
 <footer>
-  <span>Master Data · Sabesp · uso interno</span>
+  <span>Master Data · uso interno</span>
   <span><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a></span>
 </footer>
-<script src="consulta.js?v=20261023a"></script>
+<script src="consulta.js?v=20261103d"></script>
 </body>
 </html>
