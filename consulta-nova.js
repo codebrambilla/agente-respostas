@@ -1118,7 +1118,7 @@ function waEscolhaDeNome(sugestoes) {
   } else {
     caixa.append(el("p", { className: "wa-dica", textContent: "Procure o seu nome como ele aparece no Webformat:" }));
   }
-  const busca = el("input", { type: "text", maxLength: 120, placeholder: "Outro nome: digite e procure", id: "wa-busca" });
+  const busca = el("input", { type: "text", maxLength: 120, placeholder: "Outro nome ou login: digite e procure", id: "wa-busca" });
   const botao = el("button", { type: "button", className: "wa-secundario", textContent: "Procurar" });
   botao.addEventListener("click", async () => {
     const nomeBusca = busca.value.trim();
@@ -1129,7 +1129,8 @@ function waEscolhaDeNome(sugestoes) {
       wa = { ...wa, solicitante: null, sugestoes: d.sugestoes || [] };
       waTrocando = true;
       waDesenhar();
-      if (!(d.sugestoes || []).length) waErro("Nenhum solicitante com esse nome. Tente só o primeiro e o último nome.");
+      if (d.login && (!d.login.achado || !(d.sugestoes || []).length)) waErro(avisoDoLogin(d.login, 0));
+      else if (!(d.sugestoes || []).length) waErro("Nenhum solicitante com esse nome. Tente só o primeiro e o último nome.");
     } catch (e) {
       waErro(e instanceof ErroConsulta ? e.message : "Não deu para procurar agora.");
     } finally { botao.disabled = false; }
@@ -1732,7 +1733,15 @@ async function vincularNome(nomeWf, aviso) {
   }
 }
 
-// "Como o seu nome aparece no Webformat?": sugestoes pelo nome do login e busca pelo nome digitado
+// busca pelo login do Webformat: o nome vem do cadastro de usuarios (uma copia, que pode estar atrasada)
+function avisoDoLogin(l, achados) {
+  if (!l.achado) return `Não achei o login ${l.login} na lista de usuários do Webformat` +
+    `${l.lista_de ? ` (copiada em ${l.lista_de})` : ""}. Procure pelo seu nome.`;
+  return achados ? `O login ${l.login} é de ${l.nome}. É algum destes?`
+    : `O login ${l.login} é de ${l.nome}, mas nenhuma solicitação tem esse nome. Procure pelo nome como aparece nas suas solicitações.`;
+}
+
+// "Como o seu nome aparece no Webformat?": sugestoes pelo nome do login e busca pelo nome ou login digitado
 function formNome(sugestoes) {
   const aviso = el("p", { className: "pn-aviso-nome", role: "status" });
   const lista = el("div", { className: "pn-sugs-nome" });
@@ -1740,7 +1749,7 @@ function formNome(sugestoes) {
     onclick: () => vincularNome(s.nome, aviso) }, s.nome,
   el("small", { textContent: ` · ${mil(s.solicitacoes)} ${s.solicitacoes === 1 ? "solicitação" : "solicitações"}` }))));
   const campo = el("input", { type: "search", maxLength: 120, autocomplete: "off", spellcheck: false,
-    placeholder: "Seu nome ou sobrenome, como no Webformat", ariaLabel: "Seu nome no Webformat" });
+    placeholder: "Seu nome, sobrenome ou login do Webformat", ariaLabel: "Seu nome ou login no Webformat" });
   const form = el("form", { className: "pn-busca-nome" }, campo, el("button", { type: "submit", className: "sugestao", textContent: "Procurar" }));
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -1749,7 +1758,8 @@ function formNome(sugestoes) {
       const r = await chamar({ painel: 1 }, { acao: "procurar", nome: campo.value });
       const ss = Array.isArray(r.sugestoes) ? r.sugestoes : [];
       mostrar(ss);
-      aviso.textContent = !ss.length ? "Não achei esse nome entre os solicitantes. Tente só o sobrenome."
+      aviso.textContent = r.login ? avisoDoLogin(r.login, ss.length)
+        : !ss.length ? "Não achei esse nome entre os solicitantes. Tente só o sobrenome."
         : r.aproximado ? "Não achei igual; estes são parecidos. É algum deles?" : "É algum destes?";
     } catch (e) {
       aviso.textContent = e instanceof ErroConsulta ? `${e.message[0].toUpperCase()}${e.message.slice(1)}.` : "Não consegui procurar agora.";
