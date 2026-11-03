@@ -2026,6 +2026,33 @@ function barrasAcerto(itens = []) {
   }));
 }
 
+// Quem tem mais pendência técnica: uma barra por pessoa, do tamanho do total dela, dividida pelo tempo desde a
+// devolução da CH (mais escuro = mais velha). O clique traz a lista da pessoa, com o mesmo número.
+function barrasPendencia(pp, aoClicar) {
+  const itens = pp.itens || [];
+  const maior = Math.max(1, ...itens.map((d) => d.n));
+  return el("div", {},
+    el("ul", { className: "pn-legenda ea-legenda" }, ...pp.faixas.map((rotulo, i) =>
+      el("li", {}, el("i", { className: `ea-pf${i}`, ariaHidden: "true" }), `${rotulo} `, el("b", { textContent: mil(pp.por_faixa[i]) })))),
+    el("div", { className: "pn-barras ea-pend" }, ...itens.map((d) => {
+      const pilha = el("span", { className: "ea-pend-pilha", role: "img",
+        ariaLabel: pp.faixas.map((r, i) => `${r}: ${mil(d.faixas[i])}`).join(", ") });
+      pilha.style.width = `${Math.max((d.n / maior) * 100, 0.6)}%`;
+      d.faixas.forEach((n, i) => {
+        if (!n) return;
+        const seg = el("span", { className: `ea-pf${i}` });
+        seg.style.flexGrow = String(n);
+        pilha.append(seg);
+      });
+      const detalhe = pp.faixas.map((r, i) => d.faixas[i] ? `${r}: ${mil(d.faixas[i])}` : null).filter(Boolean).join(" · ");
+      return el("button", { type: "button", className: "pn-b-linha", title: `${d.rotulo}: ${mil(d.n)} em pendência técnica (${detalhe}) · ver a lista com a Bella`,
+        onclick: () => aoClicar(d.pergunta) },
+        el("span", { className: "pn-b-rotulo", textContent: d.rotulo }),
+        el("span", { className: "pn-b-trilho" }, pilha),
+        el("span", { className: "pn-b-valor" }, mil(d.n)));
+    })));
+}
+
 // De onde vêm os números: a leitura do Webformat e a última conferência com o Relatório Gerencial.
 // Diferença aparece com o número de cada solicitação (para conferir no Webformat), nunca escondida.
 function fonteDoEmAberto(f) {
@@ -2121,6 +2148,13 @@ function desenharEmAberto() {
   if (gm) r.grupos = `O grupo ${gm.rotulo} sozinho tem ${p100(gm.n)}% das abertas (${mil(gm.n)}).`;
   const top3 = (d.solicitantes || []).slice(0, 3).reduce((t, x) => t + x.n, 0);
   if (top3) r.solicitantes = `As 3 pessoas com mais abertas somam ${mil(top3)}: ${p100(top3)}% da fila.`;
+  const pp = d.pendencias_por_solicitante;
+  if (pp && pp.itens && pp.itens.length && pp.total) {
+    const topo3 = pp.itens.slice(0, 3).reduce((t, x) => t + x.n, 0);
+    const velhas = pp.por_faixa[pp.por_faixa.length - 1];
+    r.pendencias = `As 3 pessoas com mais pendência técnica somam ${mil(topo3)} das ${mil(pp.total)} (${Math.round((topo3 / pp.total) * 100)}%)` +
+      (velhas ? `; ${mil(velhas)} estão paradas há ${pp.faixas[pp.faixas.length - 1]}.` : ".");
+  }
   const lider = pc && pc.itens && pc.itens[0];
   if (lider) r.pede_certo = `${lider.rotulo} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
   const grade = el("div", { className: "ea-grade" },
@@ -2166,6 +2200,13 @@ function desenharEmAberto() {
         "Quantas abertas o solicitante marcou como urgentes na abertura. Quando quase tudo é urgente, a marca deixa de " +
       "mostrar o que é prioridade de verdade." },
       barras(d.urgencia), true),
+    pp && pp.itens && pp.itens.length ? caixaEa("Quem tem mais pendência técnica",
+      `os ${mil(pp.itens.length)} com mais, de ${mil(pp.pessoas)} pessoas · ${mil(pp.total)} pendências`,
+      { resumo: r.pendencias, explica:
+        "Solicitações que a CH devolveu ao solicitante pedindo informação e que ainda esperam a resposta dele, por pessoa. " +
+      "A barra é dividida pelo tempo desde a devolução: quanto mais escuro, mais tempo parada. Clique numa pessoa para ver " +
+      "a lista dela com a Bella e saber o que cobrar primeiro." },
+      (clicar) => barrasPendencia(pp, clicar), true) : null,
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
       `das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais`,
       { resumo: r.pede_certo, explica:

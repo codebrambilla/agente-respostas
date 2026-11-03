@@ -797,6 +797,15 @@ button.pn-b-linha:hover { background: var(--bloco); }
 .pn-secao > .ea-explica { margin: -4px 0 12px; }
 /* quem mais pede certo: barra verde (taxa de acerto, nao quantidade) */
 .pn-barra.ea-acerto { background: var(--verde); }
+/* quem tem mais pendencia tecnica: uma cor so (o laranja da pendencia), mais escura quanto mais velha */
+:root { --pf0: #ffd2a8; --pf1: #f5a25c; --pf2: #d9650a; --pf3: #8a3d00; }
+:root[data-tema="escuro"] { --pf0: #6b3a12; --pf1: #a85a1c; --pf2: #e8822a; --pf3: #ffbe85; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) { --pf0: #6b3a12; --pf1: #a85a1c; --pf2: #e8822a; --pf3: #ffbe85; } }
+.ea-pend-pilha { display: flex; gap: 2px; height: 100%; }
+.ea-pend-pilha span { flex-basis: 0; min-width: 3px; }
+.ea-pend-pilha span:last-child { border-radius: 0 4px 4px 0; }
+.ea-pf0 { background: var(--pf0); } .ea-pf1 { background: var(--pf1); } .ea-pf2 { background: var(--pf2); } .ea-pf3 { background: var(--pf3); }
+.ea-pend { margin-top: 8px; }
 
 /* Parecidos de uma busca de material: ilustração da família, porcentagem e o que muda */
 .parecidos { display: flex; flex-direction: column; gap: 8px; }
