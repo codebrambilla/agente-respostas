@@ -501,7 +501,19 @@ function cartaoSap(c) {
     el("dl", { className: "cs-campos" }, ...campos.map(([r, v]) => el("div", {}, el("dt", { textContent: r }), el("dd", {}, ...v)))),
     u ? el("p", { className: "cs-usar" }, el("strong", { textContent: "Use no lugar: " }), botaoCodigo(u.codigo),
       u.texto ? document.createTextNode(` ${u.texto} `) : null, u.bloqueio ? seloBloqueio(u.bloqueio) : null) : null,
-    c.catalogo_de ? el("p", { className: "cs-rodape", textContent: `Materiais do SAP de ${c.catalogo_de}` }) : null);
+    el("p", { className: "cs-rodape", textContent: fontesDoCartao(c) }));
+}
+
+// De onde vem cada dado do cartão, para quem lê saber que nada é inventado
+function fontesDoCartao(c) {
+  const doSap = ["texto", "tipo", "grupo", c.ncm ? "NCM" : c.item_lc116 ? "item da LC 116" : null, c.texto_longo ? "texto longo" : null]
+    .filter(Boolean);
+  const ultimo = doSap.pop();
+  return [
+    `Fonte: SAP${c.catalogo_de ? ` de ${c.catalogo_de}` : ""} (${doSap.join(", ")} e ${ultimo})`,
+    c.ncm_descricao || c.ncm_fora_da_tabela ? "descrição do NCM: tabela NCM vigente do Siscomex" : null,
+    c.gm_nome ? "nome do grupo: lista de grupos de mercadorias do Webformat" : null,
+  ].filter(Boolean).join(" · ");
 }
 
 function desenhar(m) {
