@@ -631,10 +631,11 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
 .pn-erro p { margin: 0; }
 
 .pn-cartoes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+/* painel (03/11/2026, regras de UI/UX "sem cara de IA"): cartões planos, borda fina, sem sombra nem "pulo" no hover */
 .pn-cartao { display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 0; background: var(--papel); border: 1px solid var(--linha);
-  border-radius: 16px; padding: 14px 16px 12px; box-shadow: var(--sombra-leve); }
-button.pn-cartao { cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
-button.pn-cartao:hover { border-color: var(--pilula-borda); box-shadow: 0 10px 26px rgba(10, 143, 194, .16); transform: translateY(-2px); }
+  border-radius: 12px; padding: 14px 16px 12px; }
+button.pn-cartao { cursor: pointer; transition: border-color .15s, background-color .15s; }
+button.pn-cartao:hover { border-color: var(--ciano-2); background: var(--bloco); }
 .pn-rotulo { font-size: 13px; font-weight: 600; color: var(--tinta-2); }
 .pn-valor { font-size: 34px; line-height: 1.15; font-weight: 700; color: var(--titulo); letter-spacing: -.01em; }
 .pn-sub { font-size: 13px; color: var(--tinta-2); }
@@ -648,8 +649,8 @@ button.pn-cartao:hover { border-color: var(--pilula-borda); box-shadow: 0 10px 2
 .pn-agora { fill: var(--ciano-2); stroke: var(--papel); stroke-width: 2; }
 .pn-alvo { fill: transparent; }
 
-.pn-minhas { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; padding: 12px 16px; border-radius: 16px; cursor: pointer;
-  background: var(--papel); border: 1px solid var(--linha); box-shadow: var(--sombra-leve); font-size: 15px; }
+.pn-minhas { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; padding: 12px 16px; border-radius: 12px; cursor: pointer;
+  background: var(--papel); border: 1px solid var(--linha); font-size: 15px; }
 .pn-minhas:hover { border-color: var(--pilula-borda); }
 .pn-minhas .ic { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-weight: 700; flex: none; }
 .pn-minhas > span:nth-child(2) { flex: 1; }
@@ -657,7 +658,7 @@ button.pn-cartao:hover { border-color: var(--pilula-borda); box-shadow: 0 10px 2
 .pn-ir { color: var(--ciano-2); font-size: 18px; }
 
 .pn-grade { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; align-items: start; }
-.pn-secao { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px 16px; box-shadow: var(--sombra-leve); min-width: 0; }
+.pn-secao { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 16px 18px 18px; min-width: 0; }
 .pn-secao-topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; margin-bottom: 10px; }
 .pn-secao h3 { margin: 0; font-size: 16px; color: var(--titulo); }
 /* subtitulo longo (Em aberto) quebra para a linha de baixo em vez de passar da tela no celular */
@@ -787,25 +788,52 @@ button.pn-b-linha:hover { background: var(--bloco); }
 .ea-chave-agora { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--tinta-2); background: var(--papel); }
 .ea-legenda { margin-top: 0; }
 /* cada card: o resumo em uma frase e, ao abrir, o que e e como ler */
-.ea-resumo { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px;
-  background: var(--ciano-cl); color: var(--titulo); font-size: 14px; font-weight: 600; line-height: 1.4; }
-.ea-resumo-ic { flex: none; }
-.ea-como { margin: 0 0 12px; font-size: 13px; color: var(--tinta-2); }
-.ea-como summary { cursor: pointer; color: var(--ciano-2); font-weight: 600; width: fit-content; }
+/* a leitura do número que importa: texto simples, logo abaixo do título (sem ícone nem fundo colorido) */
+.ea-resumo { margin: -4px 0 10px; color: var(--tinta); font-size: 14.5px; line-height: 1.45; }
+/* "Como ler": fechado, discreto, no canto; abre a explicação */
+.ea-como { margin: 0 0 10px; font-size: 13px; color: var(--tinta-2); }
+.ea-como summary { cursor: pointer; color: var(--tinta-3); font-size: 12.5px; width: fit-content; list-style: none;
+  text-decoration: underline dotted; text-underline-offset: 3px; }
+.ea-como summary::-webkit-details-marker { display: none; }
+.ea-como summary:hover { color: var(--ciano-2); }
+.ea-como[open] summary { color: var(--tinta-2); }
 .ea-como summary:focus-visible { outline: 2px solid var(--ciano); outline-offset: 2px; border-radius: 4px; }
 .ea-explica { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--tinta-2); }
 .pn-secao > .ea-explica { margin: -4px 0 12px; }
 /* quem mais pede certo: barra verde (taxa de acerto, nao quantidade) */
 .pn-barra.ea-acerto { background: var(--verde); }
-/* quem tem mais pendencia tecnica: do laranja claro ao vermelho, mais forte quanto mais velha (nos dois temas) */
-:root { --pf0: #ffd2a8; --pf1: #f5a25c; --pf2: #e0661a; --pf3: #b3261e; }
-:root[data-tema="escuro"] { --pf0: #6b3a12; --pf1: #b0601f; --pf2: #f08a3c; --pf3: #ff6b5e; }
-@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) { --pf0: #6b3a12; --pf1: #b0601f; --pf2: #f08a3c; --pf3: #ff6b5e; } }
+/* quem tem mais pendencia tecnica (03/11/2026, "as cores estao confundindo"): duas cores so. A barra e o total
+   no azul das outras barras; o pedaco vermelho e o que espera ha mais de 90 dias (o que cobrar primeiro). As faixas
+   de tempo viram colunas de numeros com titulo, sem precisar decorar cor. */
+.ea-pend-legenda { margin: 0 0 4px; }
+.ea-pend-legenda i.ok { background: var(--ciano-2); } .ea-pend-legenda i.velha { background: var(--erro); }
+/* cabecalho e linhas na mesma grade: quem | barra do total | total | ate 30 | 30 a 90 | mais de 90 */
+.ea-pend-cab, .ea-pend-linha { grid-template-columns: minmax(0, 200px) minmax(0, 1fr) 44px 74px 74px 82px; }
+.ea-pend-cab { display: grid; gap: 10px; align-items: end; padding: 10px 6px 6px; font-size: 12px; font-weight: 600; line-height: 1.25;
+  color: var(--tinta-3); border-bottom: 1px solid var(--linha); margin-bottom: 4px; }
+.ea-pend-cab .num, .ea-pend-linha .num { text-align: right; white-space: nowrap; }
+.ea-pend-cab .velha { color: var(--erro); }
+.ea-pend-linha { padding: 7px 6px; }
+.ea-pend-quem { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.ea-pend-quem .pn-b-rotulo { font-weight: 600; }
+.ea-pend-quem small { font-size: 12px; color: var(--tinta-3); }
+.ea-pend-quem small.velha { color: var(--erro); font-weight: 600; }
 .ea-pend-pilha { display: flex; gap: 2px; height: 100%; }
-.ea-pend-pilha span { flex-basis: 0; min-width: 3px; }
+.ea-pend-pilha span { flex-basis: 0; min-width: 3px; background: var(--ciano-2); }
+.ea-pend-pilha span.velha { background: var(--erro); }
+.ea-pend-pilha span:first-child { border-radius: 4px 0 0 4px; }
 .ea-pend-pilha span:last-child { border-radius: 0 4px 4px 0; }
-.ea-pf0 { background: var(--pf0); } .ea-pf1 { background: var(--pf1); } .ea-pf2 { background: var(--pf2); } .ea-pf3 { background: var(--pf3); }
-.ea-pend { margin-top: 8px; }
+.ea-pend-pilha span:only-child { border-radius: 4px; }
+.ea-pend-linha .num { font-size: 14px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.ea-pend-linha .num.zero { color: var(--tinta-3); }
+.ea-pend-linha .num.velha { color: var(--erro); font-weight: 700; }
+.ea-pend-linha .pn-b-valor { font-size: 15px; }
+.ea-pend-linha:focus-visible { outline: 2px solid var(--ciano); outline-offset: 1px; }
+@media (max-width: 760px) {
+  /* no celular: quem | barra | total | mais de 90 (as outras duas colunas ficam na dica) */
+  .ea-pend-cab, .ea-pend-linha { grid-template-columns: minmax(0, 132px) minmax(0, 1fr) 36px 52px; gap: 8px; }
+  .ea-pend-cab .meio, .ea-pend-linha .meio { display: none; }
+}
 
 /* Parecidos de uma busca de material: ilustração da família, porcentagem e o que muda */
 .parecidos { display: flex; flex-direction: column; gap: 8px; }

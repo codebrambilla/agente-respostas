@@ -1628,6 +1628,10 @@ function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir, d
     : el("div", { className: "pn-cartao", title: dica || "" }, ...corpo);
 }
 
+// "Como ler": a explicação de cada quadro fica fechada (abre no clique), para o número vir antes do texto
+const comoLer = (texto) => el("details", { className: "ea-como" },
+  el("summary", { textContent: "Como ler" }), el("p", { className: "ea-explica", textContent: texto }));
+
 function secao(titulo, sub, ...filhos) {
   return el("section", { className: "pn-secao" },
     el("div", { className: "pn-secao-topo" }, el("h3", { textContent: titulo }), sub ? el("small", { textContent: sub }) : null),
@@ -1679,7 +1683,7 @@ function numeroDaSemana(rotulo, valor, sub) {
 
 function linhaDaBase(ok, nomeBase, texto, aviso) {
   return el("li", {}, el("i", { className: `ponto ${ok ? "verde" : "amarelo"}`, ariaHidden: "true" }),
-    el("b", { textContent: nomeBase }), ` ${texto}`, aviso ? el("small", { textContent: ` · ⚠️ ${aviso}` }) : null);
+    el("b", { textContent: nomeBase }), ` ${texto}`, aviso ? el("small", { textContent: ` · ${aviso}` }) : null);
 }
 
 function trocarAbaDoPainel(qual) {
@@ -1710,7 +1714,7 @@ function cartaoPendencia(p) {
     p.pedido ? el("details", { className: "pn-pedido" },
       el("summary", { textContent: p.tecnica ? "O que a CH pediu" : "O que pediram" }), el("p", { textContent: p.pedido })) : null,
     el("div", { className: "pn-pend-acoes" },
-      el("button", { type: "button", className: "sugestao", textContent: "💬 Me ajuda a responder",
+      el("button", { type: "button", className: "sugestao", textContent: "Me ajuda a responder",
         onclick: () => perguntarDoPainel(p.tecnica ? `o que a CH quer na ${p.numero}?` : `o que o Master Data pediu na ${p.numero}?`) })));
 }
 
@@ -1767,7 +1771,7 @@ function abaPendencias(d) {
   const ps = m.pendencias || [];
   const cab = el("div", { className: "pn-pend-topo" },
     el("p", {}, el("strong", { textContent: m.com_voce ? `${mil(m.com_voce)} ${m.com_voce === 1 ? "solicitação está" : "solicitações estão"} esperando você`
-      : "Nenhuma pendência esperando você 🎉" }),
+      : "Nenhuma pendência esperando você" }),
     el("small", { textContent: ` · ${mil(m.abertas)} ${m.abertas === 1 ? "aberta" : "abertas"} no Webformat como ${m.solicitante}` })),
     el("button", { type: "button", className: "link", textContent: "Não é você? Trocar o nome",
       onclick: () => { pn.trocarNome = true; desenharPainel(); } }));
@@ -1842,15 +1846,14 @@ function desenharPainel() {
 
   const grade = el("div", { className: "pn-grade" });
   if ((d.com_quem || []).length) {
-    grade.append(secao(`Com quem estão as ${mil(a.abertas)} abertas`, "agora",
-      el("p", { className: "ea-explica", textContent: "Em que etapa cada aberta está parada agora. Cada uma conta uma vez só: " +
-        "a soma das barras dá o total em aberto. Clique numa barra para ver a lista." }),
+    grade.append(secao(`Com quem estão as ${mil(a.abertas)} abertas`, "clique numa barra para ver a lista",
+      comoLer("Em que etapa cada aberta está parada agora. Cada uma conta uma vez só: a soma das barras dá o total em aberto."),
       barrasComQuem(d.com_quem, a.abertas)));
   }
   const taxa = s.terminadas ? Math.round((100 * s.reprovadas) / s.terminadas) : null;
   grade.append(secao("Esta semana", `desde segunda, ${s.desde}`,
-    el("p", { className: "ea-explica", textContent: "O que entrou e o que saiu da fila desde segunda. Reprovação é a parte " +
-      "das terminadas que foi reprovada; tempo médio é da abertura até terminar, em dias corridos." }),
+    comoLer("O que entrou e o que saiu da fila desde segunda. Reprovação é a parte das terminadas que foi reprovada; " +
+      "tempo médio é da abertura até terminar, em dias corridos."),
     el("div", { className: "pn-nums" },
       numeroDaSemana("Novas", mil(s.novas), s.novas ? `${mil(s.novas_urgentes)} ${s.novas_urgentes === 1 ? "urgente" : "urgentes"}` : ""),
       numeroDaSemana("Terminadas", mil(s.terminadas), ""),
@@ -1867,7 +1870,7 @@ function desenharPainel() {
   const conf = b.conferido;
   nos.push(el("ul", { className: "pn-bases" },
     b.webformat_em ? linhaDaBase(!velho, "Webformat", `atualizado ${quando(b.webformat_em)}`, velho ? "pode estar desatualizado" : "") : null,
-    conf ? linhaDaBase(!conf.diferencas, "Conferência", `com o Webformat ${quando(conf.em)}${conf.diferencas ? "" : " ✓"}`,
+    conf ? linhaDaBase(!conf.diferencas, "Conferência", `com o Webformat ${quando(conf.em)}${conf.diferencas ? "" : ", sem diferenças"}`,
       conf.diferencas ? `${conf.diferencas} ${conf.diferencas === 1 ? "diferença" : "diferenças"}, o time já foi avisado` : "") : null,
     b.sap_de ? linhaDaBase(!b.sap_antigo, "SAP", `${mil(b.sap_materiais)} materiais · carga de ${b.sap_de}`, b.sap_antigo || "") : null));
   const inicio = (d.evolucao || [])[0];
@@ -2000,15 +2003,15 @@ function linhaDaFila(evolucao, agora, lidoEm) {
 
 // Caixa da tela "Em aberto": título, subtítulo e o gráfico. Sem pergunta dentro da caixa (pedido do Luiz em
 // 30/10/2026): o clique numa barra leva a lista para a conversa, com o mesmo número da barra.
-// Cada card diz, nesta ordem: o resumo (a leitura do número que importa, em uma frase), o que ele mostra e
-// como ler (português simples) e o gráfico. Pedido do Luiz: "bem explicativo e intuitivo".
+// Cada card diz, nesta ordem: a leitura do número que importa (uma frase, texto simples), o gráfico e o "Como ler"
+// fechado. Em 03/11/2026 o Luiz pediu regras de UI/UX e "sem cara de IA": sai o 💡 com fundo colorido e a
+// explicação aberta em todo card (virava um paredão de texto antes do gráfico).
 function caixaEa(titulo, sub, texto, grafico, largura) {
   const { resumo, explica } = texto || {};
   return el("section", { className: "pn-secao ea-caixa" + (largura ? " largo" : "") },
     el("div", { className: "pn-secao-topo" }, el("h3", { textContent: titulo }), sub ? el("small", { textContent: sub }) : null),
-    resumo ? el("p", { className: "ea-resumo" }, el("span", { className: "ea-resumo-ic", ariaHidden: "true", textContent: "💡" }), resumo) : null,
-    explica ? el("details", { className: "ea-como", open: true }, el("summary", { textContent: "O que é e como ler" }),
-      el("p", { className: "ea-explica", textContent: explica })) : null,
+    resumo ? el("p", { className: "ea-resumo", textContent: resumo }) : null,
+    explica ? comoLer(explica) : null,
     grafico(perguntarDoPainel));
 }
 
@@ -2018,58 +2021,87 @@ function barrasAcerto(itens = []) {
   return el("div", { className: "pn-barras" }, ...itens.map((d) => {
     const barra = el("span", { className: "pn-barra ea-acerto" });
     barra.style.width = `${Math.max(d.taxa, 0.6)}%`;
-    return el("div", { className: "pn-b-linha", title: `${d.rotulo}: ${mil(d.certos)} de ${mil(d.pedidos)} terminadas foram cadastradas ` +
+    return el("div", { className: "pn-b-linha", title: `${nomeLegivel(d.rotulo)}: ${mil(d.certos)} de ${mil(d.pedidos)} terminadas foram cadastradas ` +
       `sem nenhuma pendência técnica (${d.taxa}%)` },
-      el("span", { className: "pn-b-rotulo", textContent: d.rotulo }),
+      el("span", { className: "pn-b-rotulo", textContent: nomeLegivel(d.rotulo) }),
       el("span", { className: "pn-b-trilho" }, barra),
       el("span", { className: "pn-b-valor" }, `${d.taxa}%`, el("small", { textContent: ` de ${mil(d.pedidos)}` })));
   }));
 }
 
-// Quem tem mais pendência técnica: uma barra por pessoa, do tamanho do total dela, dividida pelo tempo desde a
-// devolução da CH (cor mais forte, até o vermelho = mais velha). O clique traz a lista da pessoa, com o mesmo número.
+// "DANIELE VAROLO" -> "Daniele Varolo" (o Webformat grava em maiúsculas; "de", "da"... ficam minúsculos)
+const PARTICULAS = new Set(["de", "da", "do", "das", "dos", "e"]);
+const nomeLegivel = (s) => String(s || "").toLowerCase().split(/\s+/).filter(Boolean)
+  .map((w, i) => (i && PARTICULAS.has(w) ? w : w[0].toUpperCase() + w.slice(1))).join(" ");
+
+// Quem tem mais pendência técnica: uma linha por pessoa, como uma tabela. A barra é o total, no azul das outras
+// barras, com o pedaço vermelho = há mais de 90 dias sem resposta (o que cobrar primeiro); o tempo vem em colunas
+// de números com título, não em tons de cor (03/11/2026: quatro tons de laranja confundiam). As faixas do servidor
+// (FAIXAS_PEND do painel.ts) são até 7, 7 a 30, 30 a 90 e mais de 90 dias; aqui as duas primeiras viram "até 30".
+// A linha inteira é o botão: o clique traz a lista da pessoa, com o mesmo número do total.
+const COLUNAS_PEND = [[[0, 1], "Até 30 dias", "meio"], [[2], "30 a 90 dias", "meio"], [[3], "+90 dias", "velha"]];
 function barrasPendencia(pp, aoClicar) {
   const itens = pp.itens || [];
   const maior = Math.max(1, ...itens.map((d) => d.n));
-  return el("div", {},
-    el("ul", { className: "pn-legenda ea-legenda" }, ...pp.faixas.map((rotulo, i) =>
-      el("li", {}, el("i", { className: `ea-pf${i}`, ariaHidden: "true" }), `${rotulo} `, el("b", { textContent: mil(pp.por_faixa[i]) })))),
-    el("div", { className: "pn-barras ea-pend" }, ...itens.map((d) => {
-      const pilha = el("span", { className: "ea-pend-pilha", role: "img",
-        ariaLabel: pp.faixas.map((r, i) => `${r}: ${mil(d.faixas[i])}`).join(", ") });
+  const somar = (f, idx) => idx.reduce((s, i) => s + (f[i] || 0), 0);
+  const velhasTotal = somar(pp.por_faixa, [3]);
+  return el("div", { className: "ea-pend" },
+    el("ul", { className: "pn-legenda ea-pend-legenda" },
+      el("li", {}, el("i", { className: "ok", ariaHidden: "true" }), "Até 90 dias ", el("b", { textContent: mil(pp.total - velhasTotal) })),
+      el("li", {}, el("i", { className: "velha", ariaHidden: "true" }), "Mais de 90 dias sem resposta ", el("b", { textContent: mil(velhasTotal) }))),
+    el("div", { className: "ea-pend-cab", ariaHidden: "true" },
+      el("span", { textContent: "Solicitante" }), el("span", {}), el("span", { className: "num", textContent: "Total" }),
+      ...COLUNAS_PEND.map(([, rotulo, cls]) => el("span", { className: `num ${cls}`, textContent: rotulo }))),
+    el("div", { className: "pn-barras" }, ...itens.map((d) => {
+      const nome = nomeLegivel(d.rotulo);
+      const colunas = COLUNAS_PEND.map(([idx]) => somar(d.faixas, idx));
+      const velhas = colunas[2];
+      const pilha = el("span", { className: "ea-pend-pilha" });
       pilha.style.width = `${Math.max((d.n / maior) * 100, 0.6)}%`;
-      d.faixas.forEach((n, i) => {
-        if (!n) return;
-        const seg = el("span", { className: `ea-pf${i}` });
+      // o vermelho na frente: alinhado à esquerda, dá para comparar entre as pessoas
+      for (const [n, cls] of [[velhas, "velha"], [d.n - velhas, ""]]) {
+        if (!n) continue;
+        const seg = el("span", { className: cls });
         seg.style.flexGrow = String(n);
         pilha.append(seg);
-      });
-      const detalhe = pp.faixas.map((r, i) => d.faixas[i] ? `${r}: ${mil(d.faixas[i])}` : null).filter(Boolean).join(" · ");
-      return el("button", { type: "button", className: "pn-b-linha", title: `${d.rotulo}: ${mil(d.n)} em pendência técnica (${detalhe}) · ver a lista com a Bella`,
+      }
+      const detalhe = ["até 30 dias", "30 a 90 dias", "mais de 90 dias"].map((rotulo, i) => `${rotulo}: ${mil(colunas[i])}`).join(", ");
+      const antiga = typeof d.mais_antiga_dias === "number"
+        ? `a mais antiga há ${mil(d.mais_antiga_dias)} ${d.mais_antiga_dias === 1 ? "dia" : "dias"}` : "";
+      return el("button", { type: "button", className: "pn-b-linha ea-pend-linha",
+        title: `${nome}: ${mil(d.n)} em pendência técnica (${detalhe}). Clique para ver a lista com a Bella.`,
+        ariaLabel: `${nome}: ${mil(d.n)} pendências técnicas, ${detalhe}; ${antiga}. Ver a lista.`,
         onclick: () => aoClicar(d.pergunta) },
-        el("span", { className: "pn-b-rotulo", textContent: d.rotulo }),
+        el("span", { className: "ea-pend-quem" },
+          el("span", { className: "pn-b-rotulo", textContent: nome }),
+          antiga ? el("small", { className: velhas ? "velha" : "", textContent: antiga }) : null),
         el("span", { className: "pn-b-trilho" }, pilha),
-        el("span", { className: "pn-b-valor" }, mil(d.n)));
+        el("span", { className: "pn-b-valor num", textContent: mil(d.n) }),
+        // "meio" some no celular; o vermelho só no número que existe (o "–" fica apagado)
+        ...COLUNAS_PEND.map(([, , cls], i) => el("span", { className: `num${cls === "meio" ? " meio" : ""}${!colunas[i] ? " zero" : cls === "velha" ? " velha" : ""}`,
+          textContent: colunas[i] ? mil(colunas[i]) : "–" })));
     })));
 }
 
 // De onde vêm os números: a leitura do Webformat e a última conferência com o Relatório Gerencial.
 // Diferença aparece com o número de cada solicitação (para conferir no Webformat), nunca escondida.
-function fonteDoEmAberto(f) {
-  if (!f || (!f.lido_em && !f.conferido_em)) return [];
+// Junto, numa linha só: a mediana do tempo parado (03/11/2026: antes eram notas soltas, uma por linha).
+function fonteDoEmAberto(f, mediana) {
   const partes = [];
+  if (typeof mediana === "number") partes.push(`Metade das abertas teve o último trâmite há até ${mil(mediana)} ${mediana === 1 ? "dia" : "dias"}.`);
+  if (!f || (!f.lido_em && !f.conferido_em)) return partes.length ? [el("p", { className: "pn-nota", textContent: partes.join(" ") })] : [];
   if (f.lido_em) partes.push(`Webformat lido ${quando(f.lido_em)}.`);
-  if (f.conferido_em && f.diferencas === 0) partes.push(`Conferido com o Relatório Gerencial ${quando(f.conferido_em)}: sem diferenças ✓`);
+  if (f.conferido_em && f.diferencas === 0) partes.push(`Conferido com o Relatório Gerencial ${quando(f.conferido_em)}, sem diferenças.`);
   // as que o leitor ja releu e agora batem com o Webformat saem do aviso
   const faltam = f.diferencas > 0 ? f.diferencas - (f.corrigidas || 0) : 0;
   if (f.conferido_em && f.diferencas > 0 && !faltam) {
     partes.push(`Conferência ${quando(f.conferido_em)}: ${f.diferencas === 1 ? "a diferença com o Relatório Gerencial já foi relida e corrigida"
-      : `as ${mil(f.diferencas)} diferenças com o Relatório Gerencial já foram relidas e corrigidas`} ✓`);
+      : `as ${mil(f.diferencas)} diferenças com o Relatório Gerencial já foram relidas e corrigidas`}.`);
   }
   const aviso = [];
   if (f.conferido_em && faltam > 0) {
     aviso.push(el("p", { className: "pn-nota ea-conferencia", role: "note" },
-      el("strong", { textContent: `⚠ Conferência ${quando(f.conferido_em)}: ` }),
+      el("strong", { textContent: `Atenção, conferência ${quando(f.conferido_em)}: ` }),
       `o Relatório Gerencial do Webformat tinha ${mil(f.webformat_em_aberto)} em aberto e aqui ${mil(f.aqui_na_conferencia)}. ` +
       `${mil(faltam)} ${faltam === 1 ? "solicitação ainda está diferente" : "solicitações ainda estão diferentes"}` +
       (f.numeros && f.numeros.length ? ` (${f.numeros.join(", ")})` : "") +
@@ -2085,7 +2117,7 @@ function desenharEmAberto() {
     el("div", {},
       el("button", { type: "button", className: "link ea-voltar", textContent: "← Voltar ao painel", onclick: voltarDoEmAberto }),
       el("h2", { textContent: d ? `${mil(d.total)} solicitações em aberto` : "Em aberto" }),
-      el("p", { textContent: "Clique numa barra: a Bella traz a lista na conversa, com o mesmo número." })),
+      el("p", { textContent: "Clique numa barra para ver a lista na conversa." })),
     el("button", { type: "button", className: "sugestao", textContent: ea.carregando ? "Atualizando…" : "↻ Atualizar",
       disabled: ea.carregando, onclick: carregarEmAberto }));
   if (!d) {
@@ -2112,11 +2144,7 @@ function desenharEmAberto() {
     numero("Urgentes", mil(d.urgentes), `${pct(d.urgentes)} · marcadas na abertura`,
       "Marcadas como urgentes pelo solicitante quando abriu a solicitação."),
   ));
-  if (d.parada_mediana_dias !== null && d.parada_mediana_dias !== undefined) {
-    nos.push(el("p", { className: "pn-nota", textContent: `Metade das abertas teve o último trâmite há até ${mil(d.parada_mediana_dias)} ` +
-      `${d.parada_mediana_dias === 1 ? "dia" : "dias"}.` }));
-  }
-  nos.push(...fonteDoEmAberto(d.fonte));
+  nos.push(...fonteDoEmAberto(d.fonte, d.parada_mediana_dias));
   const pc = d.pedem_certo;
   // a frase de resumo de cada card, tirada dos mesmos números das barras
   const p100 = (n) => d.total ? Math.round((n / d.total) * 100) : 0;
@@ -2152,11 +2180,11 @@ function desenharEmAberto() {
   if (pp && pp.itens && pp.itens.length && pp.total) {
     const topo3 = pp.itens.slice(0, 3).reduce((t, x) => t + x.n, 0);
     const velhas = pp.por_faixa[pp.por_faixa.length - 1];
-    r.pendencias = `As 3 pessoas com mais pendência técnica somam ${mil(topo3)} das ${mil(pp.total)} (${Math.round((topo3 / pp.total) * 100)}%)` +
-      (velhas ? `; ${mil(velhas)} estão paradas há ${pp.faixas[pp.faixas.length - 1]}.` : ".");
+    r.pendencias = `3 pessoas concentram ${Math.round((topo3 / pp.total) * 100)}% das pendências técnicas (${mil(topo3)} de ${mil(pp.total)}).` +
+      (velhas ? ` ${mil(velhas)} esperam resposta há mais de 90 dias, em vermelho: são as primeiras a cobrar.` : "");
   }
   const lider = pc && pc.itens && pc.itens[0];
-  if (lider) r.pede_certo = `${lider.rotulo} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
+  if (lider) r.pede_certo = `${nomeLegivel(lider.rotulo)} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
   const grade = el("div", { className: "ea-grade" },
     // em pares de altura parecida (lado a lado na tela larga): barras curtas, colunas, as 8 maiores;
     // os largos ocupam a linha toda
@@ -2170,16 +2198,16 @@ function desenharEmAberto() {
         "O tipo pedido em cada aberta: ZMAT é material de estoque, NLAG é compra pontual (não fica em estoque), SERV e DIEN " +
       "são serviços; ZQUI passa também por Gestão de Fornecedores e ZHID por Hidrometria." },
       barras(d.tipos)),
-    caixaEa("Há quanto tempo estão paradas", "desde o último trâmite; \"2 a 5\" = mais de 2 até 5 dias",
+    caixaEa("Há quanto tempo estão paradas", "dias desde o último trâmite",
       { resumo: r.idade, explica:
         "Dias corridos desde o último trâmite de cada aberta (não desde a abertura): mostra o que parou de andar. " +
-      "Quanto mais à direita, mais tempo sem nenhuma movimentação." },
+      "Quanto mais à direita, mais tempo sem nenhuma movimentação. \"2 a 5 dias\" quer dizer mais de 2 e até 5." },
       (clicar) => colunas(d.idade, clicar)),
-    caixaEa("Horas úteis na CH", `as ${mil(d.com_a_ch)} com a CH; soma das passagens, como no Relatório Gerencial · prazo: 24 a 48 h` +
+    caixaEa("Horas úteis na CH", `as ${mil(d.com_a_ch)} com a CH · prazo de 48 h úteis` +
       (d.horas_ch_sem_dado ? ` · ${mil(d.horas_ch_sem_dado)} sem a hora ainda` : ""),
       { resumo: r.horas_ch, explica:
         "Só as que estão com a CH agora: quantas horas úteis a CH já usou em cada uma, somando todas as vezes que passou por " +
-      "ela (24 h por dia útil, de segunda a sexta). Em laranja, as que já passaram do prazo de 48 h úteis." },
+      "ela (24 h por dia útil, de segunda a sexta), como no Relatório Gerencial. Em laranja, as que já passaram do prazo de 48 h úteis." },
       (clicar) => colunas(d.horas_ch, clicar)),
     caixaEa("Evolução da fila", "a manhã de cada dia útil e o agora",
       { resumo: r.evolucao, explica:
@@ -2194,18 +2222,18 @@ function desenharEmAberto() {
     caixaEa("Solicitantes", `os 8 com mais abertas, de ${mil(d.solicitantes_total)}`,
       { resumo: r.solicitantes, explica:
         "As 8 pessoas com mais solicitações abertas agora, em qualquer etapa (com a CH, com o Master Data, em pendência...)." },
-      barras(d.solicitantes)),
+      barras((d.solicitantes || []).map((x) => ({ ...x, rotulo: nomeLegivel(x.rotulo) })))),
     caixaEa("Urgência", "",
       { resumo: r.urgencia, explica:
         "Quantas abertas o solicitante marcou como urgentes na abertura. Quando quase tudo é urgente, a marca deixa de " +
       "mostrar o que é prioridade de verdade." },
       barras(d.urgencia), true),
     pp && pp.itens && pp.itens.length ? caixaEa("Quem tem mais pendência técnica",
-      `os ${mil(pp.itens.length)} com mais, de ${mil(pp.pessoas)} pessoas · ${mil(pp.total)} pendências`,
+      `as ${mil(pp.itens.length)} pessoas com mais, de ${mil(pp.pessoas)} · clique numa pessoa para ver a lista`,
       { resumo: r.pendencias, explica:
-        "Solicitações que a CH devolveu ao solicitante pedindo informação e que ainda esperam a resposta dele, por pessoa. " +
-      "A barra é dividida pelo tempo desde a devolução: quanto mais forte a cor (até o vermelho), mais tempo parada. Clique numa pessoa para ver " +
-      "a lista dela com a Bella e saber o que cobrar primeiro." },
+        "Pendência técnica é quando a CH devolve a solicitação ao solicitante pedindo uma informação: ela só anda quando ele " +
+      "responde. Cada linha é uma pessoa: a barra é o total dela, e o pedaço vermelho é o que espera resposta há mais de " +
+      "90 dias. As colunas dividem o total pelo tempo desde a devolução." },
       (clicar) => barrasPendencia(pp, clicar), true) : null,
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
       `das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais`,
@@ -2216,8 +2244,7 @@ function desenharEmAberto() {
       () => barrasAcerto(pc.itens), true) : null,
   );
   nos.push(grade);
-  nos.push(el("p", { className: "pn-nota fim", textContent: "Os mesmos números do painel. Cada barra dá o mesmo número da lista que o clique traz. " +
-    "Os números da tela não usam a IA." }));
+  nos.push(el("p", { className: "pn-nota fim", textContent: "Números calculados direto do Webformat, sem IA. Cada barra dá o mesmo número da lista do clique." }));
   $("pn-corpo").replaceChildren(...nos);
 }
 
