@@ -484,19 +484,21 @@ function cartaoSap(c) {
     ["Tipo", c.tipo ? [document.createTextNode(c.tipo)] : null],
     ["Grupo de mercadorias", c.gm ? [document.createTextNode(c.gm_nome ? `${c.gm} · ${c.gm_nome}` : c.gm)] : null],
     ["Criado em", c.criado_em ? [document.createTextNode(dataCurta(c.criado_em))] : null],
-    ["NCM", c.ncm ? [document.createTextNode(c.ncm),
-      c.ncm_descricao ? el("small", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
-      c.ncm_fora_da_tabela ? el("small", { className: "cs-ncm alerta", textContent: " · fora da tabela NCM vigente" }) : null].filter(Boolean) : null],
-    ["Item da LC 116", c.item_lc116 ? [document.createTextNode(c.item_lc116)] : null],
     ["Origem", origem],
   ].filter(([, v]) => v);
   const u = c.usar_no_lugar;
   return el("div", { className: "cartao-sap" + (c.bloqueio ? " bloqueado" : "") },
     el("div", { className: "cs-topo" }, botaoCodigo(c.codigo), seloBloqueio(c.bloqueio)),
     c.texto ? el("p", { className: "cs-texto", textContent: c.texto }) : null,
+    // NCM (ou item da LC 116) e texto longo no corpo, sempre à vista
+    c.ncm ? el("p", { className: "cs-fiscal" }, el("strong", { textContent: "NCM " }), document.createTextNode(c.ncm),
+      c.ncm_descricao ? el("span", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
+      c.ncm_fora_da_tabela ? el("span", { className: "cs-ncm alerta", textContent: " · fora da tabela NCM vigente" }) : null) : null,
+    c.item_lc116 ? el("p", { className: "cs-fiscal" }, el("strong", { textContent: "Item da LC 116 " }),
+      document.createTextNode(c.item_lc116)) : null,
+    c.texto_longo ? el("div", { className: "cs-longo" },
+      el("strong", { textContent: "Texto longo" }), el("p", { textContent: c.texto_longo })) : null,
     el("dl", { className: "cs-campos" }, ...campos.map(([r, v]) => el("div", {}, el("dt", { textContent: r }), el("dd", {}, ...v)))),
-    c.texto_longo ? el("details", { className: "cs-longo" },
-      el("summary", { textContent: "Texto longo" }), el("p", { textContent: c.texto_longo })) : null,
     u ? el("p", { className: "cs-usar" }, el("strong", { textContent: "Use no lugar: " }), botaoCodigo(u.codigo),
       u.texto ? document.createTextNode(` ${u.texto} `) : null, u.bloqueio ? seloBloqueio(u.bloqueio) : null) : null,
     c.catalogo_de ? el("p", { className: "cs-rodape", textContent: `Materiais do SAP de ${c.catalogo_de}` }) : null);
