@@ -443,15 +443,17 @@ function painelMotivo(m) {
 function botaoPlanilha(x) {
   const qtd = Number(x.total) || 0;
   const rotulo = `📥 Baixar planilha (${qtd > 5000 ? "5.000 de " : ""}${qtd.toLocaleString("pt-BR")} ${x.tipo === "sap" ? "códigos" : "solicitações"})`;
+  const corpo = x.tipo === "sap" ? { tipo: "sap", texto: x.texto }
+    : x.tipo === "divergencias" ? { tipo: "divergencias", filtro: x.filtro } : { tipo: "solicitacoes", pergunta: x.pergunta };
   const b = el("button", { type: "button", className: "sugestao planilha", textContent: rotulo, title: "Abre no Excel" });
   b.onclick = async () => {
     b.disabled = true;
     b.textContent = "Montando a planilha…";
     try {
-      const r = await pedir({ exportar: 1 }, x.tipo === "sap" ? { tipo: "sap", texto: x.texto } : { tipo: "solicitacoes", pergunta: x.pergunta });
+      const r = await pedir({ exportar: 1 }, corpo);
       const arquivo = await r.blob();
       const hoje = new Date().toLocaleDateString("sv-SE");
-      const a = el("a", { href: URL.createObjectURL(arquivo), download: `bella-${x.tipo === "sap" ? "sap" : "solicitacoes"}-${hoje}.csv` });
+      const a = el("a", { href: URL.createObjectURL(arquivo), download: `bella-${x.tipo === "sap" || x.tipo === "divergencias" ? x.tipo : "solicitacoes"}-${hoje}.csv` });
       document.body.append(a);
       a.click();
       a.remove();
