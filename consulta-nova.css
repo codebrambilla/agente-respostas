@@ -797,10 +797,10 @@ button.pn-b-linha:hover { background: var(--bloco); }
 .pn-secao > .ea-explica { margin: -4px 0 12px; }
 /* quem mais pede certo: barra verde (taxa de acerto, nao quantidade) */
 .pn-barra.ea-acerto { background: var(--verde); }
-/* quem tem mais pendencia tecnica: uma cor so (o laranja da pendencia), mais escura quanto mais velha */
-:root { --pf0: #ffd2a8; --pf1: #f5a25c; --pf2: #d9650a; --pf3: #8a3d00; }
-:root[data-tema="escuro"] { --pf0: #6b3a12; --pf1: #a85a1c; --pf2: #e8822a; --pf3: #ffbe85; }
-@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) { --pf0: #6b3a12; --pf1: #a85a1c; --pf2: #e8822a; --pf3: #ffbe85; } }
+/* quem tem mais pendencia tecnica: do laranja claro ao vermelho, mais forte quanto mais velha (nos dois temas) */
+:root { --pf0: #ffd2a8; --pf1: #f5a25c; --pf2: #e0661a; --pf3: #b3261e; }
+:root[data-tema="escuro"] { --pf0: #6b3a12; --pf1: #b0601f; --pf2: #f08a3c; --pf3: #ff6b5e; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) { --pf0: #6b3a12; --pf1: #b0601f; --pf2: #f08a3c; --pf3: #ff6b5e; } }
 .ea-pend-pilha { display: flex; gap: 2px; height: 100%; }
 .ea-pend-pilha span { flex-basis: 0; min-width: 3px; }
 .ea-pend-pilha span:last-child { border-radius: 0 4px 4px 0; }

@@ -2027,7 +2027,7 @@ function barrasAcerto(itens = []) {
 }
 
 // Quem tem mais pendência técnica: uma barra por pessoa, do tamanho do total dela, dividida pelo tempo desde a
-// devolução da CH (mais escuro = mais velha). O clique traz a lista da pessoa, com o mesmo número.
+// devolução da CH (cor mais forte, até o vermelho = mais velha). O clique traz a lista da pessoa, com o mesmo número.
 function barrasPendencia(pp, aoClicar) {
   const itens = pp.itens || [];
   const maior = Math.max(1, ...itens.map((d) => d.n));
@@ -2204,7 +2204,7 @@ function desenharEmAberto() {
       `os ${mil(pp.itens.length)} com mais, de ${mil(pp.pessoas)} pessoas · ${mil(pp.total)} pendências`,
       { resumo: r.pendencias, explica:
         "Solicitações que a CH devolveu ao solicitante pedindo informação e que ainda esperam a resposta dele, por pessoa. " +
-      "A barra é dividida pelo tempo desde a devolução: quanto mais escuro, mais tempo parada. Clique numa pessoa para ver " +
+      "A barra é dividida pelo tempo desde a devolução: quanto mais forte a cor (até o vermelho), mais tempo parada. Clique numa pessoa para ver " +
       "a lista dela com a Bella e saber o que cobrar primeiro." },
       (clicar) => barrasPendencia(pp, clicar), true) : null,
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
