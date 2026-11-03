@@ -484,7 +484,9 @@ function cartaoSap(c) {
     ["Tipo", c.tipo ? [document.createTextNode(c.tipo)] : null],
     ["Grupo de mercadorias", c.gm ? [document.createTextNode(c.gm_nome ? `${c.gm} · ${c.gm_nome}` : c.gm)] : null],
     ["Criado em", c.criado_em ? [document.createTextNode(dataCurta(c.criado_em))] : null],
-    ["NCM", c.ncm ? [document.createTextNode(c.ncm)] : null],
+    ["NCM", c.ncm ? [document.createTextNode(c.ncm),
+      c.ncm_descricao ? el("small", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
+      c.ncm_fora_da_tabela ? el("small", { className: "cs-ncm alerta", textContent: " · fora da tabela NCM vigente" }) : null].filter(Boolean) : null],
     ["Item da LC 116", c.item_lc116 ? [document.createTextNode(c.item_lc116)] : null],
     ["Origem", origem],
   ].filter(([, v]) => v);
