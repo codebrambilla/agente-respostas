@@ -492,6 +492,8 @@ function cartaoSap(c) {
   return el("div", { className: "cartao-sap" + (c.bloqueio ? " bloqueado" : "") },
     el("div", { className: "cs-topo" }, botaoCodigo(c.codigo), seloBloqueio(c.bloqueio)),
     c.texto ? el("p", { className: "cs-texto", textContent: c.texto }) : null,
+    c.aviso_fluxo ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Atenção: " }),
+      document.createTextNode(c.aviso_fluxo)) : null,
     // NCM (ou item da LC 116) e texto longo no corpo, sempre à vista
     c.ncm ? el("p", { className: "cs-fiscal" }, el("strong", { textContent: "NCM " }), document.createTextNode(c.ncm),
       c.ncm_descricao ? el("span", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
@@ -1438,7 +1440,10 @@ function desenharCatalogo(d) {
     el("td", { className: "cat-cod" }, botaoCodigoCatalogo(l.codigo)),
     el("td", { className: "cat-txt" }, el("span", { textContent: l.texto || "" }),
       l.usar_no_lugar ? el("small", { className: "cat-usar" }, "texto manda usar o ", botaoCodigoCatalogo(l.usar_no_lugar)) : null,
-      l.prefixo_indica ? el("small", { className: "cat-usar" }, `o prefixo indica ${l.prefixo_indica}`) : null),
+      l.prefixo_indica ? el("small", { className: "cat-usar" }, `o prefixo indica ${l.prefixo_indica}`) : null,
+      l.fora_do_fluxo_da_ch ? el("small", { className: "cat-aviso", title: "Criado por solicitação urgente que depois foi " +
+        "cancelada ou reprovada: não passou 100% pelo fluxo da CH e pode ter inconsistências. Em caso de dúvida, fale com o time de Master Data." },
+        `⚠️ não passou 100% pelo fluxo da CH (solicitação ${l.solicitacao_cancelada} cancelada); dúvida: time de Master Data`) : null),
     el("td", { className: "cat-tipo" }, l.tipo || ""),
     el("td", { className: "cat-gm", title: l.gm_nome || "" }, l.gm || "", l.gm_nome ? el("small", { textContent: l.gm_nome }) : null),
     el("td", {}, seloSituacao(l.bloqueio)),
