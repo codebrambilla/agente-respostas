@@ -1443,7 +1443,7 @@ function desenharCatalogo(d) {
       l.prefixo_indica ? el("small", { className: "cat-usar" }, `o prefixo indica ${l.prefixo_indica}`) : null,
       l.fora_do_fluxo_da_ch ? el("small", { className: "cat-fluxo", title: "Criado por solicitação urgente que depois foi " +
         "cancelada ou reprovada: não passou 100% pelo fluxo da CH e pode ter inconsistências. Em caso de dúvida, fale com o time de Master Data." },
-        `⚠️ não passou 100% pelo fluxo da CH (solicitação ${l.solicitacao_cancelada} cancelada); dúvida: time de Master Data`) : null),
+        `⚠️ não passou 100% pelo fluxo da CH (${l.fora_do_fluxo_da_ch}); dúvida: time de Master Data`) : null),
     el("td", { className: "cat-tipo" }, l.tipo || ""),
     el("td", { className: "cat-gm", title: l.gm_nome || "" }, l.gm || "", l.gm_nome ? el("small", { textContent: l.gm_nome }) : null),
     el("td", {}, seloSituacao(l.bloqueio)),
