@@ -266,13 +266,27 @@ function selosDeSituacao(li) {
   }
 }
 
+const celulasDaTabela = (linha) => linha.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+
 function markdown(md, ligar = false) {
   const blocos = [];
-  let lista = null, par = null;
-  const fechar = () => { lista = null; par = null; };
+  let lista = null, par = null, tabela = null;
+  const fechar = () => { lista = null; par = null; tabela = null; };
   for (const bruta of String(md || "").split("\n")) {
     const linha = bruta.trimEnd();
     if (!linha.trim()) { fechar(); continue; }
+    if (/^\s*\|.*\|$/.test(linha)) {
+      if (/^[\s|:-]+$/.test(linha)) continue;   // a linha |---|---| do cabeçalho
+      const celulas = (tag) => celulasDaTabela(linha).map((c) => el(tag, {}, ...trechos(c, ligar)));
+      if (tabela) tabela.append(el("tr", {}, ...celulas("td")));
+      else {
+        tabela = el("tbody");
+        blocos.push(el("div", { className: "tabela-md" }, el("table", {}, el("thead", {}, el("tr", {}, ...celulas("th"))), tabela)));
+        lista = par = null;
+      }
+      continue;
+    }
+    tabela = null;
     const item = linha.match(/^\s*(?:[-•*]|\d+[.)])\s+(.*)$/);
     if (item) {
       if (!lista) { lista = el(/^\s*\d/.test(linha) ? "ol" : "ul"); blocos.push(lista); par = null; }
