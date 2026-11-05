@@ -583,7 +583,7 @@ function abrirCatalogoCom(t) {
   if (texto) p.set("texto", texto);
   for (const par of (m ? m[1].split(";") : [])) {
     const [k, val] = par.split("=");
-    if (["bloqueio", "tipo", "gm", "usar", "errado"].includes(k) && val) p.set(k, val);
+    if (["bloqueio", "tipo", "gm", "ncm", "usar", "errado", "erro", "fluxo"].includes(k) && val) p.set(k, val);
   }
   const q = p.toString();
   abrirLinkDoCatalogo(`#catalogo${q ? `&${q}` : ""}`);
@@ -1249,7 +1249,8 @@ async function abrirWhatsapp() {
 // ------------------------------------------------------------ procurar material (catalogo do SAP com filtros)
 // Busca enquanto a pessoa digita (espera 350 ms parada); a busca anterior e cancelada.
 
-const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", pedido: null, espera: 0, ultimo: null, novidade: false };
+const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", erro: false, fluxo: false, pedido: null, espera: 0, ultimo: null,
+  novidade: false, detalhes: new Map() };
 // link de uma busca (#catalogo&texto=...): aberto antes de entrar, vale depois da entrada
 let linkPendente = /^#catalogo(&|$)/.test(location.hash) ? location.hash : "";
 
@@ -1259,9 +1260,10 @@ function linkDaBusca(f) {
   if (f.texto) p.set("texto", f.texto);
   if (f.tipo) p.set("tipo", f.tipo);
   if (f.gm) p.set("gm", f.gm);
+  if (f.ncm) p.set("ncm", f.ncm);
   if (f.bloqueio) p.set("bloqueio", f.bloqueio);
-  if (f.manda_usar_outro) p.set("usar", "1");
-  if (f.tipo_errado) p.set("errado", "1");
+  if (f.com_erro) p.set("erro", "1");
+  if (f.fora_do_fluxo) p.set("fluxo", "1");
   if (f.pagina > 1) p.set("pagina", String(f.pagina));
   const q = p.toString();
   return `#catalogo${q ? `&${q}` : ""}`;
@@ -1271,11 +1273,13 @@ const marcarEndereco = (hash) => history.replaceState(null, "", location.pathnam
 
 function abrirLinkDoCatalogo(hash) {
   const p = new URLSearchParams(hash.replace(/^#catalogo&?/, ""));
-  $("cat-texto").value = (p.get("texto") || "").slice(0, 120);
+  $("cat-texto").value = (p.get("texto") || "").slice(0, 4000);
   $("cat-gm").value = (p.get("gm") || "").slice(0, 40);
+  $("cat-ncm").value = (p.get("ncm") || "").slice(0, 12);
   cat.bloqueio = ["sem", "compras", "total"].includes(p.get("bloqueio")) ? p.get("bloqueio") : "";
-  $("cat-usar").checked = p.get("usar") === "1";
-  $("cat-errado").checked = p.get("errado") === "1";
+  // usar=1 e errado=1: links de antes de os dois filtros virarem um só
+  cat.erro = ["erro", "usar", "errado"].some((k) => p.get(k) === "1");
+  cat.fluxo = p.get("fluxo") === "1";
   cat.pagina = Math.max(1, Math.min(200, parseInt(p.get("pagina"), 10) || 1));
   const tipo = (p.get("tipo") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
   // o tipo do link entra na lista mesmo antes das opcoes chegarem
@@ -1295,8 +1299,8 @@ function marcarNovidade(sim) {
 
 function filtrosDoCatalogo() {
   const gm = grupoDigitado($("cat-gm").value);
-  return { texto: $("cat-texto").value.trim(), tipo: $("cat-tipo").value, gm, bloqueio: cat.bloqueio,
-    manda_usar_outro: $("cat-usar").checked, tipo_errado: $("cat-errado").checked, pagina: cat.pagina };
+  return { texto: $("cat-texto").value.trim(), tipo: $("cat-tipo").value, gm, ncm: $("cat-ncm").value.trim(), bloqueio: cat.bloqueio,
+    com_erro: cat.erro, fora_do_fluxo: cat.fluxo, pagina: cat.pagina };
 }
 
 // "024 · TUBOS E CONEXOES" (da lista), "024" ou "tubos e conexoes" (o nome) -> "024"
@@ -1354,8 +1358,8 @@ function buscarNoCatalogo(espera = 0) {
   clearTimeout(cat.espera);
   cat.espera = setTimeout(async () => {
     const f = filtrosDoCatalogo();
-    $("cat-limpar").hidden = !(f.tipo || f.gm || f.bloqueio || f.manda_usar_outro || f.tipo_errado);
-    const vazio = !f.texto && !f.tipo && !f.gm && !f.manda_usar_outro && !f.tipo_errado && !f.bloqueio;
+    $("cat-limpar").hidden = !(f.tipo || f.gm || f.ncm || f.bloqueio || f.com_erro || f.fora_do_fluxo);
+    const vazio = !f.texto && !f.tipo && !f.gm && !f.ncm && !f.com_erro && !f.fora_do_fluxo && !f.bloqueio;
     if (cat.aberto) marcarEndereco(vazio ? "#catalogo" : linkDaBusca(f));
     if (vazio) {
       cat.pedido?.abort();
@@ -1404,13 +1408,127 @@ function perguntarSobre(codigo) {
   enviar(`o que é o ${codigo}?`);
 }
 
+// Detalhes do código na própria linha: o mesmo cartão da conversa, sem sair da busca
+async function alternarDetalhe(codigo, linha, botao) {
+  const seguinte = linha.nextElementSibling;
+  if (seguinte?.classList.contains("cat-detalhe")) {
+    seguinte.remove();
+    botao.setAttribute("aria-expanded", "false");
+    botao.textContent = "Detalhes";
+    return;
+  }
+  const corpo = el("td", { colSpan: 6 }, el("p", { className: "cat-data", textContent: "Abrindo…" }));
+  linha.after(el("tr", { className: "cat-detalhe" }, corpo));
+  botao.setAttribute("aria-expanded", "true");
+  botao.textContent = "Fechar";
+  try {
+    const c = cat.detalhes.get(codigo) || (await chamar({ catalogo: 1 }, { detalhe: codigo })).cartao;
+    if (c) cat.detalhes.set(codigo, c);
+    corpo.replaceChildren(c ? cartaoSap(c) : el("p", { className: "cat-data", textContent: "Este código não está no catálogo carregado." }));
+  } catch (e) {
+    corpo.replaceChildren(el("p", { className: "cat-aviso erro",
+      textContent: `Não consegui abrir os detalhes (${e instanceof ErroConsulta ? e.message : "erro inesperado"}). Tente de novo em instantes.` }));
+  }
+}
+
+// Solicitações em aberto com as mesmas palavras: antes de pedir de novo, ver se alguém já pediu
+function avisoDeParecidas(p) {
+  if (!p) return null;
+  const vistos = p.numeros.slice(0, 5);
+  const resto = p.total - vistos.length;
+  return el("p", { className: "cat-nota", role: "note" },
+    el("strong", { textContent: p.total === 1 ? "1 solicitação em aberto" : `${numeroBr(p.total)} solicitações em aberto` }),
+    ` ${p.total === 1 ? "tem" : "têm"} essas palavras na descrição: `,
+    ...vistos.flatMap((n, i) => [i ? ", " : "", botaoDaFicha(n)]),
+    resto > 0 ? ` e mais ${numeroBr(resto)}` : "", ". Confira antes de pedir de novo.",
+    p.numeros.length > 1 ? el("button", { type: "button", className: "sugestao",
+      textContent: p.total > p.numeros.length ? `Ver as ${p.numeros.length} mais recentes` : "Ver todas",
+      onclick: () => { fecharCatalogo(); enviar(p.numeros.join(", ")); } }) : null);
+}
+const botaoDaFicha = (n) => {
+  const b = botaoSolicitacao(String(n));
+  b.addEventListener("click", fecharCatalogo);
+  return b;
+};
+
+// Códigos colados: os que não existem no catálogo, para a pessoa não achar que vieram todos
+function avisoDeColados(d) {
+  const n = d.nao_encontrados || [];
+  if (!n.length && !d.so_os_primeiros) return null;
+  return el("p", { className: "cat-nota", role: "note" },
+    d.so_os_primeiros ? `Procurei só os ${numeroBr(d.so_os_primeiros)} primeiros códigos colados. ` : "",
+    n.length ? el("strong", { textContent: n.length === 1 ? "1 código não está no catálogo: " : `${numeroBr(n.length)} códigos não estão no catálogo: ` }) : null,
+    n.slice(0, 20).join(", "), n.length > 20 ? ` e mais ${numeroBr(n.length - 20)}` : "");
+}
+
+// O trecho do texto longo com as palavras achadas: o servidor marca «assim»
+const trechoMarcado = (t) => t.replace(/\s+/g, " ").split(/«([^»]*)»/).map((x, i) => (i % 2 ? el("mark", { textContent: x }) : x));
+
+function linhaDoCatalogo(l) {
+  const detalhes = el("button", { type: "button", className: "sugestao", textContent: "Detalhes", ariaExpanded: "false",
+    title: `Texto longo, NCM e origem do ${l.codigo}`, onclick: () => alternarDetalhe(l.codigo, linha, detalhes) });
+  const linha = el("tr", {},
+    el("td", { className: "cat-cod" }, botaoCodigoCatalogo(l.codigo)),
+    el("td", { className: "cat-txt" }, el("span", { textContent: l.texto || "" }),
+      l.trecho_do_texto_longo ? el("small", { className: "cat-trecho" }, ...trechoMarcado(l.trecho_do_texto_longo)) : null,
+      l.usar_no_lugar ? el("small", { className: "cat-usar" }, "texto manda usar o ", botaoCodigoCatalogo(l.usar_no_lugar)) : null,
+      l.prefixo_indica ? el("small", { className: "cat-usar" }, `o prefixo indica ${l.prefixo_indica}`) : null,
+      l.fora_do_fluxo_da_ch ? el("small", { className: "cat-fluxo", title: "Criado por solicitação urgente que depois foi " +
+        "cancelada ou reprovada: não passou 100% pelo fluxo da CH e pode ter inconsistências. Em caso de dúvida, fale com o time de Master Data." },
+        `⚠️ não passou 100% pelo fluxo da CH (${l.fora_do_fluxo_da_ch}); dúvida: time de Master Data`) : null),
+    el("td", { className: "cat-tipo" }, l.tipo || ""),
+    el("td", { className: "cat-gm", title: l.gm_nome || "" }, l.gm || "", l.gm_nome ? el("small", { textContent: l.gm_nome }) : null),
+    el("td", {}, seloSituacao(l.bloqueio)),
+    el("td", { className: "cat-acao" }, detalhes, el("button", { type: "button", className: "sugestao", textContent: "Perguntar à Bella",
+      title: `Perguntar à Bella sobre o ${l.codigo}`, onclick: () => perguntarSobre(l.codigo) })));
+  return linha;
+}
+
+const tabelaDoCatalogo = (itens) => el("div", { className: "cat-tabela" }, el("table", {},
+  el("thead", {}, el("tr", {}, ...["Código", "Texto", "Tipo", "Grupo", "Situação", ""].map((t) => el("th", { textContent: t })))),
+  el("tbody", {}, ...itens.map(linhaDoCatalogo))));
+
+// Os que têm todas as palavras juntando o breve e o longo: é o longo que diferencia códigos de texto breve parecido
+function secaoDoTextoLongo(x) {
+  if (!x?.total) return null;
+  const tabela = tabelaDoCatalogo(x.linhas);
+  let vistos = x.mostrando;
+  const mais = el("button", { type: "button", className: "sugestao cat-mais" });
+  const rotulo = () => { mais.textContent = `Mostrar mais (${numeroBr(vistos)} de ${numeroBr(x.total)})`; mais.hidden = vistos >= x.total; };
+  rotulo();
+  mais.onclick = async () => {
+    mais.disabled = true;
+    mais.textContent = "Trazendo…";
+    try {
+      const r = await chamar({ catalogo: 1 }, { ...filtrosDoCatalogo(), longo_de: vistos });
+      tabela.querySelector("tbody").append(...r.linhas.map(linhaDoCatalogo));
+      vistos = r.mostrando ? vistos + r.mostrando : x.total;
+    } catch (e) {
+      mais.disabled = false;
+      mais.textContent = "Não consegui trazer. Tentar de novo";
+      return;
+    }
+    mais.disabled = false;
+    rotulo();
+  };
+  return el("section", { className: "cat-longo", id: "cat-longo" },
+    el("h3", { textContent: "Achados com o texto longo" }),
+    el("p", {}, `${numeroBr(x.total)} ${x.total === 1 ? "código tem" : "códigos têm"} todas as palavras juntando o texto breve e o longo. ` +
+      "Os com mais palavras no breve vêm primeiro."),
+    tabela, mais);
+}
+
 function desenharCatalogo(d) {
   const c = d?.contagem;
   $("cat-n-todos").textContent = c ? numeroBr(c.todos ?? c.livres + c.compras + c.total) : "";
   $("cat-n-livres").textContent = c ? numeroBr(c.livres) : "";
   $("cat-n-compras").textContent = c ? numeroBr(c.compras) : "";
   $("cat-n-total").textContent = c ? numeroBr(c.total) : "";
+  // sem número: a conta percorreria o catálogo inteiro (só com texto, tipo, grupo ou NCM)
+  $("cat-n-erro").textContent = typeof c?.com_erro === "number" ? numeroBr(c.com_erro) : "";
+  $("cat-n-fluxo").textContent = typeof c?.fora_do_fluxo === "number" ? numeroBr(c.fora_do_fluxo) : "";
   for (const b of $("cat-bloqueio").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.bloqueio === cat.bloqueio));
+  for (const b of $("cat-marcas").querySelectorAll("button")) b.setAttribute("aria-pressed", String(cat[b.dataset.marca]));
   if (!d) {
     $("cat-corpo").replaceChildren(el("div", { className: "cat-vazio" },
       el("img", { src: "img/bella.png", alt: "", width: 72, height: 78 }),
@@ -1421,37 +1539,26 @@ function desenharCatalogo(d) {
   }
   const maxPaginas = d.max_paginas || 200;
   const paginas = Math.max(1, Math.ceil(Math.min(d.total, d.por_pagina * maxPaginas) / d.por_pagina));
+  const longo = secaoDoTextoLongo(d.no_texto_longo);
+  if (d.pagina === 1) cat.noLongo = d.no_texto_longo?.total || 0;   // só a primeira página traz; a planilha leva em todas
+  const naPlanilha = d.total + (cat.noLongo || 0);
   const resumo = el("div", { className: "cat-resumo" },
-    el("p", {}, el("strong", { textContent: d.total ? `${numeroBr(d.total)} ${d.total === 1 ? "código" : "códigos"}` : "Nenhum código" }),
+    el("p", {}, el("strong", { textContent: d.total ? `${numeroBr(d.total)} ${d.total === 1 ? "código" : "códigos"}` : longo ? "Nenhum código no texto breve" : "Nenhum código" }),
       ` · procurei ${d.procurou}`, d.procurou_tambem_como ? ` (também como ${d.procurou_tambem_como.join(", ")})` : "",
-      d.filtros?.length ? ` · ${d.filtros.join(" · ")}` : ""),
+      d.filtros?.length ? ` · ${d.filtros.join(" · ")}` : "",
+      longo && d.total ? el("button", { type: "button", className: "link cat-ir-longo", textContent: `+ ${numeroBr(d.no_texto_longo.total)} com o texto longo`,
+        onclick: () => longo.scrollIntoView({ behavior: "smooth", block: "start" }) }) : null),
     el("div", { className: "cat-resumo-acoes" }, botaoLinkDaBusca(),
-      d.texto_planilha && d.total ? botaoPlanilha({ tipo: "sap", total: d.total, texto: d.texto_planilha }) : null));
-  if (!d.total) {
-    $("cat-corpo").replaceChildren(resumo, el("div", { className: "cat-vazio" },
+      d.texto_planilha && naPlanilha ? botaoPlanilha({ tipo: "sap", total: naPlanilha, texto: d.texto_planilha }) : null));
+  if (!d.total && !longo) {
+    $("cat-corpo").replaceChildren(...[resumo, avisoDeParecidas(d.abertas_parecidas), avisoDeColados(d), el("div", { className: "cat-vazio" },
       el("img", { src: "img/bella.png", alt: "", width: 72, height: 78 }),
       el("div", {}, el("p", {}, el("strong", { textContent: "Não achei nada com isso 😕" }),
         "Tente menos palavras ou tire um filtro. Na conversa eu também procuro os parecidos."),
-        $("cat-texto").value.trim() ? el("button", { type: "button", className: "sugestao", textContent: "Procurar parecidos na conversa",
-          onclick: () => { const t = $("cat-texto").value.trim(); fecharCatalogo(); enviar(`já existe ${t}?`); } }) : null)));
+        $("cat-texto").value.trim() && !d.nao_encontrados ? el("button", { type: "button", className: "sugestao", textContent: "Procurar parecidos na conversa",
+          onclick: () => { const t = $("cat-texto").value.trim(); fecharCatalogo(); enviar(`já existe ${t}?`); } }) : null))].filter(Boolean));
     return;
   }
-  const linhas = d.linhas.map((l) => el("tr", {},
-    el("td", { className: "cat-cod" }, botaoCodigoCatalogo(l.codigo)),
-    el("td", { className: "cat-txt" }, el("span", { textContent: l.texto || "" }),
-      l.usar_no_lugar ? el("small", { className: "cat-usar" }, "texto manda usar o ", botaoCodigoCatalogo(l.usar_no_lugar)) : null,
-      l.prefixo_indica ? el("small", { className: "cat-usar" }, `o prefixo indica ${l.prefixo_indica}`) : null,
-      l.fora_do_fluxo_da_ch ? el("small", { className: "cat-fluxo", title: "Criado por solicitação urgente que depois foi " +
-        "cancelada ou reprovada: não passou 100% pelo fluxo da CH e pode ter inconsistências. Em caso de dúvida, fale com o time de Master Data." },
-        `⚠️ não passou 100% pelo fluxo da CH (${l.fora_do_fluxo_da_ch}); dúvida: time de Master Data`) : null),
-    el("td", { className: "cat-tipo" }, l.tipo || ""),
-    el("td", { className: "cat-gm", title: l.gm_nome || "" }, l.gm || "", l.gm_nome ? el("small", { textContent: l.gm_nome }) : null),
-    el("td", {}, seloSituacao(l.bloqueio)),
-    el("td", { className: "cat-acao" }, el("button", { type: "button", className: "sugestao", textContent: "Perguntar à Bella",
-      title: `Perguntar à Bella sobre o ${l.codigo}`, onclick: () => perguntarSobre(l.codigo) }))));
-  const tabela = el("div", { className: "cat-tabela" }, el("table", {},
-    el("thead", {}, el("tr", {}, ...["Código", "Texto", "Tipo", "Grupo", "Situação", ""].map((t) => el("th", { textContent: t })))),
-    el("tbody", {}, ...linhas)));
   const ir = (p) => { cat.pagina = p; buscarNoCatalogo(); $("cat-corpo").scrollTo({ top: 0 }); };
   const paginacao = paginas > 1 ? el("div", { className: "cat-paginas" },
     el("button", { type: "button", className: "sugestao", textContent: "← Anterior", disabled: d.pagina <= 1, onclick: () => ir(d.pagina - 1) }),
@@ -1459,7 +1566,8 @@ function desenharCatalogo(d) {
     el("button", { type: "button", className: "sugestao", textContent: "Próxima →", disabled: d.pagina >= paginas, onclick: () => ir(d.pagina + 1) }))
     : null;
   // replaceChildren escreveria "null": so o que existe
-  $("cat-corpo").replaceChildren(...[resumo, tabela, paginacao,
+  $("cat-corpo").replaceChildren(...[resumo, avisoDeParecidas(d.abertas_parecidas), avisoDeColados(d),
+    d.total ? tabelaDoCatalogo(d.linhas) : null, paginacao, longo,
     d.total > d.por_pagina * maxPaginas ? el("p", { className: "cat-data", textContent: `Mostrando até ${maxPaginas} páginas: use mais palavras ou filtros para refinar.` }) : null,
     dataDosMateriais()].filter(Boolean));
 }
@@ -1490,8 +1598,9 @@ function botaoCodigoCatalogo(c) {
 function limparFiltrosDoCatalogo() {
   $("cat-tipo").value = "";
   $("cat-gm").value = "";
-  $("cat-usar").checked = false;
-  $("cat-errado").checked = false;
+  $("cat-ncm").value = "";
+  cat.erro = false;
+  cat.fluxo = false;
   cat.bloqueio = "";
   cat.pagina = 1;
   buscarNoCatalogo();
@@ -2067,8 +2176,8 @@ function barrasAcerto(itens = []) {
   return el("div", { className: "pn-barras" }, ...itens.map((d) => {
     const barra = el("span", { className: "pn-barra ea-acerto" });
     barra.style.width = `${Math.max(d.taxa, 0.6)}%`;
-    return el("div", { className: "pn-b-linha", title: `${nomeLegivel(d.rotulo)}: ${mil(d.certos)} de ${mil(d.pedidos)} terminadas foram cadastradas ` +
-      `sem nenhuma pendência técnica (${d.taxa}%)` },
+    return el("div", { className: "pn-b-linha", title: `${nomeLegivel(d.rotulo)}: ${mil(d.certos)} de ${mil(d.pedidos)} foram cadastradas ` +
+      `sem nenhuma pendência técnica (${d.taxa}%); as devolvidas ainda abertas contam como não certas` },
       el("span", { className: "pn-b-rotulo", textContent: nomeLegivel(d.rotulo) }),
       el("span", { className: "pn-b-trilho" }, barra),
       el("span", { className: "pn-b-valor" }, `${d.taxa}%`, el("small", { textContent: ` de ${mil(d.pedidos)}` })));
@@ -2253,7 +2362,7 @@ function desenharEmAberto() {
     }
   }
   const lider = pc && pc.itens && pc.itens[0];
-  if (lider) r.pede_certo = `${nomeLegivel(lider.rotulo)} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
+  if (lider) r.pede_certo = `${nomeLegivel(lider.rotulo)} lidera: ${mil(lider.certos)} de ${mil(lider.pedidos)} solicitações cadastradas sem nenhuma pendência técnica (${lider.taxa}%).`;
   const grade = el("div", { className: "ea-grade" },
     // em pares de altura parecida (lado a lado na tela larga): barras curtas, colunas, as 8 maiores;
     // os largos ocupam a linha toda
@@ -2306,10 +2415,11 @@ function desenharEmAberto() {
       "uns dias atrás (uma semana, quando já houver): + subiu, − baixou, = igual." },
       (clicar) => barrasPendencia(pp, clicar), true) : null,
     pc && pc.itens && pc.itens.length ? caixaEa("Quem mais pede certo",
-      `das terminadas nos últimos ${mil(pc.dias)} dias · quem teve ${mil(pc.minimo)} ou mais`,
+      `terminadas nos últimos ${mil(pc.dias)} dias e devolvidas em aberto · quem teve ${mil(pc.minimo)} ou mais`,
       { resumo: r.pede_certo, explica:
-        `Das solicitações de cada pessoa que terminaram nos últimos ${mil(pc.dias)} dias, a porcentagem cadastrada sem ` +
-      "nenhuma pendência técnica: a CH nunca precisou devolver. Reprovada e cancelada contam como não certas. A ordem junta " +
+        `Das solicitações de cada pessoa que terminaram nos últimos ${mil(pc.dias)} dias, mais as que a CH devolveu e seguem ` +
+      "em aberto, a porcentagem cadastrada sem nenhuma pendência técnica: a CH nunca precisou devolver. Reprovada, cancelada " +
+      "e devolvida ainda em aberto contam como não certas. A ordem junta " +
       "a porcentagem e a quantidade: quem pede muito e certo fica no topo (19 certas de 20 vem antes de 2 de 2)." },
       () => barrasAcerto(pc.itens), true) : null,
   );
@@ -2663,8 +2773,27 @@ $("atalho-minhas").addEventListener("click", () => { fecharLado(); fecharCatalog
 // catalogo: texto busca quando a pessoa para de digitar; filtros na hora
 $("cat-texto").addEventListener("input", () => { cat.pagina = 1; buscarNoCatalogo(350); });
 $("cat-texto").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); cat.pagina = 1; buscarNoCatalogo(); } });
+// colar de uma planilha: um código por linha viraria um número só no campo de uma linha
+$("cat-texto").addEventListener("paste", (ev) => {
+  const t = (ev.clipboardData?.getData("text") || "").trim();
+  if (t.length <= 120 && !/[\r\n\t]/.test(t)) return;
+  ev.preventDefault();
+  const i = $("cat-texto");
+  i.setRangeText(t.split(/[\s,;]+/).slice(0, 300).join(" "), i.selectionStart, i.selectionEnd, "end");
+  cat.pagina = 1;
+  buscarNoCatalogo();
+});
 $("cat-gm").addEventListener("input", () => { cat.pagina = 1; buscarNoCatalogo(450); });
-for (const id of ["cat-tipo", "cat-usar", "cat-errado"]) $(id).addEventListener("change", () => { cat.pagina = 1; buscarNoCatalogo(); });
+$("cat-ncm").addEventListener("input", () => { cat.pagina = 1; buscarNoCatalogo(450); });
+$("cat-tipo").addEventListener("change", () => { cat.pagina = 1; buscarNoCatalogo(); });
+$("cat-marcas").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  cat[b.dataset.marca] = !cat[b.dataset.marca];
+  b.setAttribute("aria-pressed", String(cat[b.dataset.marca]));
+  cat.pagina = 1;
+  buscarNoCatalogo();
+});
 $("cat-bloqueio").addEventListener("click", (ev) => {
   const b = ev.target.closest("button");
   if (!b) return;

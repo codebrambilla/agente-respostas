@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261103o">
+<link rel="stylesheet" href="consulta-nova.css?v=20261105b">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -137,8 +137,8 @@
         <div class="cat-busca">
           <span class="lupa" aria-hidden="true">⌕</span>
           <label class="oculto" for="cat-texto">Texto ou código do material</label>
-          <input id="cat-texto" type="search" maxlength="120" autocomplete="off" spellcheck="false"
-                 placeholder="Ex.: válvula gaveta DN 100, luva PVC 50, 1300012345…">
+          <input id="cat-texto" type="search" maxlength="4000" autocomplete="off" spellcheck="false"
+                 placeholder="Ex.: válvula gaveta DN 100, 1300012345 ou vários códigos colados…">
         </div>
         <div class="cat-filtros">
           <label>Tipo
@@ -146,15 +146,21 @@
           <label>Grupo de mercadorias
             <input id="cat-gm" list="cat-grupos" maxlength="40" placeholder="Todos" autocomplete="off" spellcheck="false">
             <datalist id="cat-grupos"></datalist></label>
-          <label class="marca-filtro"><input type="checkbox" id="cat-usar"> Texto manda usar outro código</label>
-          <label class="marca-filtro"><input type="checkbox" id="cat-errado"> Tipo de material errado</label>
+          <label title="O NCM inteiro ou o começo; nos serviços, o item da LC 116; ou “sem”">NCM
+            <input id="cat-ncm" maxlength="12" placeholder="Ex.: 8481 ou sem" autocomplete="off" spellcheck="false"></label>
           <button type="button" class="link" id="cat-limpar" hidden>Limpar filtros</button>
         </div>
+        <div class="cat-pilulas">
         <div class="cat-bloqueio" id="cat-bloqueio" role="group" aria-label="Bloqueio">
           <button type="button" data-bloqueio="" aria-pressed="true">Todos <b id="cat-n-todos"></b></button>
           <button type="button" data-bloqueio="sem" aria-pressed="false"><i class="ponto verde"></i>Livres <b id="cat-n-livres"></b></button>
           <button type="button" data-bloqueio="compras" aria-pressed="false"><i class="ponto amarelo"></i>Bloqueio para compras <b id="cat-n-compras"></b></button>
           <button type="button" data-bloqueio="total" aria-pressed="false"><i class="ponto vermelho"></i>Bloqueio total <b id="cat-n-total"></b></button>
+        </div>
+        <div class="cat-bloqueio cat-marcas" id="cat-marcas" role="group" aria-label="Problemas no cadastro">
+          <button type="button" data-marca="erro" aria-pressed="false" title="O texto manda usar outro código ou o tipo de material está errado">Cadastro com erro <b id="cat-n-erro"></b></button>
+          <button type="button" data-marca="fluxo" aria-pressed="false" title="Criado por solicitação urgente que depois foi cancelada ou reprovada">Fora do fluxo da CH <b id="cat-n-fluxo"></b></button>
+        </div>
         </div>
       </div>
       <div class="cat-corpo" id="cat-corpo" aria-live="polite"></div>
@@ -210,6 +216,6 @@
   </div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261103p"></script>
+<script src="consulta-nova.js?v=20261105b"></script>
 </body>
 </html>

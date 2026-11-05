@@ -467,10 +467,13 @@ button.termo:hover { text-decoration: line-through; background: var(--erro-cl); 
 .cat-filtros select, .cat-filtros input:not([type="checkbox"]) { font: inherit; font-weight: 400; font-size: 14px; color: var(--tinta);
   background: var(--papel); border: 1px solid var(--campo-borda); border-radius: 10px; height: 38px; padding: 0 10px; min-width: 140px; }
 .cat-filtros #cat-gm { width: 220px; }
+.cat-filtros #cat-ncm { width: 130px; }
 .marca-filtro { display: flex; align-items: center; gap: 7px; height: 38px; font-weight: 400; color: var(--tinta); cursor: pointer; }
 .marca-filtro input { width: 17px; height: 17px; accent-color: var(--ciano-2); }
 .cat-filtros .link { color: var(--ciano-2); height: 38px; }
 .cat-bloqueio { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-pilulas { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.cat-marcas { padding-left: 14px; border-left: 1px solid var(--linha); }
 .cat-bloqueio button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--linha); background: var(--papel); color: var(--tinta-2);
   border-radius: 999px; padding: 5px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .cat-bloqueio button b { color: var(--tinta-3); font-weight: 700; }
@@ -504,6 +507,21 @@ button.termo:hover { text-decoration: line-through; background: var(--erro-cl); 
 .cat-gm small { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cat-acao { text-align: right; white-space: nowrap; }
 .cat-acao .sugestao { font-size: 12.5px; padding: 4px 11px; }
+.cat-acao .sugestao + .sugestao { margin-left: 6px; }
+.cat-tabela tbody tr.cat-detalhe:hover td { background: none; }
+.cat-tabela .cat-detalhe td { border-top: 0; padding: 0 12px 12px; }
+.cat-detalhe .cs-longo p { max-height: 260px; overflow-y: auto; }
+.cat-detalhe .cat-data { margin: 0; text-align: left; }
+.cat-trecho { margin-top: 3px; color: var(--tinta-2) !important; }
+.cat-trecho mark { background: var(--amarelo-cl); color: var(--tinta); font-weight: 700; border-radius: 3px; padding: 0 2px; }
+.cat-ir-longo { margin-left: 6px; color: var(--ciano-2); font-weight: 700; }
+.cat-longo { margin-top: 18px; scroll-margin-top: 6px; }
+.cat-longo h3 { margin: 0 0 2px; font-size: 16px; color: var(--titulo); }
+.cat-longo p { margin: 0 0 10px; font-size: 14px; color: var(--tinta-2); }
+.cat-mais { display: block; margin: 12px auto 0; }
+.cat-nota { margin: 0 0 10px; padding: 9px 13px; border-radius: 12px; background: var(--amarelo-cl); color: var(--tinta); font-size: 14px; overflow-wrap: anywhere; }
+.cat-nota .ref { margin: 0 1px; }
+.cat-nota .sugestao { margin-left: 6px; font-size: 12.5px; padding: 3px 10px; }
 .cat-paginas { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; font-size: 14px; color: var(--tinta-2); }
 .cat-paginas .sugestao:disabled { opacity: .4; cursor: default; }
 .cat-data { margin: 12px 0 0; text-align: center; font-size: 12.5px; color: var(--tinta-3); }
@@ -602,6 +620,8 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
   .catalogo { padding: 0 12px; }
   .cat-filtros > label:not(.marca-filtro) { flex: 1 1 140px; }
   .cat-filtros select, .cat-filtros input:not([type="checkbox"]), .cat-filtros #cat-gm { width: 100%; min-width: 0; }
+  .cat-pilulas { display: block; }
+  .cat-marcas { padding-left: 0; border-left: 0; margin-top: 8px; }
   .cat-bloqueio { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .cat-bloqueio button { flex: none; }
   /* no celular a tabela vira lista de cartões */
@@ -614,6 +634,8 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
   .cat-tabela tbody tr:hover td { background: none; }
   .cat-tabela .cat-tipo, .cat-tabela .cat-gm { display: inline-block; margin-right: 10px; font-size: 13px; color: var(--tinta-2); }
   .cat-tabela td:nth-child(5) { position: absolute; top: 10px; right: 12px; }
+  .cat-tabela tr.cat-detalhe { border-left-color: var(--pilula-borda); margin-top: -4px; }
+  .cat-tabela .cat-detalhe td { position: static; padding: 0; }
   .cat-acao { text-align: left; margin-top: 6px; }
   .cat-vazio { flex-direction: column; text-align: center; }
   .ir-fim { right: 14px; bottom: 96px; }
