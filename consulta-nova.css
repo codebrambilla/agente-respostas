@@ -484,8 +484,7 @@ button.termo:hover { text-decoration: line-through; background: var(--erro-cl); 
 .marca-filtro input { width: 17px; height: 17px; accent-color: var(--ciano-2); }
 .cat-filtros .link { color: var(--ciano-2); height: 38px; }
 .cat-bloqueio { display: flex; flex-wrap: wrap; gap: 8px; }
-.cat-pilulas { display: flex; flex-wrap: wrap; gap: 8px 14px; }
-.cat-marcas { padding-left: 14px; border-left: 1px solid var(--linha); }
+.cat-pilulas { display: flex; flex-direction: column; gap: 8px; }
 .cat-bloqueio button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--linha); background: var(--papel); color: var(--tinta-2);
   border-radius: 999px; padding: 5px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .cat-bloqueio button b { color: var(--tinta-3); font-weight: 700; }
@@ -652,10 +651,9 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
   .cat-filtros > label:not(.marca-filtro) { flex: 1 1 140px; }
   .cat-filtros select, .cat-filtros input:not([type="checkbox"]), .cat-filtros #cat-gm { width: 100%; min-width: 0; }
   .cat-pilulas { display: block; }
-  .cat-marcas { padding-left: 0; border-left: 0; margin-top: 8px; }
   .cat-bloqueio { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .cat-bloqueio button { flex: none; }
-  .cat-marcas { flex-wrap: wrap; overflow-x: visible; }
+  .cat-marcas { margin-top: 8px; flex-wrap: wrap; overflow-x: visible; }
   /* no celular a tabela vira lista de cartões */
   .cat-tabela { border: 0; background: none; box-shadow: none; border-radius: 0; }
   .cat-tabela thead { display: none; }
