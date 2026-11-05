@@ -442,9 +442,11 @@ function painelMotivo(m) {
 // "Baixar planilha": a lista completa do que a Bella consultou, em CSV (abre no Excel)
 function botaoPlanilha(x) {
   const qtd = Number(x.total) || 0;
-  const rotulo = `📥 Baixar planilha (${qtd > 5000 ? "5.000 de " : ""}${qtd.toLocaleString("pt-BR")} ${x.tipo === "sap" ? "códigos" : "solicitações"})`;
+  const deCodigos = ["sap", "duplicados", "ncm_divergente"].includes(x.tipo);
+  const rotulo = `📥 Baixar planilha (${qtd > 5000 ? "5.000 de " : ""}${qtd.toLocaleString("pt-BR")} ${deCodigos ? "códigos" : "solicitações"})`;
   const corpo = x.tipo === "sap" ? { tipo: "sap", texto: x.texto }
-    : x.tipo === "divergencias" ? { tipo: "divergencias", filtro: x.filtro } : { tipo: "solicitacoes", pergunta: x.pergunta };
+    : x.tipo === "divergencias" || x.tipo === "duplicados" ? { tipo: x.tipo, filtro: x.filtro }
+    : x.tipo === "ncm_divergente" ? { tipo: x.tipo } : { tipo: "solicitacoes", pergunta: x.pergunta };
   const b = el("button", { type: "button", className: "sugestao planilha", textContent: rotulo, title: "Abre no Excel" });
   b.onclick = async () => {
     b.disabled = true;
@@ -453,7 +455,7 @@ function botaoPlanilha(x) {
       const r = await pedir({ exportar: 1 }, corpo);
       const arquivo = await r.blob();
       const hoje = new Date().toLocaleDateString("sv-SE");
-      const a = el("a", { href: URL.createObjectURL(arquivo), download: `bella-${x.tipo === "sap" || x.tipo === "divergencias" ? x.tipo : "solicitacoes"}-${hoje}.csv` });
+      const a = el("a", { href: URL.createObjectURL(arquivo), download: `bella-${deCodigos || x.tipo === "divergencias" ? x.tipo.replace("_", "-") : "solicitacoes"}-${hoje}.csv` });
       document.body.append(a);
       a.click();
       a.remove();
@@ -494,6 +496,8 @@ function cartaoSap(c) {
     c.texto ? el("p", { className: "cs-texto", textContent: c.texto }) : null,
     c.aviso_fluxo ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Atenção: " }),
       document.createTextNode(c.aviso_fluxo)) : null,
+    c.duplicados?.length ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Possível duplicado: " }),
+      document.createTextNode(`mesmo tipo, texto breve e texto longo de ${c.duplicados.slice(0, 5).join(", ")}${c.duplicados.length > 5 ? ` e mais ${c.duplicados.length - 5}` : ""}. Em caso de dúvida, fale com o time de Master Data.`)) : null,
     // NCM (ou item da LC 116) e texto longo no corpo, sempre à vista
     c.ncm ? el("p", { className: "cs-fiscal" }, el("strong", { textContent: "NCM " }), document.createTextNode(c.ncm),
       c.ncm_descricao ? el("span", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
@@ -945,7 +949,7 @@ const CONSULTANDO = {
   consultar_solicitacoes: "Consultando as solicitações…", minhas_solicitacoes: "Procurando as suas solicitações…",
   procurar_solicitante: "Procurando o seu nome no Webformat…", confirmar_solicitante: "Guardando o seu nome…",
   ver_solicitacao: "Abrindo a solicitação…", ajuda_pendencia: "Abrindo a solicitação…",
-  catalogo_sap: "Procurando nos materiais do SAP…", comparar_codigos: "Comparando os códigos…", buscar_material: "Olhando o histórico de materiais…",
+  catalogo_sap: "Procurando nos materiais do SAP…", comparar_codigos: "Comparando os códigos…", duplicados_sap: "Procurando possíveis duplicados…", buscar_material: "Olhando o histórico de materiais…",
   evolucao_da_fila: "Olhando a evolução da fila…",
 };
 const rotuloConsulta = (fs) => CONSULTANDO[(fs || [])[0]] || "Consultando a base de conhecimento…";
