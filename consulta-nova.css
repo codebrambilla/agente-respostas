@@ -522,6 +522,7 @@ button.termo:hover { text-decoration: line-through; background: var(--erro-cl); 
 .cat-acao .sugestao + .sugestao { margin-left: 6px; }
 .cat-tabela tbody tr.cat-detalhe:hover td { background: none; }
 .cat-tabela .cat-detalhe td { border-top: 0; padding: 0 12px 12px; }
+.cat-tabela .cat-grupo td, .cat-tabela tbody tr.cat-grupo:hover td { padding: 12px 12px 6px; background: var(--bloco); color: var(--tinta-2); font-size: 13px; font-weight: 700; }
 .cat-detalhe .cs-longo p { max-height: 260px; overflow-y: auto; }
 .cat-detalhe .cat-data { margin: 0; text-align: left; }
 .cat-trecho { margin-top: 3px; color: var(--tinta-2) !important; }
@@ -654,6 +655,7 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
   .cat-marcas { padding-left: 0; border-left: 0; margin-top: 8px; }
   .cat-bloqueio { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .cat-bloqueio button { flex: none; }
+  .cat-marcas { flex-wrap: wrap; overflow-x: visible; }
   /* no celular a tabela vira lista de cartões */
   .cat-tabela { border: 0; background: none; box-shadow: none; border-radius: 0; }
   .cat-tabela thead { display: none; }
@@ -661,6 +663,8 @@ fieldset.wa-campo legend { font-weight: 700; padding: 0 4px; }
   .cat-tabela tr { position: relative; background: var(--papel); border: 1px solid var(--linha); border-left: 4px solid var(--ciano); border-radius: 14px;
     padding: 10px 12px; margin-bottom: 10px; }
   .cat-tabela td { border: 0; padding: 2px 0; }
+  .cat-tabela tr.cat-grupo { padding: 8px 0 0; border: 0; background: none; box-shadow: none; }
+  .cat-tabela .cat-grupo td, .cat-tabela tbody tr.cat-grupo:hover td { padding: 0; background: none; }
   .cat-tabela tbody tr:hover td { background: none; }
   .cat-tabela .cat-tipo, .cat-tabela .cat-gm { display: inline-block; margin-right: 10px; font-size: 13px; color: var(--tinta-2); }
   .cat-tabela td:nth-child(5) { position: absolute; top: 10px; right: 12px; }

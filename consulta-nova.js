@@ -587,7 +587,7 @@ function abrirCatalogoCom(t) {
   if (texto) p.set("texto", texto);
   for (const par of (m ? m[1].split(";") : [])) {
     const [k, val] = par.split("=");
-    if (["bloqueio", "tipo", "gm", "ncm", "usar", "errado", "erro", "fluxo"].includes(k) && val) p.set(k, val);
+    if (["bloqueio", "tipo", "gm", "ncm", "usar", "errado", "erro", "fluxo", "dup"].includes(k) && val) p.set(k, val);
   }
   const q = p.toString();
   abrirLinkDoCatalogo(`#catalogo${q ? `&${q}` : ""}`);
@@ -1253,7 +1253,7 @@ async function abrirWhatsapp() {
 // ------------------------------------------------------------ procurar material (catalogo do SAP com filtros)
 // Busca enquanto a pessoa digita (espera 350 ms parada); a busca anterior e cancelada.
 
-const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", erro: false, fluxo: false, pedido: null, espera: 0, ultimo: null,
+const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", erro: false, fluxo: false, dup: false, pedido: null, espera: 0, ultimo: null,
   novidade: false, detalhes: new Map(), comparar: new Set() };
 // link de uma busca (#catalogo&texto=...): aberto antes de entrar, vale depois da entrada
 let linkPendente = /^#catalogo(&|$)/.test(location.hash) ? location.hash : "";
@@ -1268,6 +1268,7 @@ function linkDaBusca(f) {
   if (f.bloqueio) p.set("bloqueio", f.bloqueio);
   if (f.com_erro) p.set("erro", "1");
   if (f.fora_do_fluxo) p.set("fluxo", "1");
+  if (f.duplicados) p.set("dup", "1");
   if (f.pagina > 1) p.set("pagina", String(f.pagina));
   const q = p.toString();
   return `#catalogo${q ? `&${q}` : ""}`;
@@ -1284,6 +1285,7 @@ function abrirLinkDoCatalogo(hash) {
   // usar=1 e errado=1: links de antes de os dois filtros virarem um só
   cat.erro = ["erro", "usar", "errado"].some((k) => p.get(k) === "1");
   cat.fluxo = p.get("fluxo") === "1";
+  cat.dup = p.get("dup") === "1";
   cat.pagina = Math.max(1, Math.min(200, parseInt(p.get("pagina"), 10) || 1));
   const tipo = (p.get("tipo") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
   // o tipo do link entra na lista mesmo antes das opcoes chegarem
@@ -1304,7 +1306,7 @@ function marcarNovidade(sim) {
 function filtrosDoCatalogo() {
   const gm = grupoDigitado($("cat-gm").value);
   return { texto: $("cat-texto").value.trim(), tipo: $("cat-tipo").value, gm, ncm: $("cat-ncm").value.trim(), bloqueio: cat.bloqueio,
-    com_erro: cat.erro, fora_do_fluxo: cat.fluxo, pagina: cat.pagina };
+    com_erro: cat.erro, fora_do_fluxo: cat.fluxo, duplicados: cat.dup, pagina: cat.pagina };
 }
 
 // "024 · TUBOS E CONEXOES" (da lista), "024" ou "tubos e conexoes" (o nome) -> "024"
@@ -1325,6 +1327,7 @@ async function carregarOpcoesDoCatalogo() {
     return;   // sem as listas os filtros ainda funcionam digitando
   }
   const jaTem = new Set([...$("cat-tipo").options].map((o) => o.value));
+  if (!cat.ultimo) mostrarDuplicados(null);
   $("cat-tipo").append(...(cat.opcoes.tipos || []).filter((t) => !jaTem.has(t)).map((t) => el("option", { value: t, textContent: t })));
   $("cat-grupos").replaceChildren(...(cat.opcoes.grupos || []).map((g) =>
     el("option", { value: `${g.codigo} · ${g.descricao || ""}`.trim() })));
@@ -1362,8 +1365,8 @@ function buscarNoCatalogo(espera = 0) {
   clearTimeout(cat.espera);
   cat.espera = setTimeout(async () => {
     const f = filtrosDoCatalogo();
-    $("cat-limpar").hidden = !(f.tipo || f.gm || f.ncm || f.bloqueio || f.com_erro || f.fora_do_fluxo);
-    const vazio = !f.texto && !f.tipo && !f.gm && !f.ncm && !f.com_erro && !f.fora_do_fluxo && !f.bloqueio;
+    $("cat-limpar").hidden = !(f.tipo || f.gm || f.ncm || f.bloqueio || f.com_erro || f.fora_do_fluxo || f.duplicados);
+    const vazio = !f.texto && !f.tipo && !f.gm && !f.ncm && !f.com_erro && !f.fora_do_fluxo && !f.duplicados && !f.bloqueio;
     if (cat.aberto) marcarEndereco(vazio ? "#catalogo" : linkDaBusca(f));
     if (vazio) {
       cat.pedido?.abort();
@@ -1558,9 +1561,11 @@ function linhaDoCatalogo(l) {
   return linha;
 }
 
+const tituloDoGrupo = (l) => el("tr", { className: "cat-grupo" },
+  el("td", { colSpan: 6, textContent: `Grupo ${numeroBr(l.grupo)} · ${numeroBr(l.no_grupo)} códigos` }));
 const tabelaDoCatalogo = (itens) => el("div", { className: "cat-tabela" }, el("table", {},
   el("thead", {}, el("tr", {}, ...["Código", "Texto", "Tipo", "Grupo", "Situação", ""].map((t) => el("th", { textContent: t })))),
-  el("tbody", {}, ...itens.map(linhaDoCatalogo))));
+  el("tbody", {}, ...itens.flatMap((l, i) => l.grupo && l.grupo !== itens[i - 1]?.grupo ? [tituloDoGrupo(l), linhaDoCatalogo(l)] : [linhaDoCatalogo(l)]))));
 
 // Os que têm todas as palavras juntando o breve e o longo: é o longo que diferencia códigos de texto breve parecido
 function secaoDoTextoLongo(x) {
@@ -1592,6 +1597,20 @@ function secaoDoTextoLongo(x) {
     tabela, mais);
 }
 
+// a lista é pequena: o número aparece já na tela vazia (vem com as opções)
+function mostrarDuplicados(c) {
+  const n = c?.duplicados ?? (c ? null : cat.opcoes?.duplicados);
+  $("cat-n-dup").textContent = typeof n === "number" ? numeroBr(n) : "";
+}
+
+// quem digita a palavra vê os códigos com ela no texto e o caminho para a lista inteira
+function atalhoDosDuplicados() {
+  const n = cat.opcoes?.duplicados;
+  if (cat.dup || !n || !/^%?\s*duplic\w*\s*%?$/i.test($("cat-texto").value.trim())) return null;
+  return el("p", { className: "cat-nota", role: "note" }, el("button", { type: "button", className: "link", textContent: `Ver os ${numeroBr(n)} possíveis duplicados`,
+    onclick: () => { $("cat-texto").value = ""; cat.dup = true; cat.pagina = 1; buscarNoCatalogo(); } }));
+}
+
 function desenharCatalogo(d) {
   const c = d?.contagem;
   $("cat-n-todos").textContent = c ? numeroBr(c.todos ?? c.livres + c.compras + c.total) : "";
@@ -1601,6 +1620,7 @@ function desenharCatalogo(d) {
   // sem número: a conta percorreria o catálogo inteiro (só com texto, tipo, grupo ou NCM)
   $("cat-n-erro").textContent = typeof c?.com_erro === "number" ? numeroBr(c.com_erro) : "";
   $("cat-n-fluxo").textContent = typeof c?.fora_do_fluxo === "number" ? numeroBr(c.fora_do_fluxo) : "";
+  mostrarDuplicados(c);
   for (const b of $("cat-bloqueio").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.bloqueio === cat.bloqueio));
   for (const b of $("cat-marcas").querySelectorAll("button")) b.setAttribute("aria-pressed", String(cat[b.dataset.marca]));
   if (!d) {
@@ -1625,7 +1645,7 @@ function desenharCatalogo(d) {
     el("div", { className: "cat-resumo-acoes" }, botaoLinkDaBusca(),
       d.texto_planilha && naPlanilha ? botaoPlanilha({ tipo: "sap", total: naPlanilha, texto: d.texto_planilha }) : null));
   if (!d.total && !longo) {
-    $("cat-corpo").replaceChildren(...[resumo, avisoDeParecidas(d.abertas_parecidas), avisoDeColados(d), el("div", { className: "cat-vazio" },
+    $("cat-corpo").replaceChildren(...[resumo, atalhoDosDuplicados(), avisoDeParecidas(d.abertas_parecidas), avisoDeColados(d), el("div", { className: "cat-vazio" },
       el("img", { src: "img/bella.png", alt: "", width: 72, height: 78 }),
       el("div", {}, el("p", {}, el("strong", { textContent: "Não achei nada com isso 😕" }),
         "Tente menos palavras ou tire um filtro. Na conversa eu também procuro os parecidos."),
@@ -1640,7 +1660,7 @@ function desenharCatalogo(d) {
     el("button", { type: "button", className: "sugestao", textContent: "Próxima →", disabled: d.pagina >= paginas, onclick: () => ir(d.pagina + 1) }))
     : null;
   // replaceChildren escreveria "null": so o que existe
-  $("cat-corpo").replaceChildren(...[resumo, avisoDeParecidas(d.abertas_parecidas), avisoDeColados(d),
+  $("cat-corpo").replaceChildren(...[resumo, atalhoDosDuplicados(), avisoDeParecidas(d.abertas_parecidas), avisoDeColados(d),
     d.total ? tabelaDoCatalogo(d.linhas) : null, paginacao, longo,
     d.total > d.por_pagina * maxPaginas ? el("p", { className: "cat-data", textContent: `Mostrando até ${maxPaginas} páginas: use mais palavras ou filtros para refinar.` }) : null,
     dataDosMateriais()].filter(Boolean));
@@ -1675,6 +1695,7 @@ function limparFiltrosDoCatalogo() {
   $("cat-ncm").value = "";
   cat.erro = false;
   cat.fluxo = false;
+  cat.dup = false;
   cat.bloqueio = "";
   cat.pagina = 1;
   buscarNoCatalogo();
