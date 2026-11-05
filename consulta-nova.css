@@ -519,6 +519,24 @@ button.termo:hover { text-decoration: line-through; background: var(--erro-cl); 
 .cat-longo h3 { margin: 0 0 2px; font-size: 16px; color: var(--titulo); }
 .cat-longo p { margin: 0 0 10px; font-size: 14px; color: var(--tinta-2); }
 .cat-mais { display: block; margin: 12px auto 0; }
+.cat-marca { margin: 0 6px 0 0; vertical-align: middle; accent-color: var(--ciano-2); cursor: pointer; }
+.cat-comparar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 10px 2px 0; border-top: 1px solid var(--linha); font-size: 14px; color: var(--tinta-2); }
+.cat-comparar[hidden] { display: none; }
+.cat-comparar span { margin-right: auto; }
+.cat-comparar .sugestao:disabled { opacity: .45; cursor: default; }
+.cat-comparar .destaque { font-weight: 700; color: var(--ciano-2); }
+.cat-voltar { margin-bottom: 10px; }
+.cat-comp-resumo { margin: 0 0 10px; font-size: 14px; color: var(--tinta-2); }
+.cat-comp-resumo strong { color: var(--titulo); }
+.cat-comparacao { border: 1px solid var(--linha); border-radius: 16px; overflow-x: auto; background: var(--papel); box-shadow: var(--sombra-leve); }
+.cat-comparacao table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.cat-comparacao th, .cat-comparacao td { padding: 9px 12px; border-top: 1px solid var(--linha); text-align: left; vertical-align: top; min-width: 200px; overflow-wrap: anywhere; }
+.cat-comparacao thead th { border-top: 0; }
+.cat-comparacao th:first-child { min-width: 120px; width: 130px; font-size: 12.5px; font-weight: 700; color: var(--pilula-tinta); }
+.cat-comparacao tbody th small { display: block; font-weight: 700; color: var(--laranja); }
+.cat-comparacao tr.muda td, .cat-comparacao tr.muda th { background: var(--bloco); }
+.cat-comparacao mark { background: var(--amarelo-cl); color: var(--tinta); font-weight: 700; border-radius: 3px; padding: 0 2px; }
+.cat-sem { color: var(--tinta-2); font-style: italic; }
 .cat-nota { margin: 0 0 10px; padding: 9px 13px; border-radius: 12px; background: var(--amarelo-cl); color: var(--tinta); font-size: 14px; overflow-wrap: anywhere; }
 .cat-nota .ref { margin: 0 1px; }
 .cat-nota .sugestao { margin-left: 6px; font-size: 12.5px; padding: 3px 10px; }

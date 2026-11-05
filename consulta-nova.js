@@ -945,7 +945,7 @@ const CONSULTANDO = {
   consultar_solicitacoes: "Consultando as solicitações…", minhas_solicitacoes: "Procurando as suas solicitações…",
   procurar_solicitante: "Procurando o seu nome no Webformat…", confirmar_solicitante: "Guardando o seu nome…",
   ver_solicitacao: "Abrindo a solicitação…", ajuda_pendencia: "Abrindo a solicitação…",
-  catalogo_sap: "Procurando nos materiais do SAP…", buscar_material: "Olhando o histórico de materiais…",
+  catalogo_sap: "Procurando nos materiais do SAP…", comparar_codigos: "Comparando os códigos…", buscar_material: "Olhando o histórico de materiais…",
   evolucao_da_fila: "Olhando a evolução da fila…",
 };
 const rotuloConsulta = (fs) => CONSULTANDO[(fs || [])[0]] || "Consultando a base de conhecimento…";
@@ -1250,7 +1250,7 @@ async function abrirWhatsapp() {
 // Busca enquanto a pessoa digita (espera 350 ms parada); a busca anterior e cancelada.
 
 const cat = { aberto: false, opcoes: null, pagina: 1, bloqueio: "", erro: false, fluxo: false, pedido: null, espera: 0, ultimo: null,
-  novidade: false, detalhes: new Map() };
+  novidade: false, detalhes: new Map(), comparar: new Set() };
 // link de uma busca (#catalogo&texto=...): aberto antes de entrar, vale depois da entrada
 let linkPendente = /^#catalogo(&|$)/.test(location.hash) ? location.hash : "";
 
@@ -1464,11 +1464,81 @@ function avisoDeColados(d) {
 // O trecho do texto longo com as palavras achadas: o servidor marca «assim»
 const trechoMarcado = (t) => t.replace(/\s+/g, " ").split(/«([^»]*)»/).map((x, i) => (i % 2 ? el("mark", { textContent: x }) : x));
 
+// Comparar: até 4 códigos marcados na lista, mesmo de buscas diferentes
+const MAX_COMPARAR = 4;
+
+function caixaDeComparar(codigo) {
+  const caixa = el("input", { type: "checkbox", className: "cat-marca", checked: cat.comparar.has(codigo),
+    title: `Marcar o ${codigo} para comparar`, ariaLabel: `Marcar o ${codigo} para comparar` });
+  caixa.onchange = () => {
+    if (caixa.checked && cat.comparar.size >= MAX_COMPARAR) {
+      caixa.checked = false;
+      desenharBarraDeComparar(`Até ${MAX_COMPARAR} códigos por vez`);
+      return;
+    }
+    if (caixa.checked) cat.comparar.add(codigo);
+    else cat.comparar.delete(codigo);
+    desenharBarraDeComparar();
+  };
+  return caixa;
+}
+
+function desenharBarraDeComparar(aviso) {
+  const qtd = cat.comparar.size;
+  $("cat-comparar").hidden = !qtd;
+  $("cat-comparar").replaceChildren(
+    el("span", { textContent: aviso || (qtd === 1 ? "1 código marcado: marque mais um para comparar" : `${qtd} códigos marcados`) }),
+    el("button", { type: "button", className: "sugestao destaque", textContent: "Comparar", disabled: qtd < 2, onclick: abrirComparacao }),
+    el("button", { type: "button", className: "sugestao", textContent: "Limpar", onclick: () => {
+      cat.comparar.clear();
+      for (const c of document.querySelectorAll(".cat-marca:checked")) c.checked = false;
+      desenharBarraDeComparar();
+    } }));
+}
+
+async function abrirComparacao() {
+  $("cat-corpo").classList.add("carregando");
+  try {
+    desenharComparacao(await chamar({ catalogo: 1 }, { comparar: [...cat.comparar] }));
+  } catch (e) {
+    $("cat-corpo").replaceChildren(botaoVoltarDaComparacao(), el("p", { className: "cat-aviso erro",
+      textContent: `Não consegui comparar agora (${e instanceof ErroConsulta ? e.message : "erro inesperado"}). Tente de novo em instantes.` }));
+  } finally {
+    $("cat-corpo").classList.remove("carregando");
+  }
+}
+
+const botaoVoltarDaComparacao = () => el("button", { type: "button", className: "sugestao cat-voltar", textContent: "← Voltar para a lista",
+  onclick: () => desenharCatalogo(cat.ultimo) });
+
+function desenharComparacao(d) {
+  const mudam = [...d.campos.filter((c) => c.difere).map((c) => c.campo), ...(d.longo_muda ? ["Texto longo"] : [])];
+  const iguais = [...d.campos.filter((c) => !c.difere).map((c) => c.campo), ...(d.longo_igual ? ["Texto longo"] : [])];
+  const celula = (valor) => el("td", {}, valor || el("span", { className: "cat-sem", textContent: "Não informado" }));
+  const linha = (campo, muda, celulas) => el("tr", { className: muda ? "muda" : "" },
+    el("th", { scope: "row" }, campo, muda ? el("small", { textContent: "muda" }) : null), ...celulas);
+  const longo = linha("Texto longo", d.longo_muda, d.texto_longo.map((pedacos) => el("td", {},
+    ...(pedacos ? pedacos.map(([t, muda]) => (muda ? el("mark", { textContent: t }) : t))
+      : [el("span", { className: "cat-sem", textContent: "Sem texto longo" })]))));
+  const linhas = d.campos.map((c) => linha(c.campo, c.difere, c.valores.map(celula)));
+  // o que muda primeiro: é o que a pessoa veio ver
+  const tabela = el("div", { className: "cat-comparacao" }, el("table", {},
+    el("thead", {}, el("tr", {}, el("th", { textContent: "Campo" }), ...d.codigos.map((c) => el("th", {}, botaoCodigoCatalogo(c))))),
+    el("tbody", {}, ...(d.longo_muda ? [longo] : []), ...linhas.filter((l) => l.className), ...linhas.filter((l) => !l.className), ...(d.longo_muda ? [] : [longo]))));
+  $("cat-corpo").replaceChildren(...[botaoVoltarDaComparacao(),
+    el("p", { className: "cat-comp-resumo" }, el("strong", { textContent: mudam.length ? `Muda: ${mudam.join(", ")}` : "Nada muda entre esses códigos" }),
+      iguais.length ? ` · Igual: ${iguais.join(", ")}` : ""),
+    d.longo_igual ? el("p", { className: "cat-nota", textContent: "⚠️ Mesmo texto longo: podem ser duplicados. Em caso de dúvida, fale com o time de Master Data." }) : null,
+    d.nao_encontrados ? el("p", { className: "cat-nota", textContent: `Fora do catálogo: ${d.nao_encontrados.join(", ")}` }) : null,
+    tabela, dataDosMateriais()].filter(Boolean));
+  $("cat-corpo").scrollTo({ top: 0 });
+}
+
 function linhaDoCatalogo(l) {
   const detalhes = el("button", { type: "button", className: "sugestao", textContent: "Detalhes", ariaExpanded: "false",
     title: `Texto longo, NCM e origem do ${l.codigo}`, onclick: () => alternarDetalhe(l.codigo, linha, detalhes) });
   const linha = el("tr", {},
-    el("td", { className: "cat-cod" }, botaoCodigoCatalogo(l.codigo)),
+    el("td", { className: "cat-cod" }, caixaDeComparar(l.codigo), botaoCodigoCatalogo(l.codigo)),
     el("td", { className: "cat-txt" }, el("span", { textContent: l.texto || "" }),
       l.trecho_do_texto_longo ? el("small", { className: "cat-trecho" }, ...trechoMarcado(l.trecho_do_texto_longo)) : null,
       l.usar_no_lugar ? el("small", { className: "cat-usar" }, "texto manda usar o ", botaoCodigoCatalogo(l.usar_no_lugar)) : null,
@@ -1514,7 +1584,7 @@ function secaoDoTextoLongo(x) {
   return el("section", { className: "cat-longo", id: "cat-longo" },
     el("h3", { textContent: "Achados com o texto longo" }),
     el("p", {}, `${numeroBr(x.total)} ${x.total === 1 ? "código tem" : "códigos têm"} todas as palavras juntando o texto breve e o longo. ` +
-      "Os com mais palavras no breve vêm primeiro."),
+      "Primeiro os que começam com a primeira palavra da busca."),
     tabela, mais);
 }
 
