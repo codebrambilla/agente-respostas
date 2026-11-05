@@ -1331,7 +1331,7 @@ async function carregarOpcoesDoCatalogo() {
   $("cat-tipo").append(...(cat.opcoes.tipos || []).filter((t) => !jaTem.has(t)).map((t) => el("option", { value: t, textContent: t })));
   $("cat-grupos").replaceChildren(...(cat.opcoes.grupos || []).map((g) =>
     el("option", { value: `${g.codigo} · ${g.descricao || ""}`.trim() })));
-  if (cat.aberto && !cat.ultimo) desenharCatalogo(null);   // agora com a data dos materiais
+  if (cat.aberto && !cat.ultimo && !cat.pedido) desenharCatalogo(null);   // agora com a data dos materiais
 }
 
 function abrirCatalogo() {
@@ -1361,11 +1361,15 @@ function fecharCatalogo() {
   desenharTitulo();
 }
 
+const esqueletoDoCatalogo = () => el("div", { role: "status" }, el("span", { className: "oculto", textContent: "Procurando…" }),
+  ...[1, 2, 3, 4, 5].map(() => el("div", { className: "esq cat-esq" })));
+
 function buscarNoCatalogo(espera = 0) {
   clearTimeout(cat.espera);
   cat.espera = setTimeout(async () => {
     const f = filtrosDoCatalogo();
     $("cat-limpar").hidden = !(f.tipo || f.gm || f.ncm || f.bloqueio || f.com_erro || f.fora_do_fluxo || f.duplicados);
+    $("cat-n-filtros").textContent = [f.tipo, f.gm, f.ncm].filter(Boolean).length || "";
     const vazio = !f.texto && !f.tipo && !f.gm && !f.ncm && !f.com_erro && !f.fora_do_fluxo && !f.duplicados && !f.bloqueio;
     if (cat.aberto) marcarEndereco(vazio ? "#catalogo" : linkDaBusca(f));
     if (vazio) {
@@ -1379,6 +1383,7 @@ function buscarNoCatalogo(espera = 0) {
     cat.pedido?.abort();
     const meu = cat.pedido = new AbortController();
     $("cat-corpo").classList.add("carregando");
+    if (!cat.ultimo) $("cat-corpo").replaceChildren(esqueletoDoCatalogo());
     try {
       const r = await pedir({ catalogo: 1 }, f, meu.signal);
       const d = await r.json();
@@ -1626,9 +1631,9 @@ function desenharCatalogo(d) {
   if (!d) {
     $("cat-corpo").replaceChildren(el("div", { className: "cat-vazio" },
       el("img", { src: "img/bella.png", alt: "", width: 72, height: 78 }),
-      el("p", {}, el("strong", { textContent: "Me diga o que procurar 🔍" }),
+      el("div", {}, el("p", {}, el("strong", { textContent: "Me diga o que procurar 🔍" }),
         "Digite o texto ou o código do material, ou escolha um filtro. Eu procuro do mesmo jeito que na conversa: abreviado também vale."),
-      dataDosMateriais()));
+        dataDosMateriais())));
     return;
   }
   const maxPaginas = d.max_paginas || 200;
@@ -1748,7 +1753,7 @@ async function carregarPainel() {
   if (pn.carregando) return;
   pn.carregando = true;
   $("pn-corpo").classList.add("carregando");
-  if (!pn.dados) $("pn-corpo").replaceChildren(el("p", { className: "pn-msg", textContent: "Contando a fila…" }));
+  if (!pn.dados) $("pn-corpo").replaceChildren(esqueletoDoPainel());
   try {
     pn.dados = await chamar({ painel: 1 });
     pn.em = Date.now();
@@ -1845,6 +1850,10 @@ function variacao(v) {
 // abrir: o clique abre uma tela (o "Em aberto"); pergunta: o clique pergunta a lista a Bella
 // dica: o que o número é, em português simples (aparece ao passar o mouse, antes do que o clique faz)
 // acao: uma linha visivel dizendo o que o clique abre (so no cartao que abre uma tela)
+const esqueletoDoPainel = () => el("div", { role: "status" }, el("span", { className: "oculto", textContent: "Contando a fila…" }),
+  el("div", { className: "pn-cartoes" }, ...[1, 2, 3, 4].map(() => el("div", { className: "pn-cartao esq" }))),
+  el("div", { className: "pn-grade pn-grade-esq" }, el("div", { className: "esq" }), el("div", { className: "esq" })));
+
 function cartaoIndicador({ rotulo, valor, sub, chave, pergunta, alerta, abrir, dica, acao }) {
   const s = chave ? serieDe(chave, valor) : { pontos: null, variacao: null };
   const corpo = [
@@ -2071,7 +2080,7 @@ function desenharPainel() {
 
   nos.push(el("div", { className: "pn-cartoes" },
     cartaoIndicador({ rotulo: "Em aberto", valor: a.abertas, chave: "em_aberto", abrir: abrirEmAberto,
-      acao: "Clique para ver mais do Webformat →",
+      acao: "Ver mais →",
       dica: "Solicitações que ainda não terminaram no Webformat (nem encerradas, nem reprovadas, nem canceladas). A seta compara com a manhã anterior.",
       sub: `${mil(a.novas)} ${a.novas === 1 ? "nova" : "novas"} desde ${a.desde}` + (a.novas ? ` (${mil(a.novas_urgentes)} ${a.novas_urgentes === 1 ? "urgente" : "urgentes"})` : "") }),
     cartaoIndicador({ rotulo: "Com a CH", valor: a.com_a_ch, chave: "com_a_ch", pergunta: "quais estão com a CH há mais de 48 horas úteis?",
@@ -2881,6 +2890,10 @@ $("cat-texto").addEventListener("paste", (ev) => {
 $("cat-gm").addEventListener("input", () => { cat.pagina = 1; buscarNoCatalogo(450); });
 $("cat-ncm").addEventListener("input", () => { cat.pagina = 1; buscarNoCatalogo(450); });
 $("cat-tipo").addEventListener("change", () => { cat.pagina = 1; buscarNoCatalogo(); });
+$("cat-abrir").addEventListener("click", () => {
+  const aberto = $("cat-filtros").classList.toggle("abertos");
+  $("cat-abrir").setAttribute("aria-expanded", String(aberto));
+});
 $("cat-marcas").addEventListener("click", (ev) => {
   const b = ev.target.closest("button");
   if (!b) return;

@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261105g">
+<link rel="stylesheet" href="consulta-nova.css?v=20261105k">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -140,7 +140,8 @@
           <input id="cat-texto" type="search" maxlength="4000" autocomplete="off" spellcheck="false"
                  placeholder="Ex.: válvula gaveta DN 100, 1300012345 ou vários códigos colados…">
         </div>
-        <div class="cat-filtros">
+        <div class="cat-filtros" id="cat-filtros">
+          <button type="button" class="sugestao cat-abrir" id="cat-abrir" aria-expanded="false" aria-controls="cat-filtros">Mais filtros <b id="cat-n-filtros"></b></button>
           <label>Tipo
             <select id="cat-tipo"><option value="">Todos</option></select></label>
           <label>Grupo de mercadorias
@@ -218,6 +219,6 @@
   </div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261105f"></script>
+<script src="consulta-nova.js?v=20261105i"></script>
 </body>
 </html>
