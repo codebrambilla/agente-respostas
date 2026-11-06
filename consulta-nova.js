@@ -457,7 +457,9 @@ function painelMotivo(m) {
 function botaoPlanilha(x) {
   const qtd = Number(x.total) || 0;
   const deCodigos = ["sap", "duplicados", "ncm_divergente"].includes(x.tipo);
-  const rotulo = `📥 Baixar planilha (${qtd > 5000 ? "5.000 de " : ""}${qtd.toLocaleString("pt-BR")} ${deCodigos ? "códigos" : "solicitações"})`;
+  // a lista de duplicados vem inteira; as outras param em 5.000
+  const inteira = x.tipo === "duplicados" || /dup=1/.test(x.texto || "");
+  const rotulo = `📥 Baixar planilha (${qtd > 5000 && !inteira ? "5.000 de " : ""}${qtd.toLocaleString("pt-BR")} ${deCodigos ? "códigos" : "solicitações"})`;
   const corpo = x.tipo === "sap" ? { tipo: "sap", texto: x.texto }
     : x.tipo === "divergencias" || x.tipo === "duplicados" ? { tipo: x.tipo, filtro: x.filtro }
     : x.tipo === "ncm_divergente" ? { tipo: x.tipo } : { tipo: "solicitacoes", pergunta: x.pergunta };
@@ -511,7 +513,7 @@ function cartaoSap(c) {
     c.aviso_fluxo ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Atenção: " }),
       document.createTextNode(c.aviso_fluxo)) : null,
     c.duplicados?.length ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Possível duplicado: " }),
-      document.createTextNode(`mesmo tipo, texto breve e texto longo de ${c.duplicados.slice(0, 5).join(", ")}${c.duplicados.length > 5 ? ` e mais ${c.duplicados.length - 5}` : ""}. Em caso de dúvida, fale com o time de Master Data.`)) : null,
+      document.createTextNode(`mesma descrição curta de ${c.duplicados.slice(0, 5).join(", ")}${c.duplicados.length > 5 ? ` e mais ${c.duplicados.length - 5}` : ""}. Em caso de dúvida, fale com o time de Master Data.`)) : null,
     // NCM (ou item da LC 116) e texto longo no corpo, sempre à vista
     c.ncm ? el("p", { className: "cs-fiscal" }, el("strong", { textContent: "NCM " }), document.createTextNode(c.ncm),
       c.ncm_descricao ? el("span", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
