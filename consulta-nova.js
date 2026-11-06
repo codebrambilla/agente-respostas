@@ -514,6 +514,8 @@ function cartaoSap(c) {
       document.createTextNode(c.aviso_fluxo)) : null,
     c.duplicados?.length ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Possível duplicado: " }),
       document.createTextNode(`mesma descrição curta de ${c.duplicados.slice(0, 5).join(", ")}${c.duplicados.length > 5 ? ` e mais ${c.duplicados.length - 5}` : ""}. Em caso de dúvida, fale com o time de Master Data.`)) : null,
+    c.especiais?.length ? el("p", { className: "cs-aviso", role: "note" }, el("strong", { textContent: "⚠️ Caractere especial: " }),
+      document.createTextNode(`a descrição tem ${c.especiais.join(" ")}, e o cadastro não pode ter.`)) : null,
     // NCM (ou item da LC 116) e texto longo no corpo, sempre à vista
     c.ncm ? el("p", { className: "cs-fiscal" }, el("strong", { textContent: "NCM " }), document.createTextNode(c.ncm),
       c.ncm_descricao ? el("span", { className: "cs-ncm", textContent: ` · ${c.ncm_descricao}` }) : null,
@@ -1285,6 +1287,7 @@ function linkDaBusca(f) {
   if (f.com_erro) p.set("erro", "1");
   if (f.fora_do_fluxo) p.set("fluxo", "1");
   if (f.duplicados) p.set("dup", "1");
+  if (f.especiais) p.set("especial", "1");
   if (f.pagina > 1) p.set("pagina", String(f.pagina));
   const q = p.toString();
   return `#catalogo${q ? `&${q}` : ""}`;
@@ -1302,6 +1305,7 @@ function abrirLinkDoCatalogo(hash) {
   cat.erro = ["erro", "usar", "errado"].some((k) => p.get(k) === "1");
   cat.fluxo = p.get("fluxo") === "1";
   cat.dup = p.get("dup") === "1";
+  cat.especial = p.get("especial") === "1";
   cat.pagina = Math.max(1, Math.min(200, parseInt(p.get("pagina"), 10) || 1));
   const tipo = (p.get("tipo") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
   // o tipo do link entra na lista mesmo antes das opcoes chegarem
@@ -1322,7 +1326,7 @@ function marcarNovidade(sim) {
 function filtrosDoCatalogo() {
   const gm = grupoDigitado($("cat-gm").value);
   return { texto: $("cat-texto").value.trim(), tipo: $("cat-tipo").value, gm, ncm: $("cat-ncm").value.trim(), bloqueio: cat.bloqueio,
-    com_erro: cat.erro, fora_do_fluxo: cat.fluxo, duplicados: cat.dup, pagina: cat.pagina };
+    com_erro: cat.erro, fora_do_fluxo: cat.fluxo, duplicados: cat.dup, especiais: cat.especial, pagina: cat.pagina };
 }
 
 // "024 · TUBOS E CONEXOES" (da lista), "024" ou "tubos e conexoes" (o nome) -> "024"
@@ -1384,9 +1388,9 @@ function buscarNoCatalogo(espera = 0) {
   clearTimeout(cat.espera);
   cat.espera = setTimeout(async () => {
     const f = filtrosDoCatalogo();
-    $("cat-limpar").hidden = !(f.tipo || f.gm || f.ncm || f.bloqueio || f.com_erro || f.fora_do_fluxo || f.duplicados);
+    $("cat-limpar").hidden = !(f.tipo || f.gm || f.ncm || f.bloqueio || f.com_erro || f.fora_do_fluxo || f.duplicados || f.especiais);
     $("cat-n-filtros").textContent = [f.tipo, f.gm, f.ncm].filter(Boolean).length || "";
-    const vazio = !f.texto && !f.tipo && !f.gm && !f.ncm && !f.com_erro && !f.fora_do_fluxo && !f.duplicados && !f.bloqueio;
+    const vazio = !f.texto && !f.tipo && !f.gm && !f.ncm && !f.com_erro && !f.fora_do_fluxo && !f.duplicados && !f.especiais && !f.bloqueio;
     if (cat.aberto) marcarEndereco(vazio ? "#catalogo" : linkDaBusca(f));
     if (vazio) {
       cat.pedido?.abort();
@@ -1641,6 +1645,7 @@ function desenharCatalogo(d) {
   // sem número: a conta percorreria o catálogo inteiro (só com texto, tipo, grupo ou NCM)
   $("cat-n-erro").textContent = typeof c?.com_erro === "number" ? numeroBr(c.com_erro) : "";
   $("cat-n-fluxo").textContent = typeof c?.fora_do_fluxo === "number" ? numeroBr(c.fora_do_fluxo) : "";
+  $("cat-n-especial").textContent = typeof c?.especiais === "number" ? numeroBr(c.especiais) : "";
   mostrarDuplicados(c);
   for (const b of $("cat-bloqueio").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.bloqueio === cat.bloqueio));
   for (const b of $("cat-marcas").querySelectorAll("button")) b.setAttribute("aria-pressed", String(cat[b.dataset.marca]));
@@ -1717,6 +1722,7 @@ function limparFiltrosDoCatalogo() {
   cat.erro = false;
   cat.fluxo = false;
   cat.dup = false;
+  cat.especial = false;
   cat.bloqueio = "";
   cat.pagina = 1;
   buscarNoCatalogo();
