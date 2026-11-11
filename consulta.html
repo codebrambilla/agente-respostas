@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261105m">
+<link rel="stylesheet" href="consulta-nova.css?v=20261111a">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -207,6 +207,49 @@
     <p class="rever"><button type="button" class="link" id="rever-tour">Ver de novo o passeio pela página</button></p></div>
 </dialog>
 
+<dialog class="painel opiniao" id="painel-opiniao" aria-labelledby="op-titulo">
+  <div class="op-topo">
+    <img src="img/bella.png" alt="" width="44" height="48">
+    <div class="op-titulos"><h2 id="op-titulo">Sua opinião sobre a Bella</h2><p>2 perguntas · 10 segundos · só esta vez</p></div>
+    <button type="button" class="painel-fechar" id="op-fechar" aria-label="Fechar">×</button>
+  </div>
+  <form class="op-corpo" id="op-form" novalidate>
+    <p class="op-oi" id="op-oi"></p>
+    <fieldset class="op-grupo">
+      <legend>A Bella ajuda no seu dia a dia?</legend>
+      <div class="op-ajuda">
+        <label><input type="radio" name="ajuda" value="muito"><span><b aria-hidden="true">😄</b>Muito</span></label>
+        <label><input type="radio" name="ajuda" value="um_pouco"><span><b aria-hidden="true">🙂</b>Um pouco</span></label>
+        <label><input type="radio" name="ajuda" value="ainda_nao"><span><b aria-hidden="true">😕</b>Ainda não</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="op-grupo">
+      <legend>Que nota você dá para a Bella?</legend>
+      <div class="op-linha-notas">
+        <div class="op-notas" id="op-notas">
+        <input type="radio" name="nota" id="op-nota-1" value="1"><label for="op-nota-1" data-n="1" aria-label="1 de 5">★</label>
+        <input type="radio" name="nota" id="op-nota-2" value="2"><label for="op-nota-2" data-n="2" aria-label="2 de 5">★</label>
+        <input type="radio" name="nota" id="op-nota-3" value="3"><label for="op-nota-3" data-n="3" aria-label="3 de 5">★</label>
+        <input type="radio" name="nota" id="op-nota-4" value="4"><label for="op-nota-4" data-n="4" aria-label="4 de 5">★</label>
+        <input type="radio" name="nota" id="op-nota-5" value="5"><label for="op-nota-5" data-n="5" aria-label="5 de 5">★</label>
+        </div>
+        <span class="op-nota-nome" id="op-nota-nome" aria-live="polite">Toque numa estrela</span>
+      </div>
+    </fieldset>
+    <label class="op-campo" for="op-sugestao">O que faria ela melhor? <small>opcional</small></label>
+    <textarea id="op-sugestao" rows="2" maxlength="1000" placeholder="Ex.: mostrar o histórico do material"></textarea>
+    <p class="op-erro" id="op-erro" role="alert" hidden></p>
+    <button type="submit" class="op-enviar" id="op-enviar">Enviar resposta</button>
+  </form>
+  <div class="op-obrigado" id="op-obrigado" hidden>
+    <div class="op-coracao" aria-hidden="true">💙</div>
+    <h3 id="op-obrigado-titulo">Obrigada!</h3>
+    <p class="op-resumo" id="op-resumo"></p>
+    <p class="op-chegou">Sua resposta chegou ao Luiz.</p>
+    <button type="button" class="op-enviar" id="op-ok">Fechar</button>
+  </div>
+</dialog>
+
 <dialog class="tour" id="tour" aria-labelledby="tour-titulo" aria-describedby="tour-texto">
   <div class="tour-foco" id="tour-foco"></div>
   <div class="tour-balao" id="tour-balao">
@@ -220,6 +263,6 @@
   </div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261106b"></script>
+<script src="consulta-nova.js?v=20261111a"></script>
 </body>
 </html>

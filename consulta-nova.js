@@ -457,9 +457,7 @@ function painelMotivo(m) {
 function botaoPlanilha(x) {
   const qtd = Number(x.total) || 0;
   const deCodigos = ["sap", "duplicados", "ncm_divergente"].includes(x.tipo);
-  // a lista de duplicados vem inteira; as outras param em 5.000
-  const inteira = x.tipo === "duplicados" || /dup=1/.test(x.texto || "");
-  const rotulo = `📥 Baixar planilha (${qtd > 5000 && !inteira ? "5.000 de " : ""}${qtd.toLocaleString("pt-BR")} ${deCodigos ? "códigos" : "solicitações"})`;
+  const rotulo = `📥 Baixar planilha (${qtd.toLocaleString("pt-BR")} ${deCodigos ? "códigos" : "solicitações"})`;
   const corpo = x.tipo === "sap" ? { tipo: "sap", texto: x.texto }
     : x.tipo === "divergencias" || x.tipo === "duplicados" ? { tipo: x.tipo, filtro: x.filtro }
     : x.tipo === "ncm_divergente" ? { tipo: x.tipo } : { tipo: "solicitacoes", pergunta: x.pergunta };
@@ -468,8 +466,25 @@ function botaoPlanilha(x) {
     b.disabled = true;
     b.textContent = "Montando a planilha…";
     try {
-      const r = await pedir({ exportar: 1 }, corpo);
-      const arquivo = await r.blob();
+      // a lista vem em partes de 5.000 (a resposta diz quantas): junta todas num arquivo só. O banco às vezes
+      // demora alguns segundos: a parte que falhar tenta de novo até 2 vezes, sem perder as que já vieram
+      const parte = async (i) => {
+        for (const espera of [2000, 6000]) {
+          try { return await pedir({ exportar: 1 }, { ...corpo, parte: i }); } catch (e) {
+            if (e instanceof ErroConsulta && /código de acesso|muitas/.test(e.message)) throw e;
+            await new Promise((ok) => setTimeout(ok, espera));
+          }
+        }
+        return await pedir({ exportar: 1 }, { ...corpo, parte: i });
+      };
+      const r = await parte(0);
+      const partes = [await r.blob()];
+      const n = Math.max(1, Number(r.headers.get("X-Partes")) || 1);
+      for (let i = 1; i < n; i++) {
+        b.textContent = `Montando a planilha… parte ${i + 1} de ${n}`;
+        partes.push(await (await parte(i)).blob());
+      }
+      const arquivo = new Blob(partes, { type: "text/csv;charset=utf-8" });
       const hoje = new Date().toLocaleDateString("sv-SE");
       const a = el("a", { href: URL.createObjectURL(arquivo), download: `bella-${deCodigos || x.tipo === "divergencias" ? x.tipo.replace("_", "-") : "solicitacoes"}-${hoje}.csv` });
       document.body.append(a);
@@ -2805,7 +2820,9 @@ async function quemSou() {
   guardar(localStorage, "consulta-nome", nome);
   guardar(localStorage, "consulta-time", codigoDoTime ? "1" : "");
   // o historico e pessoal: so com chave pessoal ou conta Microsoft; depois, o passeio da primeira visita
-  if (d.pessoal || d.microsoft) carregarHistorico().finally(talvezPasseio); else talvezPasseio();
+  opiniaoPendente = d.opiniao === true;
+  const depois = () => { talvezPasseio(); talvezOpiniao(); };
+  if (d.pessoal || d.microsoft) carregarHistorico().finally(depois); else depois();
 }
 
 $("form-codigo").addEventListener("submit", async (ev) => {
@@ -3101,6 +3118,7 @@ function fecharPasseio() {
   if ($("tour").open) $("tour").close();
   if (voltar && codigo) abrirPainel();
   else if (!cat.aberto) $("mensagem").focus();
+  talvezOpiniao();
 }
 
 $("tour-proximo").addEventListener("click", () => {
@@ -3113,6 +3131,75 @@ $("tour-pular").addEventListener("click", fecharPasseio);
 $("tour").addEventListener("close", () => { if (passeio) fecharPasseio(); });   // Esc
 window.addEventListener("resize", posicionarPasso);
 $("rever-tour").addEventListener("click", () => { $("painel-atalhos").close(); abrirPasseio(); });
+
+// ------------------------------------------------------------ pesquisa de opiniao
+// Uma vez por pessoa, depois de 3 dias de uso (o servidor diz no ?quem). Abrir ja conta: fechar sem responder
+// nao traz de volta, nem aqui nem no Teams.
+const NOTAS = ["", "Ruim", "Regular", "Boa", "Muito boa", "Excelente"];
+const AJUDAS = { muito: "Muito", um_pouco: "Um pouco", ainda_nao: "Ainda não" };
+let opiniaoPendente = false;
+
+function talvezOpiniao() {
+  if (!opiniaoPendente) return;
+  setTimeout(() => {
+    if (!opiniaoPendente || !codigo || ocupado || cat.aberto || passeio || document.querySelector("dialog[open]")) return;
+    opiniaoPendente = false;
+    abrirOpiniao();
+  }, 1500);
+}
+
+function pintarNotas(n) {
+  $("op-notas").querySelectorAll("label").forEach((l) => l.classList.toggle("on", Number(l.dataset.n) <= n));
+}
+const notaEscolhida = () => Number(($("op-form").querySelector('input[name="nota"]:checked') || {}).value || 0);
+
+function abrirOpiniao() {
+  $("op-form").reset();
+  pintarNotas(0);
+  $("op-nota-nome").textContent = "Toque numa estrela";
+  $("op-erro").hidden = true;
+  $("op-form").hidden = false;
+  $("op-obrigado").hidden = true;
+  $("op-oi").textContent = `${nome ? `Oi, ${nome}! ` : "Oi! "}Você já usou a Bella algumas vezes, e a sua opinião ajuda a ` +
+    "deixá-la melhor para todo o time.";
+  $("painel-opiniao").showModal();
+  chamar({ opiniao: 1 }, { acao: "vista" }).catch(() => {});
+}
+
+$("op-notas").addEventListener("mouseover", (ev) => { const l = ev.target.closest("label"); if (l) pintarNotas(Number(l.dataset.n)); });
+$("op-notas").addEventListener("mouseleave", () => pintarNotas(notaEscolhida()));
+$("op-form").addEventListener("change", () => {
+  const n = notaEscolhida();
+  pintarNotas(n);
+  if (n) $("op-nota-nome").textContent = `${n} de 5 · ${NOTAS[n]}`;
+  $("op-erro").hidden = true;
+});
+$("op-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const ajuda = ($("op-form").querySelector('input[name="ajuda"]:checked') || {}).value;
+  const nota = notaEscolhida();
+  const erro = (t) => { $("op-erro").textContent = t; $("op-erro").hidden = false; };
+  if (!ajuda || !nota) { erro("Escolha uma opção e uma nota para enviar."); return; }
+  const botao = $("op-enviar");
+  botao.disabled = true;
+  botao.textContent = "Enviando…";
+  try {
+    await chamar({ opiniao: 1 }, { acao: "responder", ajuda, nota, sugestao: $("op-sugestao").value.trim() });
+    $("op-obrigado-titulo").textContent = nome ? `Obrigada, ${nome}!` : "Obrigada!";
+    $("op-resumo").textContent = `Ajuda: ${AJUDAS[ajuda]} · Nota: ${"★".repeat(nota)}${"☆".repeat(5 - nota)}`;
+    $("op-form").hidden = true;
+    $("op-obrigado").hidden = false;
+    $("op-ok").focus();
+  } catch (e) {
+    erro(`Não deu para enviar agora (${e.message}). Tente de novo.`);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = "Enviar resposta";
+  }
+});
+$("op-fechar").addEventListener("click", () => $("painel-opiniao").close());
+$("op-ok").addEventListener("click", () => $("painel-opiniao").close());
+$("painel-opiniao").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
 
 // saindo da pagina: o que ainda esperava vai para o historico
 window.addEventListener("pagehide", () => { if (pendentes.size) mandarPendentes(); });
