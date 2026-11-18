@@ -2821,7 +2821,8 @@ async function quemSou() {
   guardar(localStorage, "consulta-time", codigoDoTime ? "1" : "");
   // o historico e pessoal: so com chave pessoal ou conta Microsoft; depois, o passeio da primeira visita
   opiniaoPendente = d.opiniao === true;
-  const depois = () => { talvezPasseio(); talvezOpiniao(); };
+  novidadePendente = d.novidade && Array.isArray(d.novidade.itens) ? d.novidade : null;
+  const depois = () => { talvezPasseio(); talvezNovidade(); talvezOpiniao(); };
   if (d.pessoal || d.microsoft) carregarHistorico().finally(depois); else depois();
 }
 
@@ -3131,6 +3132,50 @@ $("tour-pular").addEventListener("click", fecharPasseio);
 $("tour").addEventListener("close", () => { if (passeio) fecharPasseio(); });   // Esc
 window.addEventListener("resize", posicionarPasso);
 $("rever-tour").addEventListener("click", () => { $("painel-atalhos").close(); abrirPasseio(); });
+
+// ------------------------------------------------------------ novidades da Bella
+// A cada atualizacao, "Atualizacao! Agora a Bella faz X, por tal caminho", uma vez por pessoa (o servidor diz no
+// ?quem). Abrir ja conta: nao volta, nem aqui nem no Teams. Fica para depois do passeio da primeira visita.
+let novidadePendente = null;   // {id, titulo, itens}
+
+function talvezNovidade() {
+  if (!novidadePendente) return;
+  setTimeout(() => {
+    if (!novidadePendente || !codigo || ocupado || cat.aberto || passeio || document.querySelector("dialog[open]")) return;
+    const n = novidadePendente;
+    novidadePendente = null;
+    abrirNovidade(n);
+  }, 1200);
+}
+
+// Cada item: icone, o que mudou, como funciona e um exemplo que vai para o chat com um clique.
+function abrirNovidade(n) {
+  const qtd = n.itens.length;
+  $("nv-sub").textContent = `${n.titulo} · ${qtd} ${qtd === 1 ? "novidade" : "novidades"}`;
+  $("nv-itens").replaceChildren(...n.itens.map((i) => el("li", { className: "nv-item" },
+    el("div", { className: "nv-cab" },
+      el("span", { className: "nv-icone", ariaHidden: "true", textContent: i.icone || "✨" }),
+      el("h3", { textContent: i.titulo })),
+    el("p", { textContent: i.texto }),
+    i.exemplo ? botaoTestar(i.exemplo) : null)));
+  $("painel-novidade").showModal();
+  $("nv-itens").scrollTop = 0;
+  chamar({ novidade: 1 }, { acao: "vista", id: n.id }).catch(() => {});
+}
+
+function botaoTestar(exemplo) {
+  const b = el("button", { type: "button", className: "nv-testar", title: "Perguntar isto à Bella agora" },
+    el("b", { textContent: "Experimentar →" }), document.createTextNode(`“${exemplo}”`));
+  b.addEventListener("click", () => {
+    $("painel-novidade").close();
+    if (!ocupado) enviar(exemplo);
+  });
+  return b;
+}
+
+$("nv-fechar").addEventListener("click", () => $("painel-novidade").close());
+$("nv-ok").addEventListener("click", () => $("painel-novidade").close());
+$("painel-novidade").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
 
 // ------------------------------------------------------------ pesquisa de opiniao
 // Uma vez por pessoa, depois de 3 dias de uso (o servidor diz no ?quem). Abrir ja conta: fechar sem responder

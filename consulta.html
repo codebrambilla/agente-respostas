@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261111a">
+<link rel="stylesheet" href="consulta-nova.css?v=20261117a">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -250,6 +250,16 @@
   </div>
 </dialog>
 
+<dialog class="painel novidades" id="painel-novidade" aria-labelledby="nv-titulo" autofocus>
+  <div class="nv-topo">
+    <img src="img/bella.png" alt="" width="52" height="56">
+    <div class="nv-titulos"><span class="nv-selo">🆕 Atualização</span><h2 id="nv-titulo">Novidades da Bella</h2><p id="nv-sub"></p></div>
+    <button type="button" class="painel-fechar" id="nv-fechar" aria-label="Fechar">×</button>
+  </div>
+  <ul class="nv-itens" id="nv-itens"></ul>
+  <div class="nv-rodape"><button type="button" class="op-enviar" id="nv-ok">Entendi</button></div>
+</dialog>
+
 <dialog class="tour" id="tour" aria-labelledby="tour-titulo" aria-describedby="tour-texto">
   <div class="tour-foco" id="tour-foco"></div>
   <div class="tour-balao" id="tour-balao">
@@ -263,6 +273,6 @@
   </div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261111a"></script>
+<script src="consulta-nova.js?v=20261117a"></script>
 </body>
 </html>
