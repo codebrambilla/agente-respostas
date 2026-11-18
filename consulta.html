@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Bella · Master Data</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="consulta-nova.css?v=20261117a">
+<link rel="stylesheet" href="consulta-nova.css?v=20261118a">
 <script src="tema.js?v=20261019b"></script>
 </head>
 <body>
@@ -65,7 +65,7 @@
         </div>
         <p class="dica-chave" id="dica-chave">Pode colar do jeito que recebeu, com ou sem traços. Fica guardada só neste navegador.</p>
         <button type="submit" class="botao-entrar">Entrar →</button>
-        <p class="como-entrar">Ainda não tem chave? Peça ao <span class="nome-luiz">Luiz Henrique Brambilla Teixeira</span>. Ela é pessoal: não passe para ninguém.</p>
+        <p class="como-entrar">Ainda não tem chave? <button type="button" class="pedir-acesso" id="abrir-pedido">🙋 Pedir acesso</button> Quem libera é o <span class="nome-luiz">Luiz Henrique Brambilla Teixeira</span>. A chave é pessoal: não passe para ninguém.</p>
       </form>
 
       <div class="entrada-ms" id="entrada-ms" role="tabpanel" aria-labelledby="aba-meetup" hidden>
@@ -260,6 +260,29 @@
   <div class="nv-rodape"><button type="button" class="op-enviar" id="nv-ok">Entendi</button></div>
 </dialog>
 
+<dialog class="painel pedido-acesso" id="painel-pedido" aria-labelledby="pa-titulo">
+  <div class="nv-topo">
+    <img src="img/bella.png" alt="" width="52" height="56">
+    <div class="nv-titulos"><h2 id="pa-titulo">Pedir acesso à Bella</h2><p>O Luiz recebe o seu pedido na hora, no Teams.</p></div>
+    <button type="button" class="painel-fechar" id="pa-fechar" aria-label="Fechar">×</button>
+  </div>
+  <form class="pa-corpo" id="pa-form" novalidate>
+    <label class="op-campo" for="pa-nome">Nome completo</label>
+    <input id="pa-nome" autocomplete="name" maxlength="80" required placeholder="Como está no crachá">
+    <label class="op-campo" for="pa-email">E-mail de trabalho</label>
+    <input id="pa-email" type="email" autocomplete="email" maxlength="120" required placeholder="nome@empresa.com" spellcheck="false">
+    <input id="pa-site" name="site" class="pa-isca" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <p class="op-erro" id="pa-erro" role="alert" hidden></p>
+    <button type="submit" class="op-enviar" id="pa-enviar">Enviar pedido</button>
+  </form>
+  <div class="op-obrigado" id="pa-ok" hidden>
+    <div class="op-coracao" aria-hidden="true">💙</div>
+    <h3 id="pa-ok-titulo">Pedido enviado!</h3>
+    <p class="op-resumo" id="pa-ok-texto"></p>
+    <button type="button" class="op-enviar" id="pa-ok-fechar">Fechar</button>
+  </div>
+</dialog>
+
 <dialog class="tour" id="tour" aria-labelledby="tour-titulo" aria-describedby="tour-texto">
   <div class="tour-foco" id="tour-foco"></div>
   <div class="tour-balao" id="tour-balao">
@@ -273,6 +296,6 @@
   </div>
 </dialog>
 
-<script src="consulta-nova.js?v=20261117a"></script>
+<script src="consulta-nova.js?v=20261118a"></script>
 </body>
 </html>

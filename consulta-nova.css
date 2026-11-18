@@ -1054,3 +1054,14 @@ h1, h2, h3 { text-wrap: balance; }
 .nv-rodape { padding: 0 18px 18px; }
 .nv-rodape .op-enviar { margin-top: 0; }
 @media (max-width: 560px) { .nv-itens { grid-template-columns: 1fr; padding: 14px; } .nv-topo { padding: 16px 12px 14px 16px; } }
+
+/* ============================================================ pedir acesso (tela de entrada) */
+.pedir-acesso { display: inline-flex; align-items: center; gap: 6px; margin: 2px 4px; padding: 5px 14px; border: 1.5px solid var(--ciano-2);
+  border-radius: 999px; background: transparent; font: inherit; font-weight: 700; color: var(--titulo); cursor: pointer; }
+.pedir-acesso:hover { background: var(--ciano-cl); }
+.pedido-acesso { width: min(480px, calc(100vw - 32px)); }
+.pa-corpo { padding: 4px 22px 22px; }
+.pa-corpo input { display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; color: var(--tinta); background: var(--fundo);
+  border: 1px solid var(--campo-borda, var(--linha)); border-radius: 12px; padding: 11px 12px; }
+.pa-corpo input:focus { border-color: var(--ciano-2); outline: 2px solid var(--ciano-cl); outline-offset: 0; }
+.pa-corpo .pa-isca { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }

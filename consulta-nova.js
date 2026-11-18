@@ -3133,6 +3133,59 @@ $("tour").addEventListener("close", () => { if (passeio) fecharPasseio(); });   
 window.addEventListener("resize", posicionarPasso);
 $("rever-tour").addEventListener("click", () => { $("painel-atalhos").close(); abrirPasseio(); });
 
+// ------------------------------------------------------------ pedir acesso (tela de entrada)
+// Nome e e-mail vao para a lista de usuarios, bloqueados; o Luiz recebe no Teams e libera com um clique.
+// A resposta e a mesma para quem ja esta na lista (a pagina nao diz quem e usuario).
+function abrirPedido() {
+  $("pa-form").reset();
+  $("pa-form").hidden = false;
+  $("pa-ok").hidden = true;
+  $("pa-erro").hidden = true;
+  $("painel-pedido").showModal();
+  $("pa-nome").focus();
+}
+
+function erroDoPedido(msg) {
+  $("pa-erro").textContent = msg;
+  $("pa-erro").hidden = false;
+}
+
+$("abrir-pedido").addEventListener("click", abrirPedido);
+$("pa-fechar").addEventListener("click", () => $("painel-pedido").close());
+$("pa-ok-fechar").addEventListener("click", () => $("painel-pedido").close());
+$("painel-pedido").addEventListener("click", (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
+$("pa-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const nome = $("pa-nome").value.replace(/\s+/g, " ").trim();
+  const email = $("pa-email").value.replace(/\s+/g, "").toLowerCase();
+  if (nome.length < 3) return erroDoPedido("Escreva o seu nome completo.");
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(email)) return erroDoPedido("Confira o e-mail.");
+  $("pa-erro").hidden = true;
+  const botao = $("pa-enviar");
+  botao.disabled = true;
+  botao.textContent = "Enviando…";
+  try {
+    const r = await fetch(`${API}?pedir_acesso=1`, {
+      method: "POST", headers: { "content-type": "application/json" }, cache: "no-store", referrerPolicy: "no-referrer",
+      body: JSON.stringify({ nome, email, site: $("pa-site").value }),
+    });
+    let d = {};
+    try { d = await r.json(); } catch (e) { /* sem corpo */ }
+    if (!r.ok) return erroDoPedido(typeof d.erro === "string" ? `Não deu certo: ${d.erro}.` : "Não deu certo agora. Tente de novo em alguns minutos.");
+    $("pa-ok-titulo").textContent = d.microsoft ? "Você entra com a conta Microsoft" : "Pedido enviado!";
+    $("pa-ok-texto").textContent = d.microsoft
+      ? "O seu e-mail é de conta Microsoft: feche esta janela e use “Entrar com a conta Microsoft”. O pedido vai sozinho para o Luiz."
+      : `${nome.split(" ")[0]}, o Luiz já recebeu o seu pedido no Teams. Assim que ele liberar, ele te manda a sua chave de acesso.`;
+    $("pa-form").hidden = true;
+    $("pa-ok").hidden = false;
+  } catch (e) {
+    erroDoPedido("Sem conexão agora. Tente de novo em alguns minutos.");
+  } finally {
+    botao.disabled = false;
+    botao.textContent = "Enviar pedido";
+  }
+});
+
 // ------------------------------------------------------------ novidades da Bella
 // A cada atualizacao, "Atualizacao! Agora a Bella faz X, por tal caminho", uma vez por pessoa (o servidor diz no
 // ?quem). Abrir ja conta: nao volta, nem aqui nem no Teams. Fica para depois do passeio da primeira visita.
